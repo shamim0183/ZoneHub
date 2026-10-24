@@ -51,6 +51,7 @@ namespace SkyCommerceMediaServer
         private static int Port = 8080;
         private static object MessagesLock = new object();
         private static object MetadataLock = new object();
+        private static object ConfigLock = new object();
 
         public static string GetCurrentLocalIp()
         {
@@ -97,6 +98,61 @@ namespace SkyCommerceMediaServer
             }
         }
 
+        private static string GetConfigFilePath()
+        {
+            return Path.Combine(RootDirectory, "hub_config.json");
+        }
+
+        public static string GetHubName()
+        {
+            lock (ConfigLock)
+            {
+                try
+                {
+                    string configPath = GetConfigFilePath();
+                    if (File.Exists(configPath))
+                    {
+                        string json = File.ReadAllText(configPath, Encoding.UTF8);
+                        JavaScriptSerializer js = new JavaScriptSerializer();
+                        var dict = js.Deserialize<Dictionary<string, object>>(json);
+                        if (dict != null && dict.ContainsKey("hubName") && dict["hubName"] != null)
+                        {
+                            string name = dict["hubName"].ToString().Trim();
+                            if (!string.IsNullOrEmpty(name)) return name;
+                        }
+                    }
+                }
+                catch {}
+
+                string pc = GetHostName();
+                if (pc.IndexOf("SHAMIM", StringComparison.OrdinalIgnoreCase) >= 0 || 
+                    Environment.UserName.IndexOf("obak", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    Environment.UserName.IndexOf("shamim", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return "SkyCommerce Media Hub";
+                }
+                return pc + " Media Hub";
+            }
+        }
+
+        public static void SetHubName(string newName)
+        {
+            lock (ConfigLock)
+            {
+                try
+                {
+                    string configPath = GetConfigFilePath();
+                    JavaScriptSerializer js = new JavaScriptSerializer();
+                    var dict = new Dictionary<string, object>();
+                    dict["hubName"] = newName.Trim();
+                    dict["machineName"] = GetHostName();
+                    dict["updatedAt"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    File.WriteAllText(configPath, js.Serialize(dict), Encoding.UTF8);
+                }
+                catch {}
+            }
+        }
+
         public static string GetCurrentOnlineTunnelUrl()
         {
             try
@@ -105,7 +161,7 @@ namespace SkyCommerceMediaServer
                 if (File.Exists(txtPath))
                 {
                     string url = File.ReadAllText(txtPath, Encoding.UTF8).Trim();
-                    if (url.StartsWith("https://") && url.Contains("trycloudflare.com")) return url;
+                    if (url.StartsWith("https://") || url.StartsWith("http://")) return url;
                 }
 
                 string logPath = Path.Combine(RootDirectory, "cloudflared.log");
@@ -162,11 +218,12 @@ namespace SkyCommerceMediaServer
 
             string currentIp = GetCurrentLocalIp();
             string pcName = GetHostName();
+            string hubName = GetHubName();
 
-            try { Console.Title = "SkyCommerce Media Hub & Team Chat - Port " + Port; } catch {}
+            try { Console.Title = hubName + " & Team Chat - Port " + Port; } catch {}
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("==================================================================");
-            Console.WriteLine("  🚀 SkyCommerce Media Hub & Advanced Team Chat is ONLINE");
+            Console.WriteLine("  🚀 " + hubName + " & Advanced Team Chat is ONLINE");
             Console.WriteLine("==================================================================");
             Console.ResetColor();
             Console.WriteLine("📂 Shared Folder: " + RootDirectory);
@@ -242,6 +299,22 @@ namespace SkyCommerceMediaServer
                 {
                     ServeMyInfo(stream, req);
                     return;
+                }
+
+                // Handle GET / POST config (Dynamic Hub Name)
+                if (decodedPath.Equals("/api/config", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (req.Method == "GET")
+                    {
+                        string json = "{\"hubName\":\"" + JsonEscape(GetHubName()) + "\",\"machineName\":\"" + JsonEscape(GetHostName()) + "\"}";
+                        SendJsonResponse(stream, 200, json);
+                        return;
+                    }
+                    if (req.Method == "POST")
+                    {
+                        HandleSaveConfig(stream, req);
+                        return;
+                    }
                 }
 
                 // Handle GET file list API
@@ -1243,18 +1316,45 @@ namespace SkyCommerceMediaServer
             return text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n");
         }
 
+        private static void HandleSaveConfig(NetworkStream stream, RequestContext req)
+        {
+            string body = ReadBodyString(stream, req);
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            Dictionary<string, string> input = null;
+            try
+            {
+                input = js.Deserialize<Dictionary<string, string>>(body);
+            }
+            catch {}
+
+            if (input != null && input.ContainsKey("hubName") && !string.IsNullOrWhiteSpace(input["hubName"]))
+            {
+                string newName = input["hubName"].Trim();
+                SetHubName(newName);
+                Console.WriteLine("[CONFIG UPDATED] Hub Name changed to: " + newName);
+                SendJsonResponse(stream, 200, "{\"success\":true,\"hubName\":\"" + JsonEscape(newName) + "\"}");
+            }
+            else
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Valid hubName is required\"}");
+            }
+        }
+
         private static void ServeDashboard(NetworkStream stream, bool headOnly)
         {
             string htmlPath = Path.Combine(RootDirectory, "index.html");
             string html = "";
             string currentIp = GetCurrentLocalIp();
             string machineName = GetHostName();
+            string hubName = GetHubName();
 
             if (File.Exists(htmlPath))
             {
                 html = File.ReadAllText(htmlPath, Encoding.UTF8);
                 string onlineUrl = GetCurrentOnlineTunnelUrl();
-                html = html.Replace("{{LOCAL_IP}}", currentIp).Replace("{{HOSTNAME}}", machineName);
+                html = html.Replace("{{HUB_NAME}}", hubName)
+                           .Replace("{{LOCAL_IP}}", currentIp)
+                           .Replace("{{HOSTNAME}}", machineName);
                 if (!string.IsNullOrEmpty(onlineUrl))
                 {
                     html = html.Replace("{{ONLINE_URL}}", onlineUrl);
@@ -1263,7 +1363,7 @@ namespace SkyCommerceMediaServer
             }
             else
             {
-                html = "<!DOCTYPE html><html><body><h1>SkyCommerce Media Hub</h1><p>index.html not found</p></body></html>";
+                html = "<!DOCTYPE html><html><body><h1>" + hubName + "</h1><p>index.html not found</p></body></html>";
             }
 
             byte[] bytes = Encoding.UTF8.GetBytes(html);
