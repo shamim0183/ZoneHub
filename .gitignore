@@ -1,0 +1,38 @@
+# SkyCommerce Media Hub .gitignore
+
+# Compiled binaries & debug symbols
+*.exe
+*.dll
+*.pdb
+*.obj
+*.log
+
+# Runtime databases & dynamic user data
+messages.json
+file_metadata.json
+
+# User shared media (Heavy videos & large uploads)
+# Keep folder structure via .gitkeep
+Videos/*
+!Videos/.gitkeep
+
+Pictures/*
+!Pictures/.gitkeep
+
+Documents/*
+!Documents/.gitkeep
+
+Chat_Media/*
+!Chat_Media/.gitkeep
+
+# IDE & OS temp files
+.vs/
+.vscode/
+.gemini/
+.system_generated/
+*.tmp
+*.temp
+Thumbs.db
+desktop.ini
+[Dd]esktop.ini
+$RECYCLE.BIN/
