@@ -8,6 +8,7 @@ echo ===================================================================
 
 taskkill /f /im server.exe >nul 2>&1
 taskkill /f /im cloudflared.exe >nul 2>&1
+taskkill /f /im ZoneHubBubble.exe >nul 2>&1
 
 echo.
 echo ===================================================================

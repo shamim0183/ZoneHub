@@ -23,3 +23,10 @@ If FSO.FileExists(strCF) Then
     strLog = strDir & "\cloudflared.log"
     WshShell.Run """" & strCF & """ tunnel --url http://localhost:8080 --logfile """ & strLog & """", 0, False
 End If
+
+' 4. Start ZoneHub Floating Desktop Bubble on Windows screen
+strBubble = strDir & "\ZoneHubBubble.exe"
+If FSO.FileExists(strBubble) Then
+    WshShell.Run """" & strBubble & """", 1, False
+End If
+
