@@ -543,8 +543,10 @@ function switchView(view) {
     }
 }
 
-// Mini Dock & Corner Floating Mode
-function toggleMiniDock() {
+// Mini Dock & Corner Floating Mode (Always on Top)
+let activePipWindow = null;
+
+async function toggleMiniDock() {
     if (window.location.search.includes('view=mini') || document.body.classList.contains('mini-dock-mode')) {
         expandToFullView();
         return;
@@ -552,9 +554,51 @@ function toggleMiniDock() {
 
     const width = 390;
     const height = 660;
+
+    // 1. Modern Chromium True Always-on-Top (Document Picture-in-Picture API)
+    if ('documentPictureInPicture' in window) {
+        try {
+            if (activePipWindow && !activePipWindow.closed) {
+                activePipWindow.close();
+                activePipWindow = null;
+                showToast('📌 Closed Always-on-Top Mini Dock');
+                return;
+            }
+
+            const pipWindow = await window.documentPictureInPicture.requestWindow({
+                width: width,
+                height: height
+            });
+            activePipWindow = pipWindow;
+
+            pipWindow.document.title = 'ZoneHub • Always on Top';
+            pipWindow.document.body.style.margin = '0';
+            pipWindow.document.body.style.padding = '0';
+            pipWindow.document.body.style.overflow = 'hidden';
+            pipWindow.document.body.style.backgroundColor = '#0b0f19';
+
+            const iframe = pipWindow.document.createElement('iframe');
+            iframe.src = window.location.origin + '/?view=mini';
+            iframe.style.width = '100vw';
+            iframe.style.height = '100vh';
+            iframe.style.border = 'none';
+            iframe.allow = 'microphone; clipboard-read; clipboard-write; autoplay';
+            pipWindow.document.body.appendChild(iframe);
+
+            pipWindow.addEventListener('pagehide', () => {
+                activePipWindow = null;
+            });
+
+            showToast('📌 ZoneHub is now ALWAYS ON TOP of all folders & apps!');
+            return;
+        } catch (e) {
+            console.warn('Document Picture-in-Picture fallback:', e);
+        }
+    }
+
+    // 2. Standard popup window fallback
     const left = Math.max(0, (window.screen.availWidth || 1366) - width - 15);
     const top = 50;
-
     const miniUrl = window.location.origin + '/?view=mini';
     try {
         const miniWin = window.open(
@@ -564,20 +608,33 @@ function toggleMiniDock() {
         );
         if (miniWin && !miniWin.closed) {
             miniWin.focus();
-            showToast('📌 ZoneHub opened in Screen Corner Dock!');
+            showToast('📌 ZoneHub opened in Screen Corner Window!');
             return;
         }
     } catch (e) {
         console.warn('Popup blocked, falling back to in-page mini dock:', e);
     }
 
-    // In-page fallback if browser blocks popups:
+    // 3. In-page fallback if browser blocks popups:
     document.body.classList.add('mini-dock-mode');
     switchView('chat');
     showToast('📌 Switched to Compact Corner Mode!');
 }
 
 function expandToFullView() {
+    try {
+        if (window.parent && window.parent !== window) {
+            if (window.parent.close) window.parent.close();
+            return;
+        }
+    } catch (e) {}
+
+    if (activePipWindow && !activePipWindow.closed) {
+        activePipWindow.close();
+        activePipWindow = null;
+        return;
+    }
+
     if (window.opener && !window.opener.closed) {
         window.close();
         window.opener.focus();
