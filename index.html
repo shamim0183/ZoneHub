@@ -136,7 +136,7 @@
                         <span style="color:var(--text-muted);font-weight:600;white-space:nowrap;">📂 Save to Folder:</span>
                         <div class="upload-dest-controls">
                             <select id="uploadFolderSelect" class="upload-folder-select" onchange="onUploadFolderChanged(this.value)">
-                                <option value="auto">⚡ Auto-Sort by Type (স্বয়ংক্রিয়)</option>
+                                <option value="auto">⚡ Auto-Sort (স্বয়ংক্রিয়)</option>
                                 <option value="Videos">🎥 Videos (ভিডিও)</option>
                                 <option value="Pictures">🖼️ Pictures (ছবি)</option>
                                 <option value="Chat_Media">💬 Chat Media (চ্যাট মিডিয়া)</option>
@@ -191,11 +191,9 @@
                 <div class="folder-nav-bar">
                     <div class="view-mode-group">
                         <button id="viewModeFoldersBtn" class="view-mode-btn active" onclick="switchViewMode('folders')">
-                            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-                            📁 Folders View (ফোল্ডার অনুযায়ী)
+                            📁 Folders (ফোল্ডার)
                         </button>
                         <button id="viewModeAllBtn" class="view-mode-btn" onclick="switchViewMode('all')">
-                            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
                             📄 All Files (<span id="allFilesCountBadge">0</span>)
                         </button>
                     </div>

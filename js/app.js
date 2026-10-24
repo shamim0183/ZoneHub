@@ -70,6 +70,14 @@ async function fetchHubConfig() {
                 chipMachine.dataset.name = hubConfigData.machineHubName;
                 chipMachineText.innerText = '💻 ' + hubConfigData.machineHubName;
             }
+
+            // Minimalist Cloudflare URL display (clean host without https:// clutter)
+            const onlineLink = document.getElementById('onlineTunnelLink');
+            if (onlineLink && onlineLink.href && onlineLink.href.includes('trycloudflare.com')) {
+                const cleanHost = onlineLink.href.replace(/^https?:\/\//, '').replace(/\/$/, '');
+                onlineLink.innerText = cleanHost;
+                onlineLink.title = onlineLink.href + ' (Click to open online link)';
+            }
         }
     } catch (e) {
         console.warn('Could not fetch hub config:', e);

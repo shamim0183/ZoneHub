@@ -1649,7 +1649,7 @@
             }
 
             /* Network Bar Mobile Improvements */
-            .localhost-link-group {
+            .localhost-link-group, .pcname-link-group {
                 display: none !important;
             }
             .network-bar {
@@ -1730,8 +1730,8 @@
                 flex-shrink: 0;
             }
             .brand-icon svg {
-                width: 22px;
-                height: 22px;
+                width: 24px;
+                height: 24px;
             }
             .brand-title {
                 font-size: 18px;
@@ -1744,28 +1744,44 @@
             .header-actions {
                 width: 100%;
                 display: flex;
-                justify-content: space-between;
+                flex-wrap: wrap;
                 align-items: center;
                 gap: 8px;
             }
-            .user-badge {
-                flex: 1;
-                padding: 5px 8px;
+            .pwa-install-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 8px 14px;
                 font-size: 12px;
+                order: -1;
+            }
+            .user-badge {
+                flex: 1 1 0;
                 min-width: 0;
-                gap: 6px;
+                padding: 6px 10px;
+                font-size: 12px;
+                gap: 8px;
+            }
+            .user-avatar-circle {
+                width: 28px;
+                height: 28px;
+                font-size: 11px;
+                flex-shrink: 0;
             }
             .user-name-text {
-                max-width: 110px;
+                max-width: 105px;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                display: inline-block;
+                display: block;
+                font-size: 12px;
+                font-weight: 700;
             }
             .header-actions .btn-primary {
                 flex-shrink: 0;
-                padding: 6px 12px;
+                padding: 7px 12px;
                 font-size: 12px;
+                white-space: nowrap;
             }
 
             /* Upload Dropzone on Mobile */
@@ -1773,15 +1789,17 @@
                 padding: 16px 12px;
                 border-radius: 14px;
                 margin-bottom: 16px;
+                text-align: center;
             }
             .upload-icon {
-                width: 40px;
-                height: 40px;
-                margin-bottom: 8px;
+                width: 38px;
+                height: 38px;
+                margin-bottom: 6px;
             }
             .upload-title {
-                font-size: 14px;
-                line-height: 1.35;
+                font-size: 13px;
+                font-weight: 700;
+                line-height: 1.4;
                 margin-bottom: 4px;
             }
             .upload-desc {
@@ -1795,34 +1813,69 @@
                 align-items: stretch;
                 width: 100%;
                 max-width: 100%;
-                gap: 8px;
-                padding: 10px 12px;
+                gap: 6px;
+                padding: 8px 10px;
                 box-sizing: border-box;
                 margin-bottom: 10px;
+                background: rgba(0, 0, 0, 0.25);
+                border-radius: 10px;
             }
             .upload-dest-row span {
                 text-align: left;
-                font-size: 12px;
+                font-size: 11px;
+                color: var(--text-muted);
+                font-weight: 600;
                 white-space: nowrap;
             }
             .upload-dest-controls {
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: 6px;
                 width: 100%;
             }
             .upload-folder-select {
-                flex: 1;
+                flex: 1 1 0;
                 min-width: 0;
                 height: 36px;
                 font-size: 12px;
+                padding: 4px 8px;
                 box-sizing: border-box;
             }
             .btn-new-folder {
                 flex-shrink: 0;
+                height: 36px;
                 padding: 6px 10px !important;
                 font-size: 11px !important;
                 white-space: nowrap;
+            }
+
+            /* Navigation & View Modes on Mobile */
+            .folder-nav-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                margin-bottom: 14px;
+            }
+            .view-mode-group {
+                width: 100%;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 4px;
+                padding: 4px;
+                box-sizing: border-box;
+            }
+            .view-mode-btn {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+                padding: 8px 6px;
+                font-size: 12px;
+                gap: 6px;
+                white-space: nowrap;
+            }
+            .search-box {
+                width: 100%;
+                min-width: 100%;
             }
 
             /* Folders Grid on Mobile (2 clean columns) */
