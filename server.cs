@@ -96,6 +96,45 @@ namespace SkyCommerceMediaServer
             }
         }
 
+        public static string GetCurrentOnlineTunnelUrl()
+        {
+            try
+            {
+                string txtPath = Path.Combine(RootDirectory, "online_url.txt");
+                if (File.Exists(txtPath))
+                {
+                    string url = File.ReadAllText(txtPath, Encoding.UTF8).Trim();
+                    if (url.StartsWith("https://") && url.Contains("trycloudflare.com")) return url;
+                }
+
+                string logPath = Path.Combine(RootDirectory, "cloudflared.log");
+                if (File.Exists(logPath))
+                {
+                    using (FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (StreamReader reader = new StreamReader(fs, Encoding.UTF8))
+                    {
+                        string line;
+                        string foundUrl = null;
+                        while ((line = reader.ReadLine()) != null)
+                        {
+                            int idx = line.IndexOf("https://");
+                            if (idx >= 0)
+                            {
+                                int end = line.IndexOf(".trycloudflare.com", idx);
+                                if (end > idx)
+                                {
+                                    foundUrl = line.Substring(idx, (end + 18) - idx).Trim();
+                                }
+                            }
+                        }
+                        if (!string.IsNullOrEmpty(foundUrl)) return foundUrl;
+                    }
+                }
+            }
+            catch {}
+            return null;
+        }
+
         static void Main(string[] args)
         {
             int customPort;
@@ -1212,7 +1251,13 @@ namespace SkyCommerceMediaServer
             if (File.Exists(htmlPath))
             {
                 html = File.ReadAllText(htmlPath, Encoding.UTF8);
+                string onlineUrl = GetCurrentOnlineTunnelUrl();
                 html = html.Replace("{{LOCAL_IP}}", currentIp).Replace("{{HOSTNAME}}", machineName);
+                if (!string.IsNullOrEmpty(onlineUrl))
+                {
+                    html = html.Replace("{{ONLINE_URL}}", onlineUrl);
+                    html = html.Replace("id=\"onlineLinkGroup\" style=\"display:none;", "id=\"onlineLinkGroup\" style=\"display:flex;");
+                }
             }
             else
             {

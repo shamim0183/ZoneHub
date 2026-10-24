@@ -10,6 +10,7 @@
 # Runtime databases & dynamic user data
 messages.json
 file_metadata.json
+online_url.txt
 
 # User shared media (Heavy videos & large uploads)
 # Keep folder structure via .gitkeep

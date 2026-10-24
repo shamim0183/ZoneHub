@@ -1538,22 +1538,355 @@
             opacity: 1;
         }
 
-        @media (max-width: 640px) {
+        /* ========================================================
+           Mobile & Cross-Device 100% Flawless Responsive Styles
+           ======================================================== */
+        @media (max-width: 768px) {
+            /* Hide Split View Tab on Mobile & Tablet */
+            #tabMediaBtn {
+                display: none !important;
+            }
+            .tabs-header {
+                display: flex !important;
+                gap: 8px !important;
+                width: 100% !important;
+                margin-bottom: 16px !important;
+                padding-bottom: 8px !important;
+            }
+            .tab-btn {
+                flex: 1 1 0 !important;
+                justify-content: center !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                font-size: 13px !important;
+                padding: 10px 8px !important;
+                gap: 6px !important;
+            }
+            .tab-btn svg {
+                width: 16px !important;
+                height: 16px !important;
+                flex-shrink: 0 !important;
+            }
+            .badge-counter {
+                font-size: 11px !important;
+                padding: 2px 6px !important;
+            }
+
+            /* Network Bar Mobile Improvements */
+            .localhost-link-group {
+                display: none !important;
+            }
+            .network-bar {
+                padding: 12px 14px;
+                border-radius: 14px;
+                margin-bottom: 18px;
+            }
+            .network-info {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .status-pill {
+                align-self: flex-start;
+                font-size: 11px;
+                padding: 4px 10px;
+            }
+            .link-group {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 12px;
+                box-sizing: border-box;
+                font-size: 12px;
+                gap: 8px;
+            }
+            .link-label {
+                white-space: nowrap;
+                font-size: 12px;
+                flex-shrink: 0;
+            }
+            .link-value {
+                font-size: 12px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                text-align: right;
+                max-width: 62%;
+            }
+
+            /* Container and Grid Layout */
+            .split-view, .content-grid {
+                display: grid !important;
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px 10px 75px 10px;
+                overflow-x: hidden;
+            }
+            .container {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            /* Header on Mobile */
+            header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                margin-bottom: 14px;
+                padding-bottom: 12px;
+            }
+            .brand {
+                gap: 10px;
+            }
+            .brand-icon {
+                width: 42px;
+                height: 42px;
+                border-radius: 12px;
+                flex-shrink: 0;
+            }
+            .brand-icon svg {
+                width: 22px;
+                height: 22px;
+            }
+            .brand-title {
+                font-size: 18px;
+                line-height: 1.25;
+            }
+            .brand-sub {
+                font-size: 11px;
+                line-height: 1.3;
+            }
+            .header-actions {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 8px;
+            }
+            .user-badge {
+                flex: 1;
+                padding: 5px 8px;
+                font-size: 12px;
+                min-width: 0;
+                gap: 6px;
+            }
+            .user-name-text {
+                max-width: 110px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: inline-block;
+            }
+            .header-actions .btn-primary {
+                flex-shrink: 0;
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            /* Upload Dropzone on Mobile */
+            .upload-section {
+                padding: 16px 12px;
+                border-radius: 14px;
+                margin-bottom: 16px;
+            }
+            .upload-icon {
+                width: 40px;
+                height: 40px;
+                margin-bottom: 8px;
+            }
+            .upload-title {
+                font-size: 14px;
+                line-height: 1.35;
+                margin-bottom: 4px;
+            }
+            .upload-desc {
+                font-size: 11px;
+                line-height: 1.35;
+                margin-bottom: 10px;
+            }
+            .upload-dest-row {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+                max-width: 100%;
+                gap: 8px;
+                padding: 10px 12px;
+                box-sizing: border-box;
+                margin-bottom: 10px;
+            }
+            .upload-dest-row span {
+                text-align: left;
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            .upload-dest-controls {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                width: 100%;
+            }
+            .upload-folder-select {
+                flex: 1;
+                min-width: 0;
+                height: 36px;
+                font-size: 12px;
+                box-sizing: border-box;
+            }
+            .btn-new-folder {
+                flex-shrink: 0;
+                padding: 6px 10px !important;
+                font-size: 11px !important;
+                white-space: nowrap;
+            }
+
+            /* Folders Grid on Mobile (2 clean columns) */
+            .folders-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important;
+                margin-bottom: 18px !important;
+            }
+            .folder-card {
+                padding: 12px 10px !important;
+                border-radius: 12px !important;
+            }
+            .folder-card-name {
+                font-size: 13px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .folder-card-meta {
+                font-size: 10px !important;
+            }
+
+            /* Section Header & Filters */
+            .section-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .search-box {
+                width: 100%;
+                min-width: 100%;
+            }
+            .filter-bar {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 4px;
+                -webkit-overflow-scrolling: touch;
+            }
+            .filter-pill {
+                white-space: nowrap;
+                flex-shrink: 0;
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+
+            /* File Cards on Mobile */
             .file-card {
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: stretch;
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .file-info {
+                width: 100%;
+                gap: 10px;
+            }
+            .file-thumb-box {
+                width: 50px;
+                height: 50px;
+                border-radius: 10px;
+            }
+            .file-name {
+                font-size: 13px;
+                line-height: 1.3;
+            }
+            .file-meta {
+                gap: 6px;
+                font-size: 10px;
             }
             .file-actions {
                 width: 100%;
-                justify-content: flex-end;
+                display: flex;
+                gap: 6px;
             }
+            .file-actions .btn {
+                flex: 1;
+                justify-content: center;
+                padding: 8px 6px;
+                font-size: 11px;
+            }
+
+            /* Team Chat on Mobile */
             .chat-panel {
-                height: 560px;
+                height: calc(100vh - 190px);
+                min-height: 480px;
+                max-height: 640px;
+                border-radius: 14px;
             }
+            .chat-header {
+                padding: 10px 14px;
+            }
+            .chat-messages {
+                padding: 10px;
+            }
+            .chat-bubble {
+                max-width: 88%;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            .chat-input-bar {
+                padding: 8px 10px;
+                gap: 6px;
+            }
+            .chat-input {
+                font-size: 13px;
+                padding: 8px 10px;
+            }
+            .action-tool-btn {
+                width: 34px;
+                height: 34px;
+                flex-shrink: 0;
+            }
+
+            /* Download Widget on Mobile */
             #downloadWidget {
-                left: 12px;
-                right: 12px;
-                width: auto;
+                left: 10px !important;
+                right: 10px !important;
+                width: auto !important;
+                bottom: 10px !important;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .tab-btn {
+                font-size: 12px !important;
+                padding: 8px 4px !important;
+                gap: 4px !important;
+            }
+            .brand-title {
+                font-size: 16px !important;
+            }
+            .upload-title {
+                font-size: 13px !important;
+            }
+            .link-group {
+                padding: 6px 8px !important;
+                font-size: 11px !important;
+            }
+            .link-label, .link-value {
+                font-size: 11px !important;
             }
         }
     </style>
@@ -1596,15 +1929,19 @@
                     <span class="status-dot"></span>
                     Server Online
                 </div>
-                <div class="link-group">
+                <div class="link-group localhost-link-group">
                     <span class="link-label">Localhost (This PC):</span>
                     <a href="http://localhost:8080" class="link-value" target="_blank">http://localhost:8080</a>
                 </div>
-                <div class="link-group" style="background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);">
-                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">📱 Mobile &amp; Employees Link:</span>
+                <div class="link-group highlight-link" style="background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);">
+                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">📱 Wi-Fi Link:</span>
                     <a href="http://{{LOCAL_IP}}:8080" id="networkShareLink" class="link-value" target="_blank" style="color:#38bdf8;font-weight:700;">http://{{LOCAL_IP}}:8080</a>
                 </div>
-                <div class="link-group">
+                <div class="link-group online-link-group" id="onlineLinkGroup" style="display:none;background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.3);">
+                    <span class="link-label" style="color:#6ee7b7;font-weight:700;">🌐 Online Link:</span>
+                    <a href="{{ONLINE_URL}}" id="onlineTunnelLink" class="link-value" target="_blank" style="color:#34d399;font-weight:700;">{{ONLINE_URL}}</a>
+                </div>
+                <div class="link-group pcname-link-group">
                     <span class="link-label">💻 PC Name:</span>
                     <a href="http://{{HOSTNAME}}:8080" class="link-value" target="_blank">http://{{HOSTNAME}}:8080</a>
                 </div>
@@ -1615,7 +1952,7 @@
         <div class="tabs-header">
             <button class="tab-btn active" id="tabMediaBtn" onclick="switchView('split')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
-                Files &amp; Chat (Split View)
+                Files &amp; Chat (Split)
             </button>
             <button class="tab-btn" id="tabFilesOnlyBtn" onclick="switchView('files')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
@@ -1644,15 +1981,17 @@
                     
                     <!-- Upload Destination Selector -->
                     <div class="upload-dest-row" onclick="event.stopPropagation()">
-                        <span style="color:var(--text-muted);font-weight:600;">📂 Save to Folder:</span>
-                        <select id="uploadFolderSelect" class="upload-folder-select" onchange="onUploadFolderChanged(this.value)">
-                            <option value="auto">⚡ Auto-Sort by Type (স্বয়ংক্রিয়)</option>
-                            <option value="Videos">🎥 Videos (ভিডিও)</option>
-                            <option value="Pictures">🖼️ Pictures (ছবি)</option>
-                            <option value="Chat_Media">💬 Chat Media (চ্যাট মিডিয়া)</option>
-                            <option value="Documents">📄 Documents (ডকুমেন্টস)</option>
-                        </select>
-                        <button type="button" onclick="promptCreateNewFolder()" class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" title="Create Custom Folder">+ New Folder</button>
+                        <span style="color:var(--text-muted);font-weight:600;white-space:nowrap;">📂 Save to Folder:</span>
+                        <div class="upload-dest-controls">
+                            <select id="uploadFolderSelect" class="upload-folder-select" onchange="onUploadFolderChanged(this.value)">
+                                <option value="auto">⚡ Auto-Sort by Type (স্বয়ংক্রিয়)</option>
+                                <option value="Videos">🎥 Videos (ভিডিও)</option>
+                                <option value="Pictures">🖼️ Pictures (ছবি)</option>
+                                <option value="Chat_Media">💬 Chat Media (চ্যাট মিডিয়া)</option>
+                                <option value="Documents">📄 Documents (ডকুমেন্টস)</option>
+                            </select>
+                            <button type="button" onclick="promptCreateNewFolder()" class="btn btn-secondary btn-new-folder" title="Create Custom Folder">+ New Folder</button>
+                        </div>
                     </div>
 
                     <div>
@@ -1916,6 +2255,11 @@
             const tabFilesOnlyBtn = document.getElementById('tabFilesOnlyBtn');
             const tabChatOnlyBtn = document.getElementById('tabChatOnlyBtn');
 
+            // On mobile devices, split view is not allowed
+            if (window.innerWidth < 768 && view === 'split') {
+                view = 'files';
+            }
+
             tabMediaBtn.classList.remove('active');
             tabFilesOnlyBtn.classList.remove('active');
             tabChatOnlyBtn.classList.remove('active');
@@ -1935,6 +2279,10 @@
                 filesWrapper.style.display = 'none';
                 chatWrapper.style.display = 'block';
                 tabChatOnlyBtn.classList.add('active');
+                setTimeout(() => {
+                    const msgBox = document.getElementById('chatMessages');
+                    if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+                }, 50);
             }
         }
 
@@ -2960,6 +3308,18 @@
         }
 
         // Initialize & Live Polling
+        if (window.innerWidth < 768) {
+            switchView('files');
+        }
+        window.addEventListener('resize', () => {
+            if (window.innerWidth < 768) {
+                const container = document.getElementById('mainContainer');
+                if (container && container.classList.contains('split-view')) {
+                    switchView('files');
+                }
+            }
+        });
+
         loadFoldersList();
         loadFileList();
         loadMessages();
