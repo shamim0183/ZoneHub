@@ -1083,20 +1083,31 @@
         .voice-player {
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.35);
-            padding: 8px 12px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.75);
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             margin-top: 6px;
-            max-width: 280px;
+            width: 100%;
+            max-width: 320px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            position: relative;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .voice-player.playing {
+            border-color: rgba(99, 102, 241, 0.45);
+            background: rgba(22, 31, 48, 0.95);
+            box-shadow: 0 4px 18px var(--primary-glow);
         }
 
         .voice-play-btn {
-            width: 32px;
-            height: 32px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
-            background: var(--primary);
+            background: linear-gradient(135deg, #6366f1, #06b6d4);
             color: #fff;
             border: none;
             display: flex;
@@ -1104,41 +1115,116 @@
             justify-content: center;
             cursor: pointer;
             flex-shrink: 0;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
         }
 
         .voice-play-btn:hover {
-            transform: scale(1.05);
-            background: var(--primary-hover);
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6);
+        }
+
+        .voice-player.playing .voice-play-btn {
+            background: linear-gradient(135deg, #06b6d4, #10b981);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
+            animation: pulse-voice-btn 1.5s infinite;
+        }
+
+        @keyframes pulse-voice-btn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
         }
 
         .voice-track {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        /* WhatsApp / Telegram style Waveform visualizer */
+        .voice-waveform {
+            display: flex;
+            align-items: center;
+            gap: 2.5px;
+            height: 22px;
+            width: 100%;
+            overflow: hidden;
+            padding: 2px 0;
+        }
+
+        .wave-bar {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 99px;
+            min-height: 4px;
+            transition: background 0.15s ease, transform 0.15s ease;
+        }
+
+        .wave-bar.played {
+            background: var(--accent-cyan);
+            box-shadow: 0 0 4px rgba(6, 182, 212, 0.5);
+        }
+
+        .voice-player.playing .wave-bar.current {
+            background: #fff;
+            transform: scaleY(1.3);
         }
 
         .voice-progress-bar {
             width: 100%;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.15);
+            height: 4px;
+            background: rgba(255, 255, 255, 0.12);
             border-radius: 99px;
-            cursor: pointer;
             overflow: hidden;
+            position: relative;
         }
 
         .voice-progress-fill {
             height: 100%;
             width: 0%;
-            background: var(--accent-cyan);
+            background: linear-gradient(90deg, #6366f1, #06b6d4);
             border-radius: 99px;
+            transition: width 0.08s linear;
         }
 
-        .voice-time {
-            font-size: 10px;
+        .voice-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
             color: var(--text-muted);
             font-family: monospace;
+            line-height: 1;
+            margin-top: 1px;
+        }
+
+        .voice-time-current {
+            color: #38bdf8;
+            font-weight: 600;
+        }
+
+        .voice-time-total {
+            color: var(--text-muted);
+        }
+
+        /* Live Recording Audio Visualizer in Recording Banner */
+        .rec-wave-meter {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 18px;
+            margin: 0 8px;
+        }
+
+        .rec-meter-bar {
+            width: 3px;
+            height: 4px;
+            background: var(--accent-rose);
+            border-radius: 2px;
+            transition: height 0.08s ease, background 0.15s ease;
         }
 
         /* Reactions Section */
@@ -2131,15 +2217,31 @@
                         <!-- Hidden File Input for Picture Upload in Chat -->
                         <input type="file" id="chatPhotoInput" accept="image/*" style="display:none;" onchange="handleChatPhotoUpload(event)" />
 
-                        <!-- Recording Banner -->
+                        <!-- Recording Banner with Live Audio Visualizer -->
                         <div id="recordingBanner" class="recording-banner">
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <span class="status-dot" style="background:var(--accent-rose);box-shadow:0 0 10px var(--accent-rose);"></span>
-                                <span>Recording Voice Note... <span id="recTimer" style="font-family:monospace;">0:00</span></span>
+                            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;flex-wrap:wrap;">
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <span class="status-dot" style="background:var(--accent-rose);box-shadow:0 0 10px var(--accent-rose);"></span>
+                                    <span style="font-size:12px;white-space:nowrap;font-weight:600;">Rec: <span id="recTimer" style="font-family:monospace;color:#f43f5e;font-weight:700;">0:00</span></span>
+                                </div>
+                                <!-- Live Sound Wave Visualizer while recording -->
+                                <div class="rec-wave-meter" id="recWaveMeter" title="Live Microphone Input Level">
+                                    <span class="rec-meter-bar"></span>
+                                    <span class="rec-meter-bar"></span>
+                                    <span class="rec-meter-bar"></span>
+                                    <span class="rec-meter-bar"></span>
+                                    <span class="rec-meter-bar"></span>
+                                    <span class="rec-meter-bar"></span>
+                                    <span class="rec-meter-bar"></span>
+                                    <span class="rec-meter-bar"></span>
+                                </div>
                             </div>
-                            <div style="display:flex;gap:6px;">
+                            <div style="display:flex;gap:6px;align-items:center;">
                                 <button onclick="cancelVoiceRecording()" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" title="Cancel">✕ Cancel</button>
                                 <button onclick="stopAndSendVoiceRecording()" class="btn btn-primary" style="padding:4px 10px;font-size:11px;" title="Send Voice">✓ Send</button>
+                            </div>
+                            <div id="micSilentWarning" style="display:none;width:100%;color:#fca5a5;font-size:11px;margin-top:4px;text-align:left;">
+                                ⚠️ আপনার পিসির মাইক্রোফোনে কোনো শব্দ পাওয়া যাচ্ছে না! উইন্ডোজ Settings &gt; Sound থেকে Microphone ভলিউম চেক করুন।
                             </div>
                         </div>
 
@@ -2897,14 +2999,28 @@
                             '</div>' +
                         '</div>' + caption;
                 } else if (msg.type === 'voice' && msg.audioUrl) {
+                    const durFormatted = (msg.duration && msg.duration > 0) ? formatTimeSec(msg.duration) : 'Voice Note';
+                    const durParam = msg.duration || 0;
+                    
+                    // Generate WhatsApp / Telegram style waveform bars
+                    let waveBarsHtml = '';
+                    const wavePattern = [10, 16, 22, 14, 20, 12, 24, 18, 10, 16, 22, 14, 18, 24, 12, 16, 20, 14, 10, 16, 12, 8];
+                    for (let b = 0; b < wavePattern.length; b++) {
+                        waveBarsHtml += '<span class="wave-bar" style="height:' + wavePattern[b] + 'px;"></span>';
+                    }
+
                     contentHtml = 
-                        '<div class="voice-player">' +
-                            '<button onclick="playVoiceAudio(\'' + msg.audioUrl + '\', this)" class="voice-play-btn" title="Play Voice Message">' +
+                        '<div class="voice-player" id="voicePlayer_' + msg.id + '">' +
+                            '<button type="button" onclick="playVoiceAudio(\'' + msg.audioUrl + '\', this, \'' + msg.id + '\', ' + durParam + ')" class="voice-play-btn" title="Play Voice Message">' +
                                 '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>' +
                             '</button>' +
-                            '<div class="voice-track">' +
-                                '<div class="voice-progress-bar"><div class="voice-progress-fill"></div></div>' +
-                                '<span class="voice-time">🎤 Voice Note</span>' +
+                            '<div class="voice-track" onclick="seekVoiceAudio(event, \'' + msg.id + '\')">' +
+                                '<div class="voice-waveform" id="wave_' + msg.id + '">' + waveBarsHtml + '</div>' +
+                                '<div class="voice-progress-bar"><div class="voice-progress-fill" id="fill_' + msg.id + '"></div></div>' +
+                                '<div class="voice-meta-row">' +
+                                    '<span class="voice-time-current" id="time_' + msg.id + '">0:00</span>' +
+                                    '<span class="voice-time-total" id="dur_' + msg.id + '">' + durFormatted + '</span>' +
+                                '</div>' +
                             '</div>' +
                         '</div>';
                 } else {
@@ -3042,30 +3158,161 @@
             }
         }
 
-        // Voice Message Audio Player Handler
-        let activeAudio = null;
-        let activeBtn = null;
+        // Format seconds to mm:ss
+        function formatTimeSec(sec) {
+            if (isNaN(sec) || !isFinite(sec) || sec < 0) return '0:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
 
-        function playVoiceAudio(audioUrl, btn) {
-            if (activeAudio) {
-                activeAudio.pause();
-                if (activeBtn) activeBtn.innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>';
-                if (activeAudio.src.endsWith(audioUrl)) {
-                    activeAudio = null;
-                    return;
+        // Voice Message Audio Player Handler
+        let activeVoicePlayer = null;
+
+        function playVoiceAudio(audioUrl, btn, msgId, savedDuration) {
+            const playerEl = document.getElementById('voicePlayer_' + msgId);
+            const fillEl = document.getElementById('fill_' + msgId);
+            const waveEl = document.getElementById('wave_' + msgId);
+            const timeEl = document.getElementById('time_' + msgId);
+            const durEl = document.getElementById('dur_' + msgId);
+
+            // Toggle play/pause if clicking currently playing audio
+            if (activeVoicePlayer && activeVoicePlayer.msgId === msgId) {
+                if (activeVoicePlayer.audio.paused) {
+                    activeVoicePlayer.audio.play();
+                    if (playerEl) playerEl.classList.add('playing');
+                    btn.innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>';
+                } else {
+                    activeVoicePlayer.audio.pause();
+                    if (playerEl) playerEl.classList.remove('playing');
+                    btn.innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>';
                 }
+                return;
+            }
+
+            // Stop any previously playing audio
+            if (activeVoicePlayer) {
+                stopCurrentVoicePlayer();
             }
 
             const audio = new Audio(audioUrl);
-            activeAudio = audio;
-            activeBtn = btn;
+            audio.volume = 1.0;
+
+            activeVoicePlayer = {
+                msgId: msgId,
+                audio: audio,
+                playerEl: playerEl,
+                btn: btn,
+                fillEl: fillEl,
+                waveEl: waveEl,
+                timeEl: timeEl,
+                durEl: durEl,
+                totalDuration: savedDuration || 0
+            };
+
+            if (playerEl) playerEl.classList.add('playing');
             btn.innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>';
 
-            audio.play();
-            audio.onended = () => {
-                btn.innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>';
-                activeAudio = null;
+            if (savedDuration && durEl) {
+                durEl.innerText = formatTimeSec(savedDuration);
+            }
+
+            audio.onloadedmetadata = () => {
+                if (isFinite(audio.duration) && audio.duration > 0) {
+                    activeVoicePlayer.totalDuration = audio.duration;
+                    if (durEl) durEl.innerText = formatTimeSec(audio.duration);
+                }
             };
+
+            // Fix Chromium WebM duration Infinity bug
+            if (!savedDuration) {
+                audio.addEventListener('durationchange', () => {
+                    if (audio.duration === Infinity) {
+                        audio.currentTime = 1e101;
+                        audio.ontimeupdate = function() {
+                            this.ontimeupdate = null;
+                            this.currentTime = 0;
+                        };
+                    } else if (isFinite(audio.duration)) {
+                        activeVoicePlayer.totalDuration = audio.duration;
+                        if (durEl) durEl.innerText = formatTimeSec(audio.duration);
+                    }
+                });
+            }
+
+            audio.ontimeupdate = () => {
+                if (!activeVoicePlayer || activeVoicePlayer.msgId !== msgId) return;
+                const cur = audio.currentTime;
+                let dur = activeVoicePlayer.totalDuration || (isFinite(audio.duration) ? audio.duration : 0);
+                if (cur > dur) dur = cur;
+
+                const pct = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
+
+                if (fillEl) fillEl.style.width = pct + '%';
+                if (timeEl) timeEl.innerText = formatTimeSec(cur) + (dur > 0 ? ' / ' + formatTimeSec(dur) : '');
+
+                if (waveEl) {
+                    const bars = waveEl.querySelectorAll('.wave-bar');
+                    const activeBarIdx = Math.floor((pct / 100) * bars.length);
+                    bars.forEach((bar, idx) => {
+                        if (idx < activeBarIdx) {
+                            bar.classList.add('played');
+                            bar.classList.remove('current');
+                        } else if (idx === activeBarIdx) {
+                            bar.classList.add('played', 'current');
+                        } else {
+                            bar.classList.remove('played', 'current');
+                        }
+                    });
+                }
+            };
+
+            audio.onended = () => {
+                stopCurrentVoicePlayer();
+            };
+
+            audio.onerror = () => {
+                showToast('Could not play audio track');
+                stopCurrentVoicePlayer();
+            };
+
+            audio.play().catch(err => {
+                console.error('Audio play error:', err);
+                stopCurrentVoicePlayer();
+            });
+        }
+
+        function stopCurrentVoicePlayer() {
+            if (!activeVoicePlayer) return;
+            try { activeVoicePlayer.audio.pause(); } catch(e) {}
+            if (activeVoicePlayer.btn) {
+                activeVoicePlayer.btn.innerHTML = '<svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>';
+            }
+            if (activeVoicePlayer.playerEl) {
+                activeVoicePlayer.playerEl.classList.remove('playing');
+            }
+            if (activeVoicePlayer.fillEl) {
+                activeVoicePlayer.fillEl.style.width = '0%';
+            }
+            if (activeVoicePlayer.timeEl && activeVoicePlayer.totalDuration) {
+                activeVoicePlayer.timeEl.innerText = '0:00 / ' + formatTimeSec(activeVoicePlayer.totalDuration);
+            }
+            if (activeVoicePlayer.waveEl) {
+                activeVoicePlayer.waveEl.querySelectorAll('.wave-bar').forEach(b => b.classList.remove('played', 'current'));
+            }
+            activeVoicePlayer = null;
+        }
+
+        function seekVoiceAudio(event, msgId) {
+            if (!activeVoicePlayer || activeVoicePlayer.msgId !== msgId) return;
+            const trackEl = event.currentTarget;
+            const rect = trackEl.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const pct = Math.max(0, Math.min(1, clickX / rect.width));
+            const dur = activeVoicePlayer.totalDuration || (isFinite(activeVoicePlayer.audio.duration) ? activeVoicePlayer.audio.duration : 0);
+            if (dur > 0) {
+                activeVoicePlayer.audio.currentTime = pct * dur;
+            }
         }
 
         // Voice Message Recording (MediaRecorder API)
@@ -3073,6 +3320,9 @@
         let audioChunks = [];
         let recInterval = null;
         let recSeconds = 0;
+        let recAudioContext = null;
+        let recAnalyser = null;
+        let recVisualizerAnim = null;
 
         async function toggleVoiceRecording() {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -3084,15 +3334,83 @@
 
         async function startVoiceRecording() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                // Audio constraints with autoGainControl to boost quiet PC microphones
+                const audioConstraints = {
+                    echoCancellation: true,
+                    noiseSuppression: false, // Don't suppress voice aggressively
+                    autoGainControl: true    // Automatically boost mic sensitivity!
+                };
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+                } catch (e) {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                }
+
+                let mimeType = 'audio/webm;codecs=opus';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
+                    else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+                    else if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
+                    else mimeType = '';
+                }
+
+                mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
                 audioChunks = [];
 
                 mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) audioChunks.push(e.data);
+                    if (e.data && e.data.size > 0) audioChunks.push(e.data);
                 };
 
-                mediaRecorder.start();
+                // Continuous chunks every 200ms
+                mediaRecorder.start(200);
+
+                // Setup live AudioContext level analyser to test microphone input
+                try {
+                    recAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = recAudioContext.createMediaStreamSource(stream);
+                    recAnalyser = recAudioContext.createAnalyser();
+                    recAnalyser.fftSize = 64;
+                    source.connect(recAnalyser);
+
+                    const dataArray = new Uint8Array(recAnalyser.frequencyBinCount);
+                    const meterBars = document.querySelectorAll('.rec-meter-bar');
+                    let silentFrames = 0;
+
+                    function updateMeter() {
+                        if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+                        recAnalyser.getByteFrequencyData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                        let avg = sum / dataArray.length;
+
+                        if (avg < 2.5) silentFrames++;
+                        else silentFrames = 0;
+
+                        const warnEl = document.getElementById('micSilentWarning');
+                        if (warnEl) {
+                            if (silentFrames > 30 && recSeconds >= 2) {
+                                warnEl.style.display = 'block';
+                            } else {
+                                warnEl.style.display = 'none';
+                            }
+                        }
+
+                        if (meterBars.length > 0) {
+                            meterBars.forEach((bar, idx) => {
+                                const val = dataArray[idx % dataArray.length] || 0;
+                                const h = Math.max(3, Math.min(18, (val / 255) * 18));
+                                bar.style.height = h + 'px';
+                                if (val > 10) bar.style.background = '#10b981'; // Green when sound detected!
+                                else bar.style.background = '#f43f5e';
+                            });
+                        }
+                        recVisualizerAnim = requestAnimationFrame(updateMeter);
+                    }
+                    recVisualizerAnim = requestAnimationFrame(updateMeter);
+                } catch (audioCtxErr) {
+                    console.log('AudioContext visualizer:', audioCtxErr);
+                }
 
                 document.getElementById('recordingBanner').classList.add('active');
                 document.getElementById('chatInput').style.display = 'none';
@@ -3107,7 +3425,7 @@
                     document.getElementById('recTimer').innerText = m + ':' + (s < 10 ? '0' : '') + s;
                 }, 1000);
             } catch (err) {
-                alert('Microphone access is needed to record voice messages.');
+                alert('Microphone access is needed to record voice messages.\nError: ' + err.message);
             }
         }
 
@@ -3122,13 +3440,18 @@
 
         function stopAndSendVoiceRecording() {
             if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+            const finalDuration = recSeconds || 1;
 
             mediaRecorder.onstop = async () => {
                 if (mediaRecorder.stream) mediaRecorder.stream.getTracks().forEach(t => t.stop());
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const filename = 'voice_' + Date.now() + '.webm';
+                cleanupRecUI();
 
-                showToast('Sending voice message...');
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+                const ext = mimeType.includes('mp4') ? '.mp4' : (mimeType.includes('ogg') ? '.ogg' : '.webm');
+                const filename = 'voice_' + Date.now() + ext;
+
+                showToast('Sending voice note (' + formatTimeSec(finalDuration) + ')...');
                 try {
                     const xhr = new XMLHttpRequest();
                     xhr.open('POST', '/upload?filename=' + encodeURIComponent(filename), true);
@@ -3144,7 +3467,8 @@
                                 userId: myUserId,
                                 text: '🎤 Voice Message',
                                 type: 'voice',
-                                audioUrl: '/' + encodeURIComponent(filename)
+                                audioUrl: '/' + encodeURIComponent(filename),
+                                duration: finalDuration
                             })
                         });
                         await loadMessages();
@@ -3156,11 +3480,18 @@
             };
 
             mediaRecorder.stop();
-            cleanupRecUI();
         }
 
         function cleanupRecUI() {
             clearInterval(recInterval);
+            if (recVisualizerAnim) cancelAnimationFrame(recVisualizerAnim);
+            if (recAudioContext) {
+                try { recAudioContext.close(); } catch(e) {}
+                recAudioContext = null;
+            }
+            const warnEl = document.getElementById('micSilentWarning');
+            if (warnEl) warnEl.style.display = 'none';
+
             document.getElementById('recordingBanner').classList.remove('active');
             document.getElementById('chatInput').style.display = 'block';
             document.getElementById('voiceRecBtn').classList.remove('recording');

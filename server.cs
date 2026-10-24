@@ -18,6 +18,7 @@ namespace SkyCommerceMediaServer
         public string text { get; set; }
         public string type { get; set; } // "text", "voice", "image"
         public string audioUrl { get; set; }
+        public int duration { get; set; }
         public string imageUrl { get; set; }
         public string timestamp { get; set; }
         public bool edited { get; set; }
@@ -564,6 +565,7 @@ namespace SkyCommerceMediaServer
             newMsg.text = input.text != null ? input.text.Trim() : "";
             newMsg.type = string.IsNullOrEmpty(input.type) ? "text" : input.type;
             newMsg.audioUrl = input.audioUrl;
+            newMsg.duration = input.duration;
             newMsg.imageUrl = input.imageUrl;
             newMsg.timestamp = DateTime.Now.ToString("hh:mm tt, MMM dd");
             newMsg.edited = false;
