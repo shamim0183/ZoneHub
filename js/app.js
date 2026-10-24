@@ -336,6 +336,20 @@ function toggleDesktopNotifications() {
     }
 }
 
+function autoRequestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(perm => {
+            if (perm === 'granted') {
+                alertsEnabled = true;
+                localStorage.setItem('hub_alerts_enabled', 'true');
+                updateAlertsButtonDisplay();
+            } else {
+                updateAlertsButtonDisplay();
+            }
+        }).catch(() => {});
+    }
+}
+
 function triggerSystemNotification(msg) {
     if (!alertsEnabled) return;
     if (!('Notification' in window)) return;
@@ -529,6 +543,59 @@ function switchView(view) {
     }
 }
 
+// Mini Dock & Corner Floating Mode
+function toggleMiniDock() {
+    if (window.location.search.includes('view=mini') || document.body.classList.contains('mini-dock-mode')) {
+        expandToFullView();
+        return;
+    }
+
+    const width = 390;
+    const height = 660;
+    const left = Math.max(0, (window.screen.availWidth || 1366) - width - 15);
+    const top = 50;
+
+    const miniUrl = window.location.origin + '/?view=mini';
+    try {
+        const miniWin = window.open(
+            miniUrl,
+            'ZoneHubMiniDock',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,location=no,toolbar=no,menubar=no`
+        );
+        if (miniWin && !miniWin.closed) {
+            miniWin.focus();
+            showToast('📌 ZoneHub opened in Screen Corner Dock!');
+            return;
+        }
+    } catch (e) {
+        console.warn('Popup blocked, falling back to in-page mini dock:', e);
+    }
+
+    // In-page fallback if browser blocks popups:
+    document.body.classList.add('mini-dock-mode');
+    switchView('chat');
+    showToast('📌 Switched to Compact Corner Mode!');
+}
+
+function expandToFullView() {
+    if (window.opener && !window.opener.closed) {
+        window.close();
+        window.opener.focus();
+        return;
+    }
+    if (window.location.search.includes('view=mini')) {
+        window.location.href = window.location.origin + '/';
+        return;
+    }
+    document.body.classList.remove('mini-dock-mode');
+    if (window.innerWidth >= 768) {
+        switchView('split');
+    } else {
+        switchView('files');
+    }
+    showToast('⤢ Restored to Full View');
+}
+
 // ==========================================
 // PWA (Progressive Web App) & Install Logic
 // ==========================================
@@ -633,11 +700,16 @@ function switchPwaTab(tabName) {
 // Bootstrap & Live Polling Initializer
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
-    if (window.innerWidth < 768) {
+    // Check if opened as Corner Mini Dock:
+    if (window.location.search.includes('view=mini')) {
+        document.body.classList.add('mini-dock-mode');
+        switchView('chat');
+    } else if (window.innerWidth < 768) {
         switchView('files');
     }
+
     window.addEventListener('resize', () => {
-        if (window.innerWidth < 768) {
+        if (!document.body.classList.contains('mini-dock-mode') && window.innerWidth < 768) {
             const container = document.getElementById('mainContainer');
             if (container && container.classList.contains('split-view')) {
                 switchView('files');
@@ -647,6 +719,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     fetchHubConfig();
     initPwaInstallState();
+    autoRequestNotificationPermission();
     updateAlertsButtonDisplay();
     if (typeof loadFoldersList === 'function') loadFoldersList();
     if (typeof loadFileList === 'function') loadFileList();
@@ -656,3 +729,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof loadFileList === 'function') setInterval(loadFileList, 8000);
     if (typeof loadFoldersList === 'function') setInterval(loadFoldersList, 8000);
 });
+
+// Auto-unlock Web Audio chime and prompt Notification permission on first click anywhere
+document.addEventListener('click', function unlockAudioAndAlertsOnce() {
+    getNotificationAudioCtx();
+    autoRequestNotificationPermission();
+}, { once: true });
