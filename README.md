@@ -1,11 +1,11 @@
-# 🚀 SkyCommerce Media Hub & Team Collaboration Server
+# 🌐 ZoneHub - Connected Network Zone & Team Collaboration Platform
 
-> A lightweight, zero-dependency, self-hosted LAN & Internet media streaming and real-time team collaboration server built with native C# (`HttpListener` / `TcpListener`) and a modern Vanilla HTML5/CSS3/JavaScript responsive web interface.
+> A lightweight, zero-dependency, self-hosted LAN & Internet media streaming and real-time team collaboration platform built with native C# (`TcpListener`) and a modern Vanilla HTML5/CSS3/JavaScript responsive web interface.
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS%20%7C%20Android-blue.svg)](https://github.com/shamim0183/SkyCommerce-Media-Hub)
-[![Mobile Responsive](https://img.shields.io/badge/Mobile-100%25%20Responsive%20(Samsung%20%7C%20iPhone%20%7C%20Android)-success.svg)](https://github.com/shamim0183/SkyCommerce-Media-Hub)
-[![Runtime](https://img.shields.io/badge/.NET%20Framework-4.0%2B%20(Built--in)-green.svg)](https://github.com/shamim0183/SkyCommerce-Media-Hub)
-[![Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(No%20Node%2C%20No%20Python)-brightgreen.svg)](https://github.com/shamim0183/SkyCommerce-Media-Hub)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20iOS%20%7C%20Android-blue.svg)](https://github.com/shamim0183/ZoneHub)
+[![Mobile Responsive](https://img.shields.io/badge/Mobile-100%25%20Responsive%20(Samsung%20%7C%20iPhone%20%7C%20Android)-success.svg)](https://github.com/shamim0183/ZoneHub)
+[![Runtime](https://img.shields.io/badge/.NET%20Framework-4.0%2B%20(Built--in)-green.svg)](https://github.com/shamim0183/ZoneHub)
+[![Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(No%20Node%2C%20No%20Python)-brightgreen.svg)](https://github.com/shamim0183/ZoneHub)
 
 ---
 
@@ -209,4 +209,4 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:exe /optimize+ /
 
 ## 🛡️ License
 
-This project is maintained for **SkyCommerce**. All rights reserved. Feel free to use and customize for your team or organization!
+This project is created and maintained for **ZoneHub Community**. All rights reserved. Feel free to use and customize for your team or organization!

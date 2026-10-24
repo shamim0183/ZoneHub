@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web.Script.Serialization;
 
-namespace SkyCommerceMediaServer
+namespace ZoneHub
 {
     public class ChatMessage
     {
@@ -134,7 +134,7 @@ namespace SkyCommerceMediaServer
                 }
             }
             catch {}
-            return "Local Media Hub";
+            return "ZoneHub";
         }
 
         public static string GetHubName()

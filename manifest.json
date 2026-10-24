@@ -1,7 +1,7 @@
 {
   "name": "{{HUB_NAME}}",
   "short_name": "{{HUB_NAME}}",
-  "description": "Ultra-fast local & internet file sharing, video streaming & team chat hub",
+  "description": "ZoneHub - Ultra-fast local network & internet file sharing, video streaming & team chat hub",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
