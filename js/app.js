@@ -521,7 +521,43 @@ function toggleChatHeadClick() {
     unreadChatCount = 0;
     updateChatUnreadBadge();
     dismissTeaser();
-    toggleMiniDock();
+
+    // If currently inside standalone bubble-compact-view, click expands back to full dock:
+    if (document.body.classList.contains('bubble-compact-view')) {
+        document.body.classList.remove('bubble-compact-view');
+        return;
+    }
+
+    // Toggle in-page Corner Mini Dock Card:
+    toggleCornerDock();
+}
+
+// In-Page Corner Mini Dock Card Toggle (Messenger / Intercom style)
+function toggleCornerDock(forceState) {
+    const card = document.getElementById('cornerDockCard');
+    const iframe = document.getElementById('cornerDockIframe');
+    const head = document.getElementById('floatingChatHead');
+    if (!card) return;
+
+    const shouldOpen = typeof forceState === 'boolean' ? forceState : !card.classList.contains('active');
+    if (shouldOpen) {
+        if (iframe && (!iframe.src || iframe.src === 'about:blank' || iframe.getAttribute('src') === '')) {
+            iframe.src = window.location.origin + '/?view=mini';
+        }
+        card.classList.add('active');
+        dismissTeaser();
+        unreadChatCount = 0;
+        updateChatUnreadBadge();
+        if (head) head.classList.add('dock-open');
+    } else {
+        card.classList.remove('active');
+        if (head) head.classList.remove('dock-open');
+    }
+}
+
+// Standalone Mini Window Bubble Mode Toggle
+function toggleMiniWindowBubbleMode() {
+    document.body.classList.toggle('bubble-compact-view');
 }
 
 function updateChatUnreadBadge() {
@@ -597,7 +633,7 @@ function switchView(view) {
     }
 }
 
-// Mini Dock & Corner Floating Mode (Always on Top)
+// Mini Dock & Corner Floating Mode
 let activePipWindow = null;
 
 async function toggleMiniDock() {
@@ -605,6 +641,14 @@ async function toggleMiniDock() {
         expandToFullView();
         return;
     }
+
+    // Open the sleek in-page Corner Mini Dock above the floating bubble:
+    toggleCornerDock(true);
+}
+
+// Detach into Always-On-Top OS Window (stays above Premiere, Photoshop, Folders)
+async function openAlwaysOnTopOsWindow() {
+    toggleCornerDock(false);
 
     const width = 390;
     const height = 660;

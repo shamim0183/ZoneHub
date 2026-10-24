@@ -2524,31 +2524,134 @@
             overflow-x: hidden !important;
         }
 
+        body.mini-dock-mode #miniBubbleToggleBtn {
+            display: inline-flex !important;
+        }
+
+        /* In-Page Corner Mini Dock Card (Opens right above the floating circle icon) */
+        .corner-dock-card {
+            position: fixed;
+            bottom: 92px;
+            right: 24px;
+            width: 390px;
+            height: 620px;
+            max-width: calc(100vw - 32px);
+            max-height: calc(100vh - 120px);
+            background: #0b0f19;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 18px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(99, 102, 241, 0.25);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 99990;
+            transform-origin: bottom right;
+            animation: cornerDockIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .corner-dock-card.active {
+            display: flex;
+        }
+        @keyframes cornerDockIn {
+            from { opacity: 0; transform: scale(0.85) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .corner-dock-header {
+            height: 44px;
+            padding: 0 12px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .corner-dock-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .corner-dock-icon {
+            width: 24px !important;
+            height: 24px !important;
+            border-radius: 6px !important;
+        }
+        .corner-dock-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .corner-dock-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .dock-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        .dock-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+            color: #fff;
+            border-color: rgba(99, 102, 241, 0.6);
+        }
+        .dock-btn-close:hover {
+            background: rgba(244, 63, 94, 0.3);
+            color: #f43f5e;
+            border-color: rgba(244, 63, 94, 0.6);
+        }
+        .corner-dock-body {
+            flex: 1 1 0;
+            min-height: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0b0f19;
+        }
+        .corner-dock-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
         /* Floating Circle Bubble Widget (Chat Head) */
         .floating-chat-head {
             position: fixed;
             bottom: 24px;
             right: 24px;
-            width: 54px;
-            height: 54px;
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
             background: linear-gradient(135deg, #4338ca 0%, #06b6d4 100%);
-            box-shadow: 0 8px 24px rgba(6, 182, 212, 0.45), 0 0 20px rgba(99, 102, 241, 0.35);
+            box-shadow: 0 8px 25px rgba(6, 182, 212, 0.5), 0 0 25px rgba(99, 102, 241, 0.4);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            z-index: 9999;
+            z-index: 99999;
             transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
-            border: 2px solid rgba(255, 255, 255, 0.35);
+            border: 2.5px solid rgba(255, 255, 255, 0.4);
             user-select: none;
         }
         .floating-chat-head:hover {
             transform: scale(1.1) translateY(-2px);
-            box-shadow: 0 12px 30px rgba(6, 182, 212, 0.65), 0 0 25px rgba(99, 102, 241, 0.5);
+            box-shadow: 0 12px 32px rgba(6, 182, 212, 0.7), 0 0 30px rgba(99, 102, 241, 0.6);
         }
         .floating-chat-head:active {
             transform: scale(0.95);
+        }
+        .floating-chat-head.dock-open {
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.4), 0 8px 25px rgba(6, 182, 212, 0.5);
         }
         .chat-head-icon {
             display: flex;
@@ -2601,7 +2704,7 @@
         /* Incoming Teaser Pill that slides out from the circle */
         .chat-head-teaser {
             position: absolute;
-            right: 64px;
+            right: 68px;
             bottom: 4px;
             background: rgba(15, 23, 42, 0.96);
             backdrop-filter: blur(16px);
@@ -2665,8 +2768,24 @@
             padding: 0 2px;
         }
 
+        /* Standalone Mini Window Mode */
         body.mini-dock-mode .floating-chat-head {
+            display: none;
+        }
+
+        /* Bubble Compact View for Mini Window */
+        body.mini-dock-mode.bubble-compact-view .container {
             display: none !important;
+        }
+        body.mini-dock-mode.bubble-compact-view .floating-chat-head {
+            display: flex !important;
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            bottom: auto !important;
+            right: auto !important;
+            transform: translate(-50%, -50%) scale(1.4) !important;
+            box-shadow: 0 0 50px rgba(6, 182, 212, 0.7), 0 0 30px rgba(99, 102, 241, 0.5) !important;
         }
 
 
