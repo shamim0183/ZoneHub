@@ -321,6 +321,13 @@ namespace SkyCommerceMediaServer
                     return;
                 }
 
+                // Handle GET manifest.json (dynamic hubName)
+                if ((req.Method == "GET" || req.Method == "HEAD") && decodedPath.Equals("/manifest.json", StringComparison.OrdinalIgnoreCase))
+                {
+                    ServeManifest(stream, req.Method == "HEAD");
+                    return;
+                }
+
                 // Handle GET my-info (PC default name)
                 if (req.Method == "GET" && decodedPath.Equals("/api/my-info", StringComparison.OrdinalIgnoreCase))
                 {
@@ -905,12 +912,25 @@ namespace SkyCommerceMediaServer
         {
             if (f.Attributes.HasFlag(FileAttributes.Hidden)) return false;
             string ext = f.Extension.ToLowerInvariant();
-            if (ext == ".exe" || ext == ".cs" || ext == ".bat" || ext == ".cmd" || ext == ".ps1" || ext == ".vbs") return false;
+            if (ext == ".exe" || ext == ".cs" || ext == ".bat" || ext == ".cmd" || ext == ".ps1" || ext == ".vbs" || ext == ".pdb" || ext == ".log") return false;
             string name = f.Name;
             if (name.Equals("index.html", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("manifest.json", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("sw.js", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("hub_config.json", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("online_url.txt", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("cloudflared.log", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("messages.json", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("file_metadata.json", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("favicon.svg", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("favicon.png", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("favicon.ico", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("server.pdb", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            if (f.FullName.IndexOf(Path.DirectorySeparatorChar + "css" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                f.FullName.IndexOf(Path.DirectorySeparatorChar + "js" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return false;
             }
@@ -932,7 +952,11 @@ namespace SkyCommerceMediaServer
                 foreach (var dir in Directory.GetDirectories(root))
                 {
                     DirectoryInfo dInfo = new DirectoryInfo(dir);
-                    if (dInfo.Attributes.HasFlag(FileAttributes.Hidden) || dInfo.Name.StartsWith(".") || dInfo.Name.Equals("bin", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (dInfo.Attributes.HasFlag(FileAttributes.Hidden) || 
+                        dInfo.Name.StartsWith(".") || 
+                        dInfo.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+                        dInfo.Name.Equals("css", StringComparison.OrdinalIgnoreCase) ||
+                        dInfo.Name.Equals("js", StringComparison.OrdinalIgnoreCase)) continue;
                     string candidate = Path.Combine(dir, fileName);
                     if (File.Exists(candidate)) return candidate;
                 }
@@ -1196,7 +1220,9 @@ namespace SkyCommerceMediaServer
                 .Where(d => !d.Attributes.HasFlag(FileAttributes.Hidden) &&
                             !d.Name.StartsWith(".") &&
                             !d.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) &&
-                            !d.Name.Equals("obj", StringComparison.OrdinalIgnoreCase))
+                            !d.Name.Equals("obj", StringComparison.OrdinalIgnoreCase) &&
+                            !d.Name.Equals("css", StringComparison.OrdinalIgnoreCase) &&
+                            !d.Name.Equals("js", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(d => d.Name)
                 .ToList();
 
@@ -1277,7 +1303,9 @@ namespace SkyCommerceMediaServer
                     if (dir.Attributes.HasFlag(FileAttributes.Hidden) || 
                         dir.Name.StartsWith(".") || 
                         dir.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
-                        dir.Name.Equals("obj", StringComparison.OrdinalIgnoreCase))
+                        dir.Name.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
+                        dir.Name.Equals("css", StringComparison.OrdinalIgnoreCase) ||
+                        dir.Name.Equals("js", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -1414,6 +1442,40 @@ namespace SkyCommerceMediaServer
             response.Append("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD\r\n");
             response.Append("Access-Control-Allow-Headers: *\r\n");
             response.Append("Cache-Control: no-cache, no-store, must-revalidate\r\n");
+            response.Append("Connection: close\r\n\r\n");
+
+            byte[] headerBytes = Encoding.UTF8.GetBytes(response.ToString());
+            stream.Write(headerBytes, 0, headerBytes.Length);
+            if (!headOnly)
+            {
+                stream.Write(bytes, 0, bytes.Length);
+            }
+            stream.Flush();
+        }
+
+        private static void ServeManifest(NetworkStream stream, bool headOnly)
+        {
+            string manifestPath = Path.Combine(RootDirectory, "manifest.json");
+            string json = "";
+            string hubName = GetHubName();
+
+            if (File.Exists(manifestPath))
+            {
+                json = File.ReadAllText(manifestPath, Encoding.UTF8);
+                json = json.Replace("{{HUB_NAME}}", hubName);
+            }
+            else
+            {
+                json = "{\"name\":\"" + JsonEscape(hubName) + "\",\"short_name\":\"" + JsonEscape(hubName) + "\",\"start_url\":\"/\",\"display\":\"standalone\",\"theme_color\":\"#0b0f19\"}";
+            }
+
+            byte[] bytes = Encoding.UTF8.GetBytes(json);
+            StringBuilder response = new StringBuilder();
+            response.Append("HTTP/1.1 200 OK\r\n");
+            response.Append("Content-Type: application/manifest+json; charset=utf-8\r\n");
+            response.Append("Content-Length: " + bytes.Length + "\r\n");
+            response.Append("Access-Control-Allow-Origin: *\r\n");
+            response.Append("Cache-Control: no-cache\r\n");
             response.Append("Connection: close\r\n\r\n");
 
             byte[] headerBytes = Encoding.UTF8.GetBytes(response.ToString());
