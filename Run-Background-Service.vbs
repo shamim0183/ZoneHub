@@ -11,7 +11,10 @@ WshShell.Run """" & strDir & "\server.exe""", 0, False
 WScript.Sleep 2000
 
 ' 3. Start Cloudflare Online Tunnel silently
-strCF = "C:\Program Files (x86)\cloudflared\cloudflared.exe"
+strCF = strDir & "\cloudflared.exe"
+If Not FSO.FileExists(strCF) Then
+    strCF = "C:\Program Files (x86)\cloudflared\cloudflared.exe"
+End If
 If Not FSO.FileExists(strCF) Then
     strCF = "C:\Program Files\cloudflared\cloudflared.exe"
 End If

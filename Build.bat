@@ -1,9 +1,9 @@
 @echo off
-title Build SkyCommerce Media Hub
+title Build ZoneHub Server
 cd /d "%~dp0"
 
 echo ===================================================
-echo   Compiling SkyCommerce Media Hub (server.cs)...
+echo   Compiling ZoneHub Server (server.cs)...
 echo ===================================================
 echo.
 

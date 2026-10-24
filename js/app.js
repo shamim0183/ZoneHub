@@ -1,22 +1,22 @@
 // ==========================================
-// SkyCommerce Media Hub - Core App Engine
+// ZoneHub - Core App Engine
 // ==========================================
 
 // Client Token for message ownership
-let myUserId = localStorage.getItem('skycommerce_user_id');
+let myUserId = localStorage.getItem('zonehub_user_id') || localStorage.getItem('skycommerce_user_id');
 if (!myUserId) {
     myUserId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('skycommerce_user_id', myUserId);
+    localStorage.setItem('zonehub_user_id', myUserId);
 }
 
 // User Name State (Default from PC Hostname)
-let currentUserName = localStorage.getItem('skycommerce_user_name');
+let currentUserName = localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name');
 if (!currentUserName) {
     fetch('/api/my-info')
         .then(r => r.json())
         .then(info => {
             currentUserName = info.defaultName || 'Employee';
-            localStorage.setItem('skycommerce_user_name', currentUserName);
+            localStorage.setItem('zonehub_user_name', currentUserName);
             updateUserDisplay();
         })
         .catch(() => {
@@ -39,7 +39,7 @@ function promptChangeName() {
     const newName = prompt('আপনার নাম পরিবর্তন করুন (Enter your name for Team Chat):', currentUserName);
     if (newName && newName.trim().length > 0) {
         currentUserName = newName.trim();
-        localStorage.setItem('skycommerce_user_name', currentUserName);
+        localStorage.setItem('zonehub_user_name', currentUserName);
         updateUserDisplay();
         showToast('Name updated to: ' + currentUserName);
     }

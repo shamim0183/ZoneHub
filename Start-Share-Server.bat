@@ -1,8 +1,8 @@
 @echo off
-title SkyCommerce Media Hub
+title ZoneHub - Connected Network Zone
 cd /d "%~dp0"
 echo ===================================================
-echo   Starting SkyCommerce Media Hub...
+echo   Starting ZoneHub & Team Collaboration Server...
 echo ===================================================
 echo.
 server.exe

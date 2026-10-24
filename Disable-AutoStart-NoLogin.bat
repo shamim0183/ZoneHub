@@ -1,5 +1,5 @@
 @echo off
-title Remove Boot Task - SkyCommerce Media Hub
+title Remove Boot Task - ZoneHub
 cd /d "%~dp0"
 
 net session >nul 2>&1
@@ -12,6 +12,7 @@ echo ===================================================================
 echo   Removing Boot Auto-Start Task...
 echo ===================================================================
 
+schtasks /delete /tn "ZoneHub_Boot" /f >nul 2>&1
 schtasks /delete /tn "SkyCommerceMediaHub_Boot" /f >nul 2>&1
 
 echo Stopping any running server and tunnel processes...
