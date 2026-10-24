@@ -434,6 +434,89 @@
         </div>
     </div>
 
+    <!-- PWA Installation Guide Modal for iOS, Android & Desktop -->
+    <div id="pwaGuideModal" class="modal-overlay" onclick="closePwaGuideModal(event)">
+        <div class="pwa-modal-box" onclick="event.stopPropagation()">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
+                    📲 Install App on Your Device
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closePwaGuideModal()">✕</button>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:12px;">
+                এক ক্লিকে আপনার ফোন বা কম্পিউটারে অ্যাপ হিসেবে ইনস্টল করুন। বারবার কোনো বড় লিংক টাইপ বা মনে রাখতে হবে না!
+            </p>
+
+            <div class="pwa-step-tabs">
+                <button type="button" class="pwa-step-tab" id="pwaTabIos" onclick="switchPwaTab('ios')">📱 iPhone / iPad</button>
+                <button type="button" class="pwa-step-tab" id="pwaTabAndroid" onclick="switchPwaTab('android')">🤖 Android</button>
+                <button type="button" class="pwa-step-tab" id="pwaTabDesktop" onclick="switchPwaTab('desktop')">💻 Desktop PC</button>
+            </div>
+
+            <!-- iOS Panel -->
+            <div class="pwa-step-panel" id="pwaPanelIos">
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">1</div>
+                    <div class="pwa-step-text">Safari ব্রাউজারের নিচে বা উপরে থাকা <strong>Share (শেয়ার)</strong> বাটনে ( ⎋ / [↑] ) চাপুন।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">2</div>
+                    <div class="pwa-step-text">মেনুটি একটু নিচে স্ক্রল করে <strong>"Add to Home Screen"</strong> (হোম স্ক্রিনে যোগ করুন) অপশনে চাপুন।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">3</div>
+                    <div class="pwa-step-text">উপরে ডানের <strong>"Add"</strong> বাটনে চাপুন।</div>
+                </div>
+                <div class="pwa-tip-box">
+                    <span>✨</span>
+                    <span>সাথে সাথে আপনার iPhone-এর হোম স্ক্রিনে Media Hub-এর সুন্দর অ্যাপ আইকন যুক্ত হয়ে যাবে!</span>
+                </div>
+            </div>
+
+            <!-- Android Panel -->
+            <div class="pwa-step-panel" id="pwaPanelAndroid">
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">1</div>
+                    <div class="pwa-step-text">Chrome ব্রাউজারের উপরে ডানদিকের ৩-ডট মেনু <strong>[ ⋮ ]</strong> চাপুন।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">2</div>
+                    <div class="pwa-step-text"><strong>"Install app"</strong> অথবা <strong>"Add to Home screen"</strong> অপশনটিতে ক্লিক করুন।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">3</div>
+                    <div class="pwa-step-text">পপ-আপে <strong>"Install"</strong> চাপুন।</div>
+                </div>
+                <div class="pwa-tip-box">
+                    <span>⚡</span>
+                    <span>পরের বার কোনো ব্রাউজার অ্যাড্রেস বার ছাড়াই ফুল-স্ক্রিন দেশি অ্যাপের মতো ওপেন হবে!</span>
+                </div>
+            </div>
+
+            <!-- Desktop PC Panel -->
+            <div class="pwa-step-panel" id="pwaPanelDesktop">
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">1</div>
+                    <div class="pwa-step-text">Chrome বা Edge ব্রাউজারের অ্যাড্রেস বারের ডানে থাকা <strong>Install Icon ( ⊕ বা 💻 )</strong> চাপুন।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">2</div>
+                    <div class="pwa-step-text"><strong>"Install"</strong> বাটনে ক্লিক করলেই ইনস্টল সম্পন্ন হবে।</div>
+                </div>
+                <div class="pwa-tip-box">
+                    <span>🚀</span>
+                    <span>আপনার Windows টাস্কবার ও ডেস্কটপে আইকন তৈরি হবে, ১-ক্লিকেই সরাসরি চালু হবে!</span>
+                </div>
+            </div>
+
+            <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                <button type="button" class="btn btn-primary" onclick="closePwaGuideModal()" style="padding:8px 20px;">
+                    বুঝেছি (Got It)
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
     <script src="/js/app.js"></script>
     <script src="/js/media.js"></script>

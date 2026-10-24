@@ -540,12 +540,39 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+function isPwaStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           window.navigator.standalone === true || 
+           document.referrer.includes('android-app://');
+}
+
+function getDeviceType() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+    if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
+    if (/android/i.test(ua)) return 'android';
+    return 'desktop';
+}
+
+function initPwaInstallState() {
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (!installBtn) return;
+
+    if (isPwaStandalone()) {
+        // App is already running in installed standalone mode!
+        installBtn.style.display = 'none';
+        return;
+    }
+
+    // Always show Install button for browser users so they can install with 1-click or guide
+    installBtn.style.display = 'inline-flex';
+}
+
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
     const installBtn = document.getElementById('pwaInstallBtn');
-    if (installBtn) {
+    if (installBtn && !isPwaStandalone()) {
         installBtn.style.display = 'inline-flex';
     }
 });
@@ -556,6 +583,7 @@ window.addEventListener('appinstalled', () => {
     if (installBtn) {
         installBtn.style.display = 'none';
     }
+    closePwaGuideModal();
     showToast('🎉 App installed successfully to your device!');
 });
 
@@ -563,13 +591,42 @@ function triggerPwaInstall() {
     if (deferredInstallPrompt) {
         deferredInstallPrompt.prompt();
         deferredInstallPrompt.userChoice.then((choiceResult) => {
-            deferredInstallPrompt = null;
-            const installBtn = document.getElementById('pwaInstallBtn');
-            if (installBtn) installBtn.style.display = 'none';
+            if (choiceResult && choiceResult.outcome === 'accepted') {
+                deferredInstallPrompt = null;
+                const installBtn = document.getElementById('pwaInstallBtn');
+                if (installBtn) installBtn.style.display = 'none';
+            }
+        }).catch(err => {
+            console.warn('PWA install prompt error:', err);
+            openPwaGuideModal();
         });
     } else {
-        alert('To install this app on your device:\n\n• On Chrome/Edge (Desktop): Click the install icon in the URL bar (top right)\n• On Android Chrome: Tap Menu (⋮) -> Add to Home screen / Install app\n• On iPhone Safari: Tap Share (square with arrow) -> Add to Home Screen');
+        openPwaGuideModal();
     }
+}
+
+function openPwaGuideModal() {
+    const modal = document.getElementById('pwaGuideModal');
+    if (!modal) return;
+    const dev = getDeviceType();
+    switchPwaTab(dev);
+    modal.classList.add('active');
+}
+
+function closePwaGuideModal(event) {
+    if (event && event.target && event.target.id !== 'pwaGuideModal') return;
+    const modal = document.getElementById('pwaGuideModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function switchPwaTab(tabName) {
+    const tabs = ['ios', 'android', 'desktop'];
+    tabs.forEach(t => {
+        const btn = document.getElementById('pwaTab' + t.charAt(0).toUpperCase() + t.slice(1));
+        const panel = document.getElementById('pwaPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) btn.classList.toggle('active', t === tabName);
+        if (panel) panel.classList.toggle('active', t === tabName);
+    });
 }
 
 // ==========================================
@@ -589,6 +646,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     fetchHubConfig();
+    initPwaInstallState();
     updateAlertsButtonDisplay();
     if (typeof loadFoldersList === 'function') loadFoldersList();
     if (typeof loadFileList === 'function') loadFileList();
