@@ -103,6 +103,40 @@ namespace SkyCommerceMediaServer
             return Path.Combine(RootDirectory, "hub_config.json");
         }
 
+        public static string GetDefaultHubName()
+        {
+            try
+            {
+                string uName = Environment.UserName;
+                string mName = GetHostName();
+
+                // If user has a named machine (e.g. SHAMIM-PC, OFFICE-LAPTOP), use that
+                if (!string.IsNullOrEmpty(mName) && 
+                    !mName.StartsWith("DESKTOP-", StringComparison.OrdinalIgnoreCase) && 
+                    !mName.StartsWith("LAPTOP-", StringComparison.OrdinalIgnoreCase) &&
+                    !mName.StartsWith("WIN-", StringComparison.OrdinalIgnoreCase))
+                {
+                    return mName + " Media Hub";
+                }
+
+                // If user account is clean (e.g. obak3, shamim), use that
+                if (!string.IsNullOrEmpty(uName) && 
+                    !uName.Equals("user", StringComparison.OrdinalIgnoreCase) &&
+                    !uName.Equals("administrator", StringComparison.OrdinalIgnoreCase) &&
+                    !uName.Equals("system", StringComparison.OrdinalIgnoreCase))
+                {
+                    return uName + " Media Hub";
+                }
+
+                if (!string.IsNullOrEmpty(mName))
+                {
+                    return mName + " Media Hub";
+                }
+            }
+            catch {}
+            return "Local Media Hub";
+        }
+
         public static string GetHubName()
         {
             lock (ConfigLock)
@@ -124,14 +158,7 @@ namespace SkyCommerceMediaServer
                 }
                 catch {}
 
-                string pc = GetHostName();
-                if (pc.IndexOf("SHAMIM", StringComparison.OrdinalIgnoreCase) >= 0 || 
-                    Environment.UserName.IndexOf("obak", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    Environment.UserName.IndexOf("shamim", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return "SkyCommerce Media Hub";
-                }
-                return pc + " Media Hub";
+                return GetDefaultHubName();
             }
         }
 
@@ -306,7 +333,18 @@ namespace SkyCommerceMediaServer
                 {
                     if (req.Method == "GET")
                     {
-                        string json = "{\"hubName\":\"" + JsonEscape(GetHubName()) + "\",\"machineName\":\"" + JsonEscape(GetHostName()) + "\"}";
+                        string curHub = GetHubName();
+                        string defHub = GetDefaultHubName();
+                        string mName = GetHostName();
+                        string uName = Environment.UserName;
+                        string json = "{" +
+                            "\"hubName\":\"" + JsonEscape(curHub) + "\"," +
+                            "\"defaultHubName\":\"" + JsonEscape(defHub) + "\"," +
+                            "\"machineName\":\"" + JsonEscape(mName) + "\"," +
+                            "\"userName\":\"" + JsonEscape(uName) + "\"," +
+                            "\"machineHubName\":\"" + JsonEscape(mName + " Media Hub") + "\"," +
+                            "\"userHubName\":\"" + JsonEscape(uName + " Media Hub") + "\"" +
+                        "}";
                         SendJsonResponse(stream, 200, json);
                         return;
                     }

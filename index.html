@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{HUB_NAME}} &amp; Team Chat</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2063,8 +2066,82 @@
             padding: 0 4px;
             line-height: 1;
         }
-        .corner-toast-close:hover {
+        .brand-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .brand-title {
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .brand-title:hover {
+            color: #38bdf8;
+        }
+        .hub-rename-pill-btn {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            color: #a5b4fc;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hub-rename-pill-btn:hover {
+            background: var(--primary);
             color: #fff;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+        .rename-modal-box {
+            background: #111827;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 18px;
+            padding: 24px;
+            width: 480px;
+            max-width: 90vw;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+        }
+        .suggestion-chips-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 14px 0 18px 0;
+        }
+        .suggestion-chip {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #e2e8f0;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        .suggestion-chip:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+            color: #fff;
+            transform: translateX(3px);
+        }
+        .chip-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
         }
     </style>
 </head>
@@ -2077,10 +2154,11 @@
                     <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                 </div>
                 <div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <h1 class="brand-title" id="hubTitleText">{{HUB_NAME}}</h1>
-                        <button onclick="promptChangeHubName()" class="btn btn-icon" title="Rename Hub / Project Name for this PC" style="padding:2px 6px;font-size:12px;opacity:0.8;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);cursor:pointer;border-radius:6px;">
-                            ✏️
+                    <div class="brand-title-wrap">
+                        <h1 class="brand-title" id="hubTitleText" onclick="openHubRenameModal()" title="Click to Rename Hub for this PC">{{HUB_NAME}}</h1>
+                        <button type="button" onclick="openHubRenameModal()" class="hub-rename-pill-btn" title="Rename Project / Media Hub for this PC">
+                            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            <span>Rename Hub</span>
                         </button>
                     </div>
                     <p class="brand-sub">Shared Files, Previews, Voice Notes &amp; Real-time Team Chat</p>
@@ -2424,6 +2502,49 @@
         <button class="corner-toast-close" onclick="event.stopPropagation(); closeChatToast();">✕</button>
     </div>
 
+    <!-- Hub Rename Modal with 1-Click Suggestions -->
+    <div id="hubRenameModal" class="modal-overlay" onclick="closeHubRenameModal(event)">
+        <div class="rename-modal-box" onclick="event.stopPropagation()">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
+                    🏷️ Rename Media Hub
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closeHubRenameModal()">✕</button>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px;">
+                এই প্রজেক্টটি যে কম্পিউটারে ইনস্টল করবেন, সেই কম্পিউটারের নিজস্ব নাম অনুযায়ী বা আপনার পছন্দের যে কোনো নামে কাস্টমাইজ করতে পারেন:
+            </p>
+
+            <div style="font-size:11px;font-weight:700;color:#a5b4fc;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">
+                💡 1-Click Dynamic Suggestions:
+            </div>
+            <div class="suggestion-chips-grid">
+                <button type="button" class="suggestion-chip" id="chipUserHub" onclick="applySuggestedName(this.dataset.name)">
+                    <span id="chipUserHubText">👤 User Account Media Hub</span>
+                    <span class="chip-badge">User Account</span>
+                </button>
+                <button type="button" class="suggestion-chip" id="chipMachineHub" onclick="applySuggestedName(this.dataset.name)">
+                    <span id="chipMachineHubText">💻 Device Name Media Hub</span>
+                    <span class="chip-badge">PC Device</span>
+                </button>
+                <button type="button" class="suggestion-chip" onclick="applySuggestedName('SkyCommerce Media Hub')">
+                    <span>🏢 SkyCommerce Media Hub</span>
+                    <span class="chip-badge">Company</span>
+                </button>
+            </div>
+
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">
+                Custom Name (কাস্টম নাম লিখুন):
+            </div>
+            <div style="display:flex;gap:8px;">
+                <input type="text" id="customHubNameInput" class="chat-input" style="height:42px;flex:1;" placeholder="Enter custom hub name..." />
+                <button type="button" onclick="saveCustomHubName()" class="btn btn-primary" style="padding:0 16px;white-space:nowrap;">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Client Token for message ownership
         let myUserId = localStorage.getItem('skycommerce_user_id');
@@ -2466,26 +2587,88 @@
             }
         }
 
-        async function promptChangeHubName() {
-            const currentTitleEl = document.getElementById('hubTitleText');
-            const current = currentTitleEl ? currentTitleEl.innerText.trim() : 'SkyCommerce Media Hub';
-            const newName = prompt('Enter Hub / Project Name for this PC (এই পিসির জন্য প্রজেক্টের নাম দিন):', current);
-            if (newName && newName.trim().length > 0 && newName.trim() !== current) {
-                try {
-                    const res = await fetch('/api/config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hubName: newName.trim() })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        if (currentTitleEl) currentTitleEl.innerText = data.hubName;
-                        document.title = data.hubName + ' & Team Chat';
-                        showToast('Hub Name updated: ' + data.hubName);
+        let hubConfigData = null;
+
+        async function fetchHubConfig() {
+            try {
+                const res = await fetch('/api/config');
+                hubConfigData = await res.json();
+                if (hubConfigData) {
+                    if (hubConfigData.hubName) {
+                        const titleEl = document.getElementById('hubTitleText');
+                        if (titleEl) titleEl.innerText = hubConfigData.hubName;
+                        document.title = hubConfigData.hubName + ' & Team Chat';
                     }
-                } catch (err) {
-                    showToast('Failed to update hub name');
+                    const chipUser = document.getElementById('chipUserHub');
+                    const chipUserText = document.getElementById('chipUserHubText');
+                    if (chipUser && chipUserText && hubConfigData.userHubName) {
+                        chipUser.dataset.name = hubConfigData.userHubName;
+                        chipUserText.innerText = '👤 ' + hubConfigData.userHubName;
+                    }
+                    const chipMachine = document.getElementById('chipMachineHub');
+                    const chipMachineText = document.getElementById('chipMachineHubText');
+                    if (chipMachine && chipMachineText && hubConfigData.machineHubName) {
+                        chipMachine.dataset.name = hubConfigData.machineHubName;
+                        chipMachineText.innerText = '💻 ' + hubConfigData.machineHubName;
+                    }
                 }
+            } catch (e) {
+                console.warn('Could not fetch hub config:', e);
+            }
+        }
+
+        function openHubRenameModal() {
+            fetchHubConfig();
+            const currentTitleEl = document.getElementById('hubTitleText');
+            const input = document.getElementById('customHubNameInput');
+            if (input && currentTitleEl) {
+                input.value = currentTitleEl.innerText.trim();
+            }
+            const modal = document.getElementById('hubRenameModal');
+            if (modal) modal.classList.add('active');
+            setTimeout(() => { if (input) input.focus(); }, 100);
+        }
+
+        function closeHubRenameModal(e) {
+            if (!e || e.target.id === 'hubRenameModal' || e.target.classList.contains('modal-close-btn')) {
+                const modal = document.getElementById('hubRenameModal');
+                if (modal) modal.classList.remove('active');
+            }
+        }
+
+        function applySuggestedName(name) {
+            if (!name) return;
+            const input = document.getElementById('customHubNameInput');
+            if (input) input.value = name;
+            saveCustomHubName();
+        }
+
+        async function saveCustomHubName() {
+            const input = document.getElementById('customHubNameInput');
+            const newName = input ? input.value.trim() : '';
+            if (!newName) {
+                showToast('Please enter a valid hub name');
+                return;
+            }
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hubName: newName })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const titleEl = document.getElementById('hubTitleText');
+                    if (titleEl) titleEl.innerText = data.hubName;
+                    document.title = data.hubName + ' & Team Chat';
+                    showToast('Hub Name updated: ' + data.hubName);
+                    const modal = document.getElementById('hubRenameModal');
+                    if (modal) modal.classList.remove('active');
+                } else {
+                    showToast(data.error || 'Failed to update name');
+                }
+            } catch (err) {
+                showToast('Error saving hub name: ' + err.message);
             }
         }
 
@@ -4016,6 +4199,7 @@
             }
         });
 
+        fetchHubConfig();
         updateAlertsButtonDisplay();
         loadFoldersList();
         loadFileList();
