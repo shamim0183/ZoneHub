@@ -524,6 +524,38 @@
                 </button>
             </div>
         </div>
+    <!-- Floating Circle Widget (Chat Head) in Screen Corner -->
+    <div id="floatingChatHead" class="floating-chat-head" onclick="toggleChatHeadClick()" title="ZoneHub Team Bubble • Click to open Corner Dock">
+        <div class="chat-head-icon">
+            <svg width="26" height="26" viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="18" stroke="#ffffff" stroke-width="1.2" stroke-opacity="0.3" stroke-dasharray="2.5 2.5"/>
+                <circle cx="24" cy="24" r="11" stroke="#ffffff" stroke-width="1.2" stroke-opacity="0.4"/>
+                <line x1="24" y1="13" x2="15" y2="31" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9"/>
+                <line x1="24" y1="13" x2="33" y2="31" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9"/>
+                <line x1="15" y1="31" x2="33" y2="31" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9"/>
+                <circle cx="24" cy="25" r="2" fill="#ffffff"/>
+                <circle cx="24" cy="13" r="4.5" fill="#ffffff"/>
+                <circle cx="24" cy="13" r="2.5" fill="#4338ca"/>
+                <circle cx="15" cy="31" r="4" fill="#ffffff"/>
+                <circle cx="15" cy="31" r="2.2" fill="#06b6d4"/>
+                <circle cx="33" cy="31" r="4" fill="#ffffff"/>
+                <circle cx="33" cy="31" r="2.2" fill="#10b981"/>
+            </svg>
+        </div>
+        <!-- Unread badge counter -->
+        <span class="chat-head-badge" id="chatHeadBadge" style="display:none;">0</span>
+        <!-- Online pulse dot -->
+        <span class="chat-head-pulse"></span>
+        
+        <!-- Incoming message teaser pill that slides out for 4s -->
+        <div class="chat-head-teaser" id="chatHeadTeaser" onclick="event.stopPropagation(); onTeaserClicked();">
+            <div class="teaser-avatar" id="teaserAvatar">?</div>
+            <div class="teaser-body">
+                <div class="teaser-name" id="teaserUser">Team</div>
+                <div class="teaser-text" id="teaserText">New message</div>
+            </div>
+            <button class="teaser-close" onclick="event.stopPropagation(); dismissTeaser();">✕</button>
+        </div>
     </div>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->

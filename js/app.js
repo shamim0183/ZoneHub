@@ -466,6 +466,7 @@ function showCornerChatToast(msg) {
     preview.innerText = textPreview;
 
     toast.style.display = 'flex';
+    showChatHeadTeaser(msg);
 
     if (chatToastTimer) clearTimeout(chatToastTimer);
     chatToastTimer = setTimeout(() => {
@@ -484,14 +485,67 @@ function onToastClicked() {
     switchView('chat');
 }
 
+let teaserTimer = null;
+function showChatHeadTeaser(msg) {
+    const teaser = document.getElementById('chatHeadTeaser');
+    const userEl = document.getElementById('teaserUser');
+    const textEl = document.getElementById('teaserText');
+    const avatarEl = document.getElementById('teaserAvatar');
+    if (!teaser || !userEl || !textEl) return;
+
+    userEl.innerText = msg.user || 'Team Member';
+    if (avatarEl) avatarEl.innerText = (msg.user || 'TM').substring(0, 2).toUpperCase();
+
+    let preview = msg.text || '';
+    if (msg.type === 'voice') preview = '🎤 Voice note (' + (msg.duration ? msg.duration + 's' : '') + ')';
+    else if (msg.type === 'image') preview = '📷 Sent a picture';
+    textEl.innerText = preview;
+
+    teaser.classList.add('show');
+    if (teaserTimer) clearTimeout(teaserTimer);
+    teaserTimer = setTimeout(dismissTeaser, 5000);
+}
+
+function dismissTeaser() {
+    const teaser = document.getElementById('chatHeadTeaser');
+    if (teaser) teaser.classList.remove('show');
+    if (teaserTimer) clearTimeout(teaserTimer);
+}
+
+function onTeaserClicked() {
+    dismissTeaser();
+    toggleChatHeadClick();
+}
+
+function toggleChatHeadClick() {
+    unreadChatCount = 0;
+    updateChatUnreadBadge();
+    dismissTeaser();
+    toggleMiniDock();
+}
+
 function updateChatUnreadBadge() {
     const badge = document.getElementById('chatUnreadBadge');
-    if (!badge) return;
-    if (unreadChatCount > 0) {
-        badge.innerText = '+' + unreadChatCount;
-        badge.style.display = 'inline-block';
-    } else {
-        badge.style.display = 'none';
+    if (badge) {
+        if (unreadChatCount > 0) {
+            badge.innerText = '+' + unreadChatCount;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    const headBadge = document.getElementById('chatHeadBadge');
+    const headEl = document.getElementById('floatingChatHead');
+    if (headBadge) {
+        if (unreadChatCount > 0) {
+            headBadge.innerText = unreadChatCount > 99 ? '99+' : unreadChatCount;
+            headBadge.style.display = 'flex';
+            if (headEl) headEl.classList.add('has-new-msg');
+        } else {
+            headBadge.style.display = 'none';
+            if (headEl) headEl.classList.remove('has-new-msg');
+        }
     }
 }
 
