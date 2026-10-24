@@ -99,39 +99,49 @@ namespace ZoneHub {
                 Background = Brushes.Transparent
             };
 
-            // Main Circle Bubble
+            // Main White Circular Bubble (Like user's reference image)
             bubbleBorder = new Border {
                 Width = BUBBLE_SIZE,
                 Height = BUBBLE_SIZE,
                 CornerRadius = new CornerRadius(BUBBLE_SIZE / 2),
-                BorderThickness = new Thickness(2.5),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(140, 255, 255, 255)),
+                Background = Brushes.White,
+                BorderThickness = new Thickness(1.5),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(35, 0, 0, 0)),
                 Cursor = Cursors.Hand,
                 RenderTransformOrigin = new Point(0.5, 0.5),
                 RenderTransform = new ScaleTransform(1.0, 1.0)
             };
 
-            // Linear Gradient background
+            // Soft Realistic 3D Drop Shadow
+            bubbleBorder.Effect = new DropShadowEffect {
+                Color = Colors.Black,
+                BlurRadius = 14,
+                ShadowDepth = 3,
+                Opacity = 0.35
+            };
+
+            // Inner Squircle App Icon (Blue rounded square inside the white circle)
+            Border squircleIcon = new Border {
+                Width = 44,
+                Height = 44,
+                CornerRadius = new CornerRadius(12),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // Linear Gradient background for squircle
             LinearGradientBrush gradient = new LinearGradientBrush {
                 StartPoint = new Point(0, 0),
                 EndPoint = new Point(1, 1)
             };
             gradient.GradientStops.Add(new GradientStop(Color.FromRgb(67, 56, 202), 0.0));  // Indigo
             gradient.GradientStops.Add(new GradientStop(Color.FromRgb(6, 182, 212), 1.0));  // Cyan
-            bubbleBorder.Background = gradient;
-
-            // Soft Glow Drop Shadow
-            bubbleBorder.Effect = new DropShadowEffect {
-                Color = Color.FromRgb(6, 182, 212),
-                BlurRadius = 16,
-                ShadowDepth = 3,
-                Opacity = 0.65
-            };
+            squircleIcon.Background = gradient;
 
             // ZoneHub Orbit SVG Icon
             Viewbox iconBox = new Viewbox {
-                Width = 32,
-                Height = 32,
+                Width = 26,
+                Height = 26,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -185,7 +195,8 @@ namespace ZoneHub {
             iconCanvas.Children.Add(leftNode);
             iconCanvas.Children.Add(rightNode);
             iconBox.Child = iconCanvas;
-            bubbleBorder.Child = iconBox;
+            squircleIcon.Child = iconBox;
+            bubbleBorder.Child = squircleIcon;
 
             Canvas.SetLeft(bubbleBorder, 6);
             Canvas.SetTop(bubbleBorder, 6);
@@ -436,10 +447,31 @@ namespace ZoneHub {
                         OnBubbleClicked();
                     }
                 } else {
-                    // Finished dragging - save position!
-                    SavePosition();
+                    // Finished dragging - smoothly snap to nearest edge (left or right)
+                    SnapToNearestEdge();
                 }
                 isDragging = false;
+            }
+        }
+
+        private void SnapToNearestEdge() {
+            try {
+                double screenW = SystemParameters.WorkArea.Width;
+                double leftEdge = 8;
+                double rightEdge = screenW - Width - 8;
+
+                double targetLeft = (Left + Width / 2 < screenW / 2) ? leftEdge : rightEdge;
+
+                DoubleAnimation anim = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(220)) {
+                    EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut }
+                };
+                anim.Completed += (s, e) => {
+                    Left = targetLeft;
+                    SavePosition();
+                };
+                this.BeginAnimation(Window.LeftProperty, anim);
+            } catch {
+                SavePosition();
             }
         }
 

@@ -556,8 +556,8 @@
                 <button type="button" class="dock-btn" onclick="openAlwaysOnTopOsWindow()" title="Always on Top (Detach into OS Floating Window over Photoshop/Premiere)">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                 </button>
-                <button type="button" class="dock-btn" onclick="toggleCornerDock(false)" title="Minimize to Circle Bubble (স্ক্রিনের গোল আইকন করুন)">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                <button type="button" class="dock-btn dock-btn-minimize" onclick="toggleCornerDock(false)" title="Minimize to Circle Bubble (স্ক্রিনের গোল আইকন করুন)">
+                    一
                 </button>
                 <button type="button" class="dock-btn dock-btn-close" onclick="toggleCornerDock(false)" title="Close">
                     ✕
@@ -569,10 +569,10 @@
         </div>
     </div>
 
-    <!-- Floating Circle Widget (Chat Head) in Screen Corner -->
-    <div id="floatingChatHead" class="floating-chat-head" onclick="toggleChatHeadClick()" title="ZoneHub Team Bubble • Click to open Corner Dock">
-        <div class="chat-head-icon">
-            <svg width="26" height="26" viewBox="0 0 48 48" fill="none">
+    <!-- Floating Circle Widget (Chat Head) in Screen Corner (White circular disc with squircle app icon inside) -->
+    <div id="floatingChatHead" class="floating-chat-head" onclick="toggleChatHeadClick()" title="ZoneHub Bubble • Click to open">
+        <div class="chat-head-squircle">
+            <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
                 <circle cx="24" cy="24" r="18" stroke="#ffffff" stroke-width="1.2" stroke-opacity="0.3" stroke-dasharray="2.5 2.5"/>
                 <circle cx="24" cy="24" r="11" stroke="#ffffff" stroke-width="1.2" stroke-opacity="0.4"/>
                 <line x1="24" y1="13" x2="15" y2="31" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9"/>
