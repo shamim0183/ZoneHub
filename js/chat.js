@@ -1,5 +1,6 @@
-﻿        // Real-time Team Chat Logic
+        // Real-time Team Chat Logic
         let currentMessages = [];
+        let isFirstMessagesLoad = true;
 
         async function loadMessages() {
             try {

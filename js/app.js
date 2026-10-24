@@ -1,386 +1,402 @@
-﻿        // Client Token for message ownership
-        let myUserId = localStorage.getItem('skycommerce_user_id');
-        if (!myUserId) {
-            myUserId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('skycommerce_user_id', myUserId);
-        }
+// ==========================================
+// SkyCommerce Media Hub - Core App Engine
+// ==========================================
 
-        // User Name State (Default from PC Hostname)
-        let currentUserName = localStorage.getItem('skycommerce_user_name');
-        if (!currentUserName) {
-            fetch('/api/my-info')
-                .then(r => r.json())
-                .then(info => {
-                    currentUserName = info.defaultName || 'Employee';
-                    localStorage.setItem('skycommerce_user_name', currentUserName);
-                    updateUserDisplay();
-                })
-                .catch(() => {
-                    currentUserName = 'Employee';
-                    updateUserDisplay();
-                });
-        } else {
+// Client Token for message ownership
+let myUserId = localStorage.getItem('skycommerce_user_id');
+if (!myUserId) {
+    myUserId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('skycommerce_user_id', myUserId);
+}
+
+// User Name State (Default from PC Hostname)
+let currentUserName = localStorage.getItem('skycommerce_user_name');
+if (!currentUserName) {
+    fetch('/api/my-info')
+        .then(r => r.json())
+        .then(info => {
+            currentUserName = info.defaultName || 'Employee';
+            localStorage.setItem('skycommerce_user_name', currentUserName);
             updateUserDisplay();
-        }
+        })
+        .catch(() => {
+            currentUserName = 'Employee';
+            updateUserDisplay();
+        });
+} else {
+    updateUserDisplay();
+}
 
-        function updateUserDisplay() {
-            document.getElementById('currentUserNameDisplay').innerText = currentUserName || 'Employee';
-            const init = (currentUserName || 'EM').substring(0, 2).toUpperCase();
-            document.getElementById('currentUserAvatar').innerText = init;
-        }
+function updateUserDisplay() {
+    const nameEl = document.getElementById('currentUserNameDisplay');
+    const avatarEl = document.getElementById('currentUserAvatar');
+    if (nameEl) nameEl.innerText = currentUserName || 'Employee';
+    const init = (currentUserName || 'EM').substring(0, 2).toUpperCase();
+    if (avatarEl) avatarEl.innerText = init;
+}
 
-        function promptChangeName() {
-            const newName = prompt('আপনার নাম পরিবর্তন করুন (Enter your name for Team Chat):', currentUserName);
-            if (newName && newName.trim().length > 0) {
-                currentUserName = newName.trim();
-                localStorage.setItem('skycommerce_user_name', currentUserName);
-                updateUserDisplay();
-                showToast('Name updated to: ' + currentUserName);
+function promptChangeName() {
+    const newName = prompt('আপনার নাম পরিবর্তন করুন (Enter your name for Team Chat):', currentUserName);
+    if (newName && newName.trim().length > 0) {
+        currentUserName = newName.trim();
+        localStorage.setItem('skycommerce_user_name', currentUserName);
+        updateUserDisplay();
+        showToast('Name updated to: ' + currentUserName);
+    }
+}
+
+// Dynamic Hub Configuration & Rename Modal
+let hubConfigData = null;
+
+async function fetchHubConfig() {
+    try {
+        const res = await fetch('/api/config');
+        hubConfigData = await res.json();
+        if (hubConfigData) {
+            if (hubConfigData.hubName) {
+                const titleEl = document.getElementById('hubTitleText');
+                if (titleEl) titleEl.innerText = hubConfigData.hubName;
+                document.title = hubConfigData.hubName + ' & Team Chat';
+            }
+            const chipUser = document.getElementById('chipUserHub');
+            const chipUserText = document.getElementById('chipUserHubText');
+            if (chipUser && chipUserText && hubConfigData.userHubName) {
+                chipUser.dataset.name = hubConfigData.userHubName;
+                chipUserText.innerText = '👤 ' + hubConfigData.userHubName;
+            }
+            const chipMachine = document.getElementById('chipMachineHub');
+            const chipMachineText = document.getElementById('chipMachineHubText');
+            if (chipMachine && chipMachineText && hubConfigData.machineHubName) {
+                chipMachine.dataset.name = hubConfigData.machineHubName;
+                chipMachineText.innerText = '💻 ' + hubConfigData.machineHubName;
             }
         }
+    } catch (e) {
+        console.warn('Could not fetch hub config:', e);
+    }
+}
 
-        let hubConfigData = null;
+function openHubRenameModal() {
+    fetchHubConfig();
+    const currentTitleEl = document.getElementById('hubTitleText');
+    const input = document.getElementById('customHubNameInput');
+    if (input && currentTitleEl) {
+        input.value = currentTitleEl.innerText.trim();
+    }
+    const modal = document.getElementById('hubRenameModal');
+    if (modal) modal.classList.add('active');
+    setTimeout(() => { if (input) input.focus(); }, 100);
+}
 
-        async function fetchHubConfig() {
-            try {
-                const res = await fetch('/api/config');
-                hubConfigData = await res.json();
-                if (hubConfigData) {
-                    if (hubConfigData.hubName) {
-                        const titleEl = document.getElementById('hubTitleText');
-                        if (titleEl) titleEl.innerText = hubConfigData.hubName;
-                        document.title = hubConfigData.hubName + ' & Team Chat';
-                    }
-                    const chipUser = document.getElementById('chipUserHub');
-                    const chipUserText = document.getElementById('chipUserHubText');
-                    if (chipUser && chipUserText && hubConfigData.userHubName) {
-                        chipUser.dataset.name = hubConfigData.userHubName;
-                        chipUserText.innerText = '👤 ' + hubConfigData.userHubName;
-                    }
-                    const chipMachine = document.getElementById('chipMachineHub');
-                    const chipMachineText = document.getElementById('chipMachineHubText');
-                    if (chipMachine && chipMachineText && hubConfigData.machineHubName) {
-                        chipMachine.dataset.name = hubConfigData.machineHubName;
-                        chipMachineText.innerText = '💻 ' + hubConfigData.machineHubName;
-                    }
-                }
-            } catch (e) {
-                console.warn('Could not fetch hub config:', e);
-            }
-        }
+function closeHubRenameModal(e) {
+    if (!e || e.target.id === 'hubRenameModal' || (e.target.classList && e.target.classList.contains('modal-close-btn'))) {
+        const modal = document.getElementById('hubRenameModal');
+        if (modal) modal.classList.remove('active');
+    }
+}
 
-        function openHubRenameModal() {
-            fetchHubConfig();
-            const currentTitleEl = document.getElementById('hubTitleText');
-            const input = document.getElementById('customHubNameInput');
-            if (input && currentTitleEl) {
-                input.value = currentTitleEl.innerText.trim();
-            }
+function applySuggestedName(name) {
+    if (!name) return;
+    const input = document.getElementById('customHubNameInput');
+    if (input) input.value = name;
+    saveCustomHubName();
+}
+
+async function saveCustomHubName() {
+    const input = document.getElementById('customHubNameInput');
+    const newName = input ? input.value.trim() : '';
+    if (!newName) {
+        showToast('Please enter a valid hub name');
+        return;
+    }
+    try {
+        const res = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hubName: newName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const titleEl = document.getElementById('hubTitleText');
+            if (titleEl) titleEl.innerText = data.hubName;
+            document.title = data.hubName + ' & Team Chat';
+            showToast('Hub Name updated: ' + data.hubName);
             const modal = document.getElementById('hubRenameModal');
-            if (modal) modal.classList.add('active');
-            setTimeout(() => { if (input) input.focus(); }, 100);
+            if (modal) modal.classList.remove('active');
+        } else {
+            showToast(data.error || 'Failed to update name');
         }
+    } catch (err) {
+        showToast('Error saving hub name: ' + err.message);
+    }
+}
 
-        function closeHubRenameModal(e) {
-            if (!e || e.target.id === 'hubRenameModal' || e.target.classList.contains('modal-close-btn')) {
-                const modal = document.getElementById('hubRenameModal');
-                if (modal) modal.classList.remove('active');
-            }
+// Common UI Utility Helpers
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+}
+
+function escapeQuotes(text) {
+    if (!text) return '';
+    return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function copyLink(relUrl) {
+    const shareEl = document.getElementById('networkShareLink');
+    let base = window.location.origin;
+    if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && shareEl && shareEl.href) {
+        base = shareEl.href.replace(/\/+$/, '');
+    }
+    const fullUrl = base + relUrl;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+        showToast('Link copied for mobile & employees: ' + fullUrl);
+    });
+}
+
+function copyFullShareUrl() {
+    const shareEl = document.getElementById('networkShareLink');
+    let shareUrl = shareEl ? shareEl.href : window.location.origin;
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (shareEl && shareEl.href) {
+            shareUrl = shareEl.href;
         }
+    }
+    navigator.clipboard.writeText(shareUrl).then(() => {
+        showToast('Mobile & Employees link copied: ' + shareUrl);
+    });
+}
 
-        function applySuggestedName(name) {
-            if (!name) return;
-            const input = document.getElementById('customHubNameInput');
-            if (input) input.value = name;
-            saveCustomHubName();
-        }
+// Notification & Audio Alert State
+let alertsEnabled = localStorage.getItem('hub_alerts_enabled') !== 'false';
+let currentActiveView = (window.innerWidth < 768) ? 'files' : 'split';
+let unreadChatCount = 0;
+let chatToastTimer = null;
+let notificationAudioCtx = null;
 
-        async function saveCustomHubName() {
-            const input = document.getElementById('customHubNameInput');
-            const newName = input ? input.value.trim() : '';
-            if (!newName) {
-                showToast('Please enter a valid hub name');
-                return;
-            }
-            try {
-                const res = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ hubName: newName })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const titleEl = document.getElementById('hubTitleText');
-                    if (titleEl) titleEl.innerText = data.hubName;
-                    document.title = data.hubName + ' & Team Chat';
-                    showToast('Hub Name updated: ' + data.hubName);
-                    const modal = document.getElementById('hubRenameModal');
-                    if (modal) modal.classList.remove('active');
-                } else {
-                    showToast(data.error || 'Failed to update name');
-                }
-            } catch (err) {
-                showToast('Error saving hub name: ' + err.message);
-            }
-        }
+function getNotificationAudioCtx() {
+    if (!notificationAudioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) notificationAudioCtx = new AudioContextClass();
+    }
+    if (notificationAudioCtx && notificationAudioCtx.state === 'suspended') {
+        notificationAudioCtx.resume();
+    }
+    return notificationAudioCtx;
+}
 
-        // Notification & Audio Alert State
-        let alertsEnabled = localStorage.getItem('hub_alerts_enabled') !== 'false';
-        let currentActiveView = (window.innerWidth < 768) ? 'files' : 'split';
-        let unreadChatCount = 0;
-        let isFirstMessagesLoad = true;
-        let chatToastTimer = null;
-        let notificationAudioCtx = null;
+// Professional Executive Notification Chime (Harmonic 2-Tone Marimba Chime)
+function playProfessionalChime() {
+    try {
+        const ctx = getNotificationAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
 
-        function getNotificationAudioCtx() {
-            if (!notificationAudioCtx) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                if (AudioContextClass) notificationAudioCtx = new AudioContextClass();
-            }
-            if (notificationAudioCtx && notificationAudioCtx.state === 'suspended') {
-                notificationAudioCtx.resume();
-            }
-            return notificationAudioCtx;
-        }
+        // Tone 1: Warm resonant marimba base note (Eb5 = 622.25 Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(622.25, now);
+        gain1.gain.setValueAtTime(0.0001, now);
+        gain1.gain.exponentialRampToValueAtTime(0.18, now + 0.018);
+        gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.6);
 
-        // Professional Executive Notification Chime (Harmonic 2-Tone Marimba Chime)
-        function playProfessionalChime() {
-            try {
-                const ctx = getNotificationAudioCtx();
-                if (!ctx) return;
-                const now = ctx.currentTime;
+        // Tone 2: Crisp crystal overtone (Bb5 = 932.33 Hz) starting 80ms later
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(932.33, now + 0.08);
+        gain2.gain.setValueAtTime(0.0001, now + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.22, now + 0.1);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.08);
+        osc2.stop(now + 0.8);
 
-                // Tone 1: Warm resonant marimba base note (Eb5 = 622.25 Hz)
-                const osc1 = ctx.createOscillator();
-                const gain1 = ctx.createGain();
-                osc1.type = 'sine';
-                osc1.frequency.setValueAtTime(622.25, now);
-                gain1.gain.setValueAtTime(0.0001, now);
-                gain1.gain.exponentialRampToValueAtTime(0.18, now + 0.018);
-                gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-                osc1.connect(gain1);
-                gain1.connect(ctx.destination);
-                osc1.start(now);
-                osc1.stop(now + 0.6);
+        // Subtle harmonic shimmer (1864 Hz) for luxury polish
+        const osc3 = ctx.createOscillator();
+        const gain3 = ctx.createGain();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(1864.66, now + 0.08);
+        gain3.gain.setValueAtTime(0.0001, now + 0.08);
+        gain3.gain.exponentialRampToValueAtTime(0.04, now + 0.1);
+        gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+        osc3.connect(gain3);
+        gain3.connect(ctx.destination);
+        osc3.start(now + 0.08);
+        osc3.stop(now + 0.5);
+    } catch (err) {
+        console.warn('Notification audio chime error:', err);
+    }
+}
 
-                // Tone 2: Crisp crystal overtone (Bb5 = 932.33 Hz) starting 80ms later
-                const osc2 = ctx.createOscillator();
-                const gain2 = ctx.createGain();
-                osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(932.33, now + 0.08);
-                gain2.gain.setValueAtTime(0.0001, now + 0.08);
-                gain2.gain.exponentialRampToValueAtTime(0.22, now + 0.1);
-                gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
-                osc2.connect(gain2);
-                gain2.connect(ctx.destination);
-                osc2.start(now + 0.08);
-                osc2.stop(now + 0.8);
+function updateAlertsButtonDisplay() {
+    const btn = document.getElementById('notifToggleBtn');
+    const txt = document.getElementById('notifStatusText');
+    if (!btn || !txt) return;
+    if (alertsEnabled) {
+        txt.innerText = 'Alerts: On';
+        btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        btn.style.color = '#34d399';
+    } else {
+        txt.innerText = 'Alerts: Off';
+        btn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+        btn.style.color = 'var(--text-muted)';
+    }
+}
 
-                // Subtle harmonic shimmer (1864 Hz) for luxury polish
-                const osc3 = ctx.createOscillator();
-                const gain3 = ctx.createGain();
-                osc3.type = 'sine';
-                osc3.frequency.setValueAtTime(1864.66, now + 0.08);
-                gain3.gain.setValueAtTime(0.0001, now + 0.08);
-                gain3.gain.exponentialRampToValueAtTime(0.04, now + 0.1);
-                gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
-                osc3.connect(gain3);
-                gain3.connect(ctx.destination);
-                osc3.start(now + 0.08);
-                osc3.stop(now + 0.5);
-            } catch (err) {
-                console.warn('Notification audio chime error:', err);
-            }
-        }
+function toggleDesktopNotifications() {
+    alertsEnabled = !alertsEnabled;
+    localStorage.setItem('hub_alerts_enabled', alertsEnabled ? 'true' : 'false');
+    updateAlertsButtonDisplay();
 
-        function updateAlertsButtonDisplay() {
-            const btn = document.getElementById('notifToggleBtn');
-            const txt = document.getElementById('notifStatusText');
-            if (!btn || !txt) return;
-            if (alertsEnabled) {
-                txt.innerText = 'Alerts: On';
-                btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                btn.style.color = '#34d399';
-            } else {
-                txt.innerText = 'Alerts: Off';
-                btn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                btn.style.color = 'var(--text-muted)';
-            }
-        }
-
-        function toggleDesktopNotifications() {
-            alertsEnabled = !alertsEnabled;
-            localStorage.setItem('hub_alerts_enabled', alertsEnabled ? 'true' : 'false');
-            updateAlertsButtonDisplay();
-
-            if (alertsEnabled) {
-                if ('Notification' in window && Notification.permission === 'default') {
-                    Notification.requestPermission().then(perm => {
-                        if (perm === 'granted') {
-                            showToast('🔔 Browser & Desktop Corner Notifications enabled!');
-                            playProfessionalChime();
-                        }
-                    });
-                } else {
-                    showToast('🔔 Chat notifications & sound turned ON');
+    if (alertsEnabled) {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    showToast('🔔 Browser & Desktop Corner Notifications enabled!');
                     playProfessionalChime();
                 }
-            } else {
-                showToast('🔕 Notifications & sound turned OFF');
-            }
-        }
-
-        function testChimeSound() {
+            });
+        } else {
+            showToast('🔔 Chat notifications & sound turned ON');
             playProfessionalChime();
-            showToast('🔊 Professional Chime Sound Played!');
-            showCornerChatToast({
-                id: 'test_' + Date.now(),
-                user: 'System Bot',
-                text: '🔔 Test Notification: This is how corner alerts & sound appear!'
-            });
-            if ('Notification' in window) {
-                if (Notification.permission === 'granted') {
-                    try {
-                        new Notification('System Bot (Team Chat)', {
-                            body: '🔔 Test Notification: Audio & Desktop alerts are active!',
-                            icon: '/favicon.ico',
-                            silent: true
-                        });
-                    } catch (e) {}
-                } else if (Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
-            }
         }
+    } else {
+        showToast('🔕 Notifications & sound turned OFF');
+    }
+}
 
-        function showCornerChatToast(msg) {
-            const toast = document.getElementById('cornerChatToast');
-            const avatar = document.getElementById('toastAvatar');
-            const user = document.getElementById('toastUser');
-            const preview = document.getElementById('toastPreview');
-            if (!toast || !avatar || !user || !preview) return;
-
-            avatar.innerText = (msg.user || 'E').substring(0, 2).toUpperCase();
-            user.innerText = msg.user || 'Team Member';
-
-            let textPreview = msg.text || '';
-            if (msg.type === 'voice') textPreview = '🎤 Voice note (' + (msg.duration ? msg.duration + 's' : 'audio') + ')';
-            else if (msg.type === 'image') textPreview = '📷 Sent a picture';
-            preview.innerText = textPreview;
-
-            toast.style.display = 'flex';
-
-            if (chatToastTimer) clearTimeout(chatToastTimer);
-            chatToastTimer = setTimeout(() => {
-                closeChatToast();
-            }, 5500);
+function testChimeSound() {
+    playProfessionalChime();
+    showToast('🔊 Professional Chime Sound Played!');
+    showCornerChatToast({
+        id: 'test_' + Date.now(),
+        user: 'System Bot',
+        text: '🔔 Test Notification: This is how corner alerts & sound appear!'
+    });
+    if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+            try {
+                new Notification('System Bot (Team Chat)', {
+                    body: '🔔 Test Notification: Audio & Desktop alerts are active!',
+                    icon: '/favicon.ico',
+                    silent: true
+                });
+            } catch (e) {}
+        } else if (Notification.permission === 'default') {
+            Notification.requestPermission();
         }
+    }
+}
 
-        function closeChatToast() {
-            const toast = document.getElementById('cornerChatToast');
-            if (toast) toast.style.display = 'none';
-            if (chatToastTimer) clearTimeout(chatToastTimer);
-        }
+function showCornerChatToast(msg) {
+    const toast = document.getElementById('cornerChatToast');
+    const avatar = document.getElementById('toastAvatar');
+    const user = document.getElementById('toastUser');
+    const preview = document.getElementById('toastPreview');
+    if (!toast || !avatar || !user || !preview) return;
 
-        function onToastClicked() {
-            closeChatToast();
-            switchView('chat');
-        }
+    avatar.innerText = (msg.user || 'E').substring(0, 2).toUpperCase();
+    user.innerText = msg.user || 'Team Member';
 
-        function updateChatUnreadBadge() {
-            const badge = document.getElementById('chatUnreadBadge');
-            if (!badge) return;
-            if (unreadChatCount > 0) {
-                badge.innerText = '+' + unreadChatCount;
-                badge.style.display = 'inline-block';
-            } else {
-                badge.style.display = 'none';
-            }
-        }
+    let textPreview = msg.text || '';
+    if (msg.type === 'voice') textPreview = '🎤 Voice note (' + (msg.duration ? msg.duration + 's' : 'audio') + ')';
+    else if (msg.type === 'image') textPreview = '📷 Sent a picture';
+    preview.innerText = textPreview;
 
-        // Layout switching
-        function switchView(view) {
-            const container = document.getElementById('mainContainer');
-            const filesWrapper = document.getElementById('filesSectionWrapper');
-            const chatWrapper = document.getElementById('chatSectionWrapper');
-            const tabMediaBtn = document.getElementById('tabMediaBtn');
-            const tabFilesOnlyBtn = document.getElementById('tabFilesOnlyBtn');
-            const tabChatOnlyBtn = document.getElementById('tabChatOnlyBtn');
+    toast.style.display = 'flex';
 
-            // On mobile devices, split view is not allowed
-            if (window.innerWidth < 768 && view === 'split') {
-                view = 'files';
-            }
+    if (chatToastTimer) clearTimeout(chatToastTimer);
+    chatToastTimer = setTimeout(() => {
+        closeChatToast();
+    }, 5500);
+}
 
-            currentActiveView = view;
-            if (view === 'chat' || view === 'split') {
-                unreadChatCount = 0;
-                updateChatUnreadBadge();
-            }
+function closeChatToast() {
+    const toast = document.getElementById('cornerChatToast');
+    if (toast) toast.style.display = 'none';
+    if (chatToastTimer) clearTimeout(chatToastTimer);
+}
 
-            tabMediaBtn.classList.remove('active');
-            tabFilesOnlyBtn.classList.remove('active');
-            tabChatOnlyBtn.classList.remove('active');
+function onToastClicked() {
+    closeChatToast();
+    switchView('chat');
+}
 
-            if (view === 'split') {
-                container.className = 'split-view';
-                filesWrapper.style.display = 'block';
-                chatWrapper.style.display = 'block';
-                tabMediaBtn.classList.add('active');
-            } else if (view === 'files') {
-                container.className = 'content-grid';
-                filesWrapper.style.display = 'block';
-                chatWrapper.style.display = 'none';
-                tabFilesOnlyBtn.classList.add('active');
-            } else if (view === 'chat') {
-                container.className = 'content-grid';
-                filesWrapper.style.display = 'none';
-                chatWrapper.style.display = 'block';
-                tabChatOnlyBtn.classList.add('active');
-                setTimeout(() => {
-                    const msgBox = document.getElementById('chatMessages');
-                    if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
-                }, 50);
-            }
-        }
+function updateChatUnreadBadge() {
+    const badge = document.getElementById('chatUnreadBadge');
+    if (!badge) return;
+    if (unreadChatCount > 0) {
+        badge.innerText = '+' + unreadChatCount;
+        badge.style.display = 'inline-block';
+    } else {
+        badge.style.display = 'none';
+    }
+}
 
+// Layout Switching (Files & Chat tabs)
+function switchView(view) {
+    const container = document.getElementById('mainContainer');
+    const filesWrapper = document.getElementById('filesSectionWrapper');
+    const chatWrapper = document.getElementById('chatSectionWrapper');
+    const tabMediaBtn = document.getElementById('tabMediaBtn');
+    const tabFilesOnlyBtn = document.getElementById('tabFilesOnlyBtn');
+    const tabChatOnlyBtn = document.getElementById('tabChatOnlyBtn');
 
-        function copyFullShareUrl() {
-            const shareEl = document.getElementById('networkShareLink');
-            let shareUrl = shareEl ? shareEl.href : window.location.origin;
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                if (shareEl && shareEl.href) {
-                    shareUrl = shareEl.href;
-                }
-            }
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                showToast('Mobile & Employees link copied: ' + shareUrl);
-            });
-        }
+    if (!container || !filesWrapper || !chatWrapper) return;
 
-        // Initialize & Live Polling
-        if (window.innerWidth < 768) {
-            switchView('files');
-        }
-        window.addEventListener('resize', () => {
-            if (window.innerWidth < 768) {
-                const container = document.getElementById('mainContainer');
-                if (container && container.classList.contains('split-view')) {
-                    switchView('files');
-                }
-            }
-        });
+    // On mobile devices, split view is not allowed
+    if (window.innerWidth < 768 && view === 'split') {
+        view = 'files';
+    }
 
-        fetchHubConfig();
-        updateAlertsButtonDisplay();
-        loadFoldersList();
-        loadFileList();
-        loadMessages();
+    currentActiveView = view;
+    if (view === 'chat' || view === 'split') {
+        unreadChatCount = 0;
+        updateChatUnreadBadge();
+    }
 
-        setInterval(loadMessages, 2000);
-        setInterval(loadFileList, 8000);
-        setInterval(loadFoldersList, 8000);
-    </script>
+    if (tabMediaBtn) tabMediaBtn.classList.remove('active');
+    if (tabFilesOnlyBtn) tabFilesOnlyBtn.classList.remove('active');
+    if (tabChatOnlyBtn) tabChatOnlyBtn.classList.remove('active');
+
+    if (view === 'split') {
+        container.className = 'split-view';
+        filesWrapper.style.display = 'block';
+        chatWrapper.style.display = 'block';
+        if (tabMediaBtn) tabMediaBtn.classList.add('active');
+    } else if (view === 'files') {
+        container.className = 'content-grid';
+        filesWrapper.style.display = 'block';
+        chatWrapper.style.display = 'none';
+        if (tabFilesOnlyBtn) tabFilesOnlyBtn.classList.add('active');
+    } else if (view === 'chat') {
+        container.className = 'content-grid';
+        filesWrapper.style.display = 'none';
+        chatWrapper.style.display = 'block';
+        if (tabChatOnlyBtn) tabChatOnlyBtn.classList.add('active');
+        setTimeout(() => {
+            const msgBox = document.getElementById('chatMessages');
+            if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+        }, 50);
+    }
+}
 
 // ==========================================
 // PWA (Progressive Web App) & Install Logic
@@ -409,7 +425,7 @@ window.addEventListener('appinstalled', () => {
     if (installBtn) {
         installBtn.style.display = 'none';
     }
-    showToast('ðŸŽ‰ App installed successfully to your device!');
+    showToast('🎉 App installed successfully to your device!');
 });
 
 function triggerPwaInstall() {
@@ -421,6 +437,33 @@ function triggerPwaInstall() {
             if (installBtn) installBtn.style.display = 'none';
         });
     } else {
-        alert('To install this app on your device:\n\nâ€¢ On Chrome/Edge (Desktop): Click the install icon in the URL bar (top right)\nâ€¢ On Android Chrome: Tap Menu (â‹®) -> Add to Home screen / Install app\nâ€¢ On iPhone Safari: Tap Share (square with arrow) -> Add to Home Screen');
+        alert('To install this app on your device:\n\n• On Chrome/Edge (Desktop): Click the install icon in the URL bar (top right)\n• On Android Chrome: Tap Menu (⋮) -> Add to Home screen / Install app\n• On iPhone Safari: Tap Share (square with arrow) -> Add to Home Screen');
     }
 }
+
+// ==========================================
+// Bootstrap & Live Polling Initializer
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    if (window.innerWidth < 768) {
+        switchView('files');
+    }
+    window.addEventListener('resize', () => {
+        if (window.innerWidth < 768) {
+            const container = document.getElementById('mainContainer');
+            if (container && container.classList.contains('split-view')) {
+                switchView('files');
+            }
+        }
+    });
+
+    fetchHubConfig();
+    updateAlertsButtonDisplay();
+    if (typeof loadFoldersList === 'function') loadFoldersList();
+    if (typeof loadFileList === 'function') loadFileList();
+    if (typeof loadMessages === 'function') loadMessages();
+
+    if (typeof loadMessages === 'function') setInterval(loadMessages, 2000);
+    if (typeof loadFileList === 'function') setInterval(loadFileList, 8000);
+    if (typeof loadFoldersList === 'function') setInterval(loadFoldersList, 8000);
+});

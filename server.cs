@@ -1574,6 +1574,12 @@ namespace SkyCommerceMediaServer
             res.Append("Access-Control-Allow-Origin: *\r\n");
             res.Append("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD\r\n");
             res.Append("Access-Control-Allow-Headers: *\r\n");
+            if (fi.Extension.Equals(".js", StringComparison.OrdinalIgnoreCase) || 
+                fi.Extension.Equals(".css", StringComparison.OrdinalIgnoreCase) ||
+                fi.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                res.Append("Cache-Control: no-cache, must-revalidate\r\n");
+            }
             res.Append("Connection: close\r\n\r\n");
 
             byte[] headerBytes = Encoding.UTF8.GetBytes(res.ToString());
