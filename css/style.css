@@ -21,6 +21,34 @@
             padding: 0;
         }
 
+        /* Universal Minimalist Dark Scrollbars */
+        html, body, * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.6);
+        }
+        ::-webkit-scrollbar-button {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
         body {
             font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
             background-color: var(--bg-base);
@@ -1341,7 +1369,15 @@
             resize: none;
             max-height: 80px;
             min-height: 40px;
+            overflow-y: hidden;
+            scrollbar-width: none;
             transition: border-color 0.2s;
+        }
+
+        .chat-input::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
         }
 
         .chat-input:focus {
@@ -2316,61 +2352,168 @@
             box-shadow: 0 4px 14px var(--primary-glow);
             transform: translateY(-1px);
         }
+        /* ========================================================
+           Mini Dock (Corner Mode): 100% Zero-Overflow Layout
+           ======================================================== */
+        html:has(body.mini-dock-mode),
         body.mini-dock-mode {
-            padding: 8px 10px 14px 10px;
-            background-image: none;
-            background-color: #0b0f19;
-            min-height: 100vh;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+            padding: 8px !important;
+            margin: 0 !important;
+            background-image: none !important;
+            background-color: #0b0f19 !important;
+            box-sizing: border-box !important;
         }
+
+        body.mini-dock-mode .container {
+            height: 100% !important;
+            max-height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        /* Hide unnecessary clutter in mini dock */
         body.mini-dock-mode .network-bar,
         body.mini-dock-mode .brand-sub,
         body.mini-dock-mode #tabMediaBtn,
-        body.mini-dock-mode .btn-mini-dock {
+        body.mini-dock-mode .btn-mini-dock,
+        body.mini-dock-mode .btn-mini-dock-tab,
+        body.mini-dock-mode .user-badge,
+        body.mini-dock-mode .header-actions .btn-primary:not(#expandFullBtn),
+        body.mini-dock-mode .hub-rename-pill-btn,
+        body.mini-dock-mode .chat-title,
+        body.mini-dock-mode .chat-header button:not(#notifToggleBtn) {
             display: none !important;
         }
+
         body.mini-dock-mode header {
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            gap: 6px;
+            margin-bottom: 6px !important;
+            padding-bottom: 6px !important;
+            flex-shrink: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
         }
+
         body.mini-dock-mode .brand {
-            gap: 8px;
+            gap: 8px !important;
         }
+
         body.mini-dock-mode .brand-icon {
-            width: 32px;
-            height: 32px;
+            width: 28px !important;
+            height: 28px !important;
         }
+
         body.mini-dock-mode .brand-icon svg {
-            width: 20px;
-            height: 20px;
+            width: 18px !important;
+            height: 18px !important;
         }
+
         body.mini-dock-mode .brand-title {
-            font-size: 16px;
+            font-size: 15px !important;
+            font-weight: 800 !important;
         }
-        body.mini-dock-mode .hub-rename-pill-btn {
-            display: none;
-        }
-        body.mini-dock-mode .tabs-header {
-            margin-bottom: 8px;
-            gap: 6px;
-        }
-        body.mini-dock-mode .tab-btn {
-            padding: 6px 10px;
-            font-size: 12px;
-        }
-        body.mini-dock-mode .chat-panel {
-            height: calc(100vh - 125px) !important;
-            min-height: 420px;
-        }
-        body.mini-dock-mode .upload-section {
-            padding: 10px 12px;
-            margin-bottom: 10px;
-        }
-        body.mini-dock-mode .upload-desc {
-            display: none;
-        }
+
         body.mini-dock-mode #expandFullBtn {
             display: inline-flex !important;
+            padding: 5px 10px !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+        }
+
+        body.mini-dock-mode .tabs-header {
+            margin-bottom: 6px !important;
+            gap: 6px !important;
+            flex-shrink: 0 !important;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+        }
+
+        body.mini-dock-mode .tab-btn {
+            padding: 6px 8px !important;
+            font-size: 11px !important;
+            justify-content: center !important;
+        }
+
+        body.mini-dock-mode #mainContainer {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+
+        body.mini-dock-mode #chatSectionWrapper,
+        body.mini-dock-mode #filesSectionWrapper {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+
+        body.mini-dock-mode .chat-panel {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+            border-radius: 12px !important;
+        }
+
+        body.mini-dock-mode .chat-header {
+            padding: 6px 10px !important;
+            flex-shrink: 0 !important;
+        }
+
+        body.mini-dock-mode .chat-messages {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            padding: 8px 10px !important;
+        }
+
+        body.mini-dock-mode .chat-bubble {
+            max-width: 90% !important;
+            font-size: 12px !important;
+            padding: 8px 10px !important;
+        }
+
+        body.mini-dock-mode .chat-input-bar {
+            padding: 8px !important;
+            gap: 6px !important;
+            flex-shrink: 0 !important;
+        }
+
+        body.mini-dock-mode .chat-input {
+            padding: 8px 10px !important;
+            font-size: 12px !important;
+            min-height: 36px !important;
+        }
+
+        body.mini-dock-mode .action-tool-btn {
+            width: 32px !important;
+            height: 32px !important;
+        }
+
+        body.mini-dock-mode .files-list {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
         }
 
 
