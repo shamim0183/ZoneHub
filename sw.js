@@ -1,4 +1,4 @@
-const CACHE_NAME = 'media-hub-shell-v2';
+const CACHE_NAME = 'media-hub-shell-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -59,5 +59,21 @@ self.addEventListener('fetch', event => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
   );
 });

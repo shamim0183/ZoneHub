@@ -249,38 +249,166 @@ function updateAlertsButtonDisplay() {
     const btn = document.getElementById('notifToggleBtn');
     const txt = document.getElementById('notifStatusText');
     if (!btn || !txt) return;
+
+    if (!('Notification' in window)) {
+        txt.innerText = 'Alerts: Unsupported';
+        return;
+    }
+
+    if (Notification.permission === 'denied') {
+        txt.innerText = 'Alerts: Blocked';
+        btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        btn.style.color = '#f87171';
+        btn.title = 'Notifications are blocked in your browser settings. Click the lock icon near URL to allow notifications.';
+        return;
+    }
+
+    if (Notification.permission === 'default') {
+        txt.innerText = '🔔 Enable Alerts';
+        btn.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+        btn.style.color = '#fbbf24';
+        btn.title = 'Click to enable Desktop & Sound alerts when working in other apps/tabs';
+        return;
+    }
+
     if (alertsEnabled) {
         txt.innerText = 'Alerts: On';
         btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
         btn.style.color = '#34d399';
+        btn.title = 'Desktop notifications & sound are active even in other apps';
     } else {
         txt.innerText = 'Alerts: Off';
         btn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
         btn.style.color = 'var(--text-muted)';
+        btn.title = 'Notifications muted';
     }
 }
 
 function toggleDesktopNotifications() {
+    if (!('Notification' in window)) {
+        showToast('Browser does not support desktop notifications');
+        return;
+    }
+
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().then(perm => {
+            if (perm === 'granted') {
+                alertsEnabled = true;
+                localStorage.setItem('hub_alerts_enabled', 'true');
+                updateAlertsButtonDisplay();
+                showToast('🔔 Desktop notifications & sound enabled!');
+                playProfessionalChime();
+                triggerSystemNotification({
+                    id: 'welcome_' + Date.now(),
+                    user: 'System Bot',
+                    text: '🎉 Notifications active! You will now receive alerts when working in other apps or tabs.'
+                });
+            } else if (perm === 'denied') {
+                updateAlertsButtonDisplay();
+                showToast('⚠️ Notifications blocked in browser settings');
+            }
+        });
+        return;
+    }
+
+    if (Notification.permission === 'denied') {
+        alert('Notifications are currently blocked in your browser settings.\n\nTo allow notifications:\n1. Click the site settings / lock / tune icon on the left of your browser address bar.\n2. Set "Notifications" to "Allow".\n3. Refresh the page.');
+        return;
+    }
+
     alertsEnabled = !alertsEnabled;
     localStorage.setItem('hub_alerts_enabled', alertsEnabled ? 'true' : 'false');
     updateAlertsButtonDisplay();
 
     if (alertsEnabled) {
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission().then(perm => {
-                if (perm === 'granted') {
-                    showToast('🔔 Browser & Desktop Corner Notifications enabled!');
-                    playProfessionalChime();
-                }
-            });
-        } else {
-            showToast('🔔 Chat notifications & sound turned ON');
-            playProfessionalChime();
-        }
+        showToast('🔔 Chat notifications & sound turned ON');
+        playProfessionalChime();
     } else {
         showToast('🔕 Notifications & sound turned OFF');
     }
 }
+
+function triggerSystemNotification(msg) {
+    if (!alertsEnabled) return;
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
+        let bodyText = msg.text || '';
+        if (msg.type === 'voice') bodyText = '🎤 Voice note (' + (msg.duration ? msg.duration + 's' : 'audio') + ')';
+        else if (msg.type === 'image') bodyText = '📷 Sent a picture';
+
+        const title = (msg.user || 'Team Member') + ' • Team Chat';
+        const options = {
+            body: bodyText,
+            icon: '/favicon.png',
+            badge: '/favicon.png',
+            tag: 'chat_' + (msg.id || Date.now()),
+            renotify: true,
+            silent: false, // Ensures Windows Action Center / OS plays its native sound chime
+            requireInteraction: false
+        };
+
+        // Prefer Service Worker notification for native Windows / Android / Mac reliability across apps
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification(title, options).catch(() => {
+                    fallbackNotification(title, options);
+                });
+            }).catch(() => {
+                fallbackNotification(title, options);
+            });
+        } else {
+            fallbackNotification(title, options);
+        }
+    } else if (Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+function fallbackNotification(title, options) {
+    try {
+        const notif = new Notification(title, options);
+        notif.onclick = function() {
+            window.focus();
+            if (typeof switchView === 'function') switchView('chat');
+            notif.close();
+        };
+    } catch (e) {}
+}
+
+let titleBlinkInterval = null;
+
+function startTitleBlink(senderName) {
+    if (!document.hidden) return;
+    if (titleBlinkInterval) clearInterval(titleBlinkInterval);
+    
+    let isBlink = false;
+    const baseTitle = (hubConfigData && hubConfigData.hubName ? hubConfigData.hubName : 'Media Hub') + ' & Team Chat';
+    const alertTitle = '💬 (' + (unreadChatCount || 1) + ') New message from ' + (senderName || 'Team') + '!';
+
+    titleBlinkInterval = setInterval(() => {
+        if (!document.hidden) {
+            stopTitleBlink();
+            return;
+        }
+        document.title = isBlink ? alertTitle : baseTitle;
+        isBlink = !isBlink;
+    }, 1200);
+}
+
+function stopTitleBlink() {
+    if (titleBlinkInterval) {
+        clearInterval(titleBlinkInterval);
+        titleBlinkInterval = null;
+    }
+    const baseTitle = (hubConfigData && hubConfigData.hubName ? hubConfigData.hubName : 'Media Hub') + ' & Team Chat';
+    document.title = baseTitle;
+}
+
+window.addEventListener('focus', stopTitleBlink);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) stopTitleBlink();
+});
 
 function testChimeSound() {
     playProfessionalChime();
@@ -288,20 +416,15 @@ function testChimeSound() {
     showCornerChatToast({
         id: 'test_' + Date.now(),
         user: 'System Bot',
-        text: '🔔 Test Notification: This is how corner alerts & sound appear!'
+        text: '🔔 Test Notification: Audio & Desktop alerts are active even in other apps!'
     });
-    if ('Notification' in window) {
-        if (Notification.permission === 'granted') {
-            try {
-                new Notification('System Bot (Team Chat)', {
-                    body: '🔔 Test Notification: Audio & Desktop alerts are active!',
-                    icon: '/favicon.ico',
-                    silent: true
-                });
-            } catch (e) {}
-        } else if (Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
+    triggerSystemNotification({
+        id: 'test_' + Date.now(),
+        user: 'System Bot',
+        text: '🔔 Test Notification: You can see this popup and hear the sound from any browser or app!'
+    });
+    if (document.hidden) {
+        startTitleBlink('System Bot');
     }
 }
 

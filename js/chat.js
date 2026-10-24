@@ -33,25 +33,11 @@
                     const latestMsg = incomingFromOthers[incomingFromOthers.length - 1];
                     if (alertsEnabled) {
                         playProfessionalChime();
-                        if ('Notification' in window && Notification.permission === 'granted') {
-                            try {
-                                let bodyText = latestMsg.text || '';
-                                if (latestMsg.type === 'voice') bodyText = '🎤 Voice note (' + (latestMsg.duration ? latestMsg.duration + 's' : 'audio') + ')';
-                                else if (latestMsg.type === 'image') bodyText = '📷 Sent a picture';
-
-                                const notif = new Notification(latestMsg.user + ' • Team Chat', {
-                                    body: bodyText,
-                                    icon: '/favicon.ico',
-                                    tag: 'chat_' + latestMsg.id,
-                                    renotify: true,
-                                    silent: true
-                                });
-                                notif.onclick = function() {
-                                    window.focus();
-                                    switchView('chat');
-                                    notif.close();
-                                };
-                            } catch (e) {}
+                        if (typeof triggerSystemNotification === 'function') {
+                            triggerSystemNotification(latestMsg);
+                        }
+                        if (document.hidden && typeof startTitleBlink === 'function') {
+                            startTitleBlink(latestMsg.user);
                         }
                         showCornerChatToast(latestMsg);
                     }
