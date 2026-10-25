@@ -4,6 +4,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -24,7 +25,7 @@ namespace ZoneHub {
                 };
 
                 bool createdNew;
-                using (Mutex mutex = new Mutex(true, "ZoneHub_Desktop_Bubble_Mutex_v3", out createdNew)) {
+                using (Mutex mutex = new Mutex(true, "ZoneHub_Desktop_Bubble_Mutex_v4", out createdNew)) {
                     if (!createdNew) {
                         return;
                     }
@@ -41,8 +42,8 @@ namespace ZoneHub {
     }
 
     public class BubbleWindow : Window {
-        private const double BUBBLE_SIZE = 60;
-        private const double WINDOW_SIZE = 72; // Padding for glow & badge
+        private const double BUBBLE_SIZE = 54;
+        private const double WINDOW_SIZE = 68; // Padding for glow & badge
         private Canvas rootCanvas;
         private Border bubbleBorder;
         private Border badgeBorder;
@@ -62,6 +63,34 @@ namespace ZoneHub {
         private int unreadCount = 0;
         private string configPath;
         private string serverUrl = "http://localhost:8080";
+
+        // Win32 API for toggling and minimizing/restoring the ZoneHub App window
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        private const int SW_RESTORE = 9;
+        private const int SW_MINIMIZE = 6;
+        private const int SW_SHOW = 5;
 
         public BubbleWindow() {
             Title = "ZoneHub Desktop Bubble";
@@ -103,55 +132,39 @@ namespace ZoneHub {
                 Background = Brushes.Transparent
             };
 
-            // Main White Circular Bubble (Like user's reference image: crisp white circle)
+            // Pure Floating Squircle Logo (No white background circle!)
             bubbleBorder = new Border {
                 Width = BUBBLE_SIZE,
                 Height = BUBBLE_SIZE,
-                CornerRadius = new CornerRadius(BUBBLE_SIZE / 2),
-                Background = Brushes.White,
-                BorderThickness = new Thickness(1.5),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)),
+                CornerRadius = new CornerRadius(14),
+                BorderThickness = new Thickness(1.8),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(160, 255, 255, 255)),
                 Cursor = Cursors.Hand,
                 RenderTransformOrigin = new Point(0.5, 0.5),
                 RenderTransform = new ScaleTransform(1.0, 1.0)
             };
 
-            // Realistic Soft 3D Drop Shadow
-            bubbleBorder.Effect = new DropShadowEffect {
-                Color = Colors.Black,
-                BlurRadius = 14,
-                ShadowDepth = 3,
-                Opacity = 0.38
-            };
-
-            // Inner Squircle App Icon (Blue-Cyan rounded square inside the white circle)
-            Border squircleIcon = new Border {
-                Width = 42,
-                Height = 42,
-                CornerRadius = new CornerRadius(11),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Effect = new DropShadowEffect {
-                    Color = Color.FromRgb(6, 182, 212),
-                    BlurRadius = 8,
-                    ShadowDepth = 1,
-                    Opacity = 0.35
-                }
-            };
-
-            // Linear Gradient background for squircle
+            // Linear Gradient background for the logo
             LinearGradientBrush gradient = new LinearGradientBrush {
                 StartPoint = new Point(0, 0),
                 EndPoint = new Point(1, 1)
             };
             gradient.GradientStops.Add(new GradientStop(Color.FromRgb(67, 56, 202), 0.0));  // Indigo
             gradient.GradientStops.Add(new GradientStop(Color.FromRgb(6, 182, 212), 1.0));  // Cyan
-            squircleIcon.Background = gradient;
+            bubbleBorder.Background = gradient;
 
-            // ZoneHub Orbit SVG Vector Icon
+            // Vibrant Cyan-Indigo Glow & Drop Shadow
+            bubbleBorder.Effect = new DropShadowEffect {
+                Color = Color.FromRgb(6, 182, 212),
+                BlurRadius = 18,
+                ShadowDepth = 3,
+                Opacity = 0.65
+            };
+
+            // ZoneHub Orbit SVG Vector Icon inside
             Viewbox iconBox = new Viewbox {
-                Width = 25,
-                Height = 25,
+                Width = 30,
+                Height = 30,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -205,8 +218,7 @@ namespace ZoneHub {
             iconCanvas.Children.Add(leftNode);
             iconCanvas.Children.Add(rightNode);
             iconBox.Child = iconCanvas;
-            squircleIcon.Child = iconBox;
-            bubbleBorder.Child = squircleIcon;
+            bubbleBorder.Child = iconBox;
 
             Canvas.SetLeft(bubbleBorder, 6);
             Canvas.SetTop(bubbleBorder, 6);
@@ -219,7 +231,7 @@ namespace ZoneHub {
                 CornerRadius = new CornerRadius(5.5),
                 Background = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
                 BorderThickness = new Thickness(2),
-                BorderBrush = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(11, 15, 25)),
                 Effect = new DropShadowEffect {
                     Color = Color.FromRgb(16, 185, 129),
                     BlurRadius = 8,
@@ -227,8 +239,8 @@ namespace ZoneHub {
                     Opacity = 0.95
                 }
             };
-            Canvas.SetLeft(pulseDot, 5);
-            Canvas.SetTop(pulseDot, 5);
+            Canvas.SetLeft(pulseDot, 3);
+            Canvas.SetTop(pulseDot, 3);
             rootCanvas.Children.Add(pulseDot);
 
             // Red Unread Badge (Top-Right)
@@ -238,7 +250,7 @@ namespace ZoneHub {
                 CornerRadius = new CornerRadius(10),
                 Background = new SolidColorBrush(Color.FromRgb(244, 63, 94)),
                 BorderThickness = new Thickness(2),
-                BorderBrush = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(11, 15, 25)),
                 Padding = new Thickness(3, 0, 3, 0),
                 Visibility = Visibility.Collapsed,
                 Effect = new DropShadowEffect {
@@ -385,7 +397,7 @@ namespace ZoneHub {
             teaserBorder.Child = grid;
             teaserBorder.MouseLeftButtonDown += (s, e) => {
                 teaserWindow.Hide();
-                OpenZoneHubFull();
+                ToggleZoneHubApp();
             };
 
             teaserWindow.Content = teaserBorder;
@@ -494,42 +506,109 @@ namespace ZoneHub {
             badgeBorder.Visibility = Visibility.Collapsed;
             teaserWindow.Hide();
 
-            // Open ZoneHub in default browser
-            OpenZoneHubFull();
+            // Toggle ZoneHub App (Opens if closed, Restores if minimized, Minimizes if in foreground!)
+            ToggleZoneHubApp();
         }
 
-        private void OpenZoneHubFull() {
+        private IntPtr FindZoneHubAppWindow() {
+            IntPtr found = IntPtr.Zero;
             try {
-                Process.Start(serverUrl);
-            } catch (Exception ex) {
-                MessageBox.Show("Could not open browser: " + ex.Message, "ZoneHub");
+                EnumWindows((hWnd, lParam) => {
+                    if (!IsWindowVisible(hWnd) && !IsIconic(hWnd)) return true;
+                    StringBuilder sb = new StringBuilder(256);
+                    GetWindowText(hWnd, sb, 256);
+                    string title = sb.ToString();
+                    if (!string.IsNullOrEmpty(title) &&
+                        title.IndexOf("ZoneHub", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                        !title.Contains("Desktop Bubble")) {
+                        found = hWnd;
+                        return false; // Found match, stop enum
+                    }
+                    return true;
+                }, IntPtr.Zero);
+            } catch { }
+            return found;
+        }
+
+        private void ToggleZoneHubApp() {
+            try {
+                IntPtr appHwnd = FindZoneHubAppWindow();
+
+                if (appHwnd != IntPtr.Zero) {
+                    IntPtr fgHwnd = GetForegroundWindow();
+                    if (fgHwnd == appHwnd && !IsIconic(appHwnd)) {
+                        // App is open and focused in foreground -> MINIMIZE IT!
+                        ShowWindow(appHwnd, SW_MINIMIZE);
+                    } else {
+                        // App is minimized or behind other windows -> RESTORE & BRING TO FRONT!
+                        ShowWindow(appHwnd, SW_RESTORE);
+                        SetForegroundWindow(appHwnd);
+                    }
+                } else {
+                    // App is not open yet -> Launch as standalone native Desktop App!
+                    LaunchStandaloneApp();
+                }
+            } catch {
+                LaunchStandaloneApp();
+            }
+        }
+
+        private void LaunchStandaloneApp() {
+            string appUrl = serverUrl + "/";
+            string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
+            if (!File.Exists(edgePath)) {
+                edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
+            }
+
+            string chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+            if (!File.Exists(chromePath)) {
+                chromePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
+            }
+
+            try {
+                if (File.Exists(edgePath)) {
+                    Process.Start(edgePath, string.Format("--app=\"{0}\"", appUrl));
+                } else if (File.Exists(chromePath)) {
+                    Process.Start(chromePath, string.Format("--app=\"{0}\"", appUrl));
+                } else {
+                    Process.Start(appUrl);
+                }
+            } catch {
+                Process.Start(appUrl);
             }
         }
 
         private void OpenZoneHubMini() {
-            try {
-                string miniUrl = serverUrl + "/?view=mini";
-                string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
-                if (!File.Exists(edgePath)) {
-                    edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
-                }
+            string miniUrl = serverUrl + "/?view=mini";
+            string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
+            if (!File.Exists(edgePath)) {
+                edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
+            }
 
+            string chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+            if (!File.Exists(chromePath)) {
+                chromePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
+            }
+
+            try {
                 if (File.Exists(edgePath)) {
                     Process.Start(edgePath, string.Format("--app=\"{0}\"", miniUrl));
+                } else if (File.Exists(chromePath)) {
+                    Process.Start(chromePath, string.Format("--app=\"{0}\"", miniUrl));
                 } else {
                     Process.Start(miniUrl);
                 }
             } catch {
-                Process.Start(serverUrl + "/?view=mini");
+                Process.Start(miniUrl);
             }
         }
 
         private void OnBubbleRightClick(object sender, MouseButtonEventArgs e) {
             ContextMenu cm = new ContextMenu();
 
-            MenuItem miOpen = new MenuItem { Header = "🌐 Open ZoneHub (Full View)" };
-            miOpen.Click += (s, args) => OpenZoneHubFull();
-            cm.Items.Add(miOpen);
+            MenuItem miToggle = new MenuItem { Header = "⚡ Open / Minimize App (Toggle)" };
+            miToggle.Click += (s, args) => ToggleZoneHubApp();
+            cm.Items.Add(miToggle);
 
             MenuItem miMini = new MenuItem { Header = "📌 Open Mini Dock Window" };
             miMini.Click += (s, args) => OpenZoneHubMini();
