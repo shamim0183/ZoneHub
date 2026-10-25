@@ -20,28 +20,29 @@ namespace ZoneHub {
         public static void Main() {
             try {
                 AppDomain.CurrentDomain.UnhandledException += (s, e) => {
-                    File.WriteAllText("bubble_err.log", e.ExceptionObject.ToString());
+                    try { File.WriteAllText("bubble_err.log", e.ExceptionObject.ToString()); } catch { }
                 };
 
                 bool createdNew;
-                using (Mutex mutex = new Mutex(true, "ZoneHub_Desktop_Bubble_Mutex", out createdNew)) {
+                using (Mutex mutex = new Mutex(true, "ZoneHub_Desktop_Bubble_Mutex_v3", out createdNew)) {
                     if (!createdNew) {
                         return;
                     }
                     BubbleApp app = new BubbleApp();
+                    app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
                     BubbleWindow window = new BubbleWindow();
                     window.Show();
-                    app.Run(window);
+                    app.Run();
                 }
             } catch (Exception ex) {
-                File.WriteAllText("bubble_err.log", ex.ToString());
+                try { File.WriteAllText("bubble_err.log", ex.ToString()); } catch { }
             }
         }
     }
 
     public class BubbleWindow : Window {
-        private const double BUBBLE_SIZE = 64;
-        private const double WINDOW_SIZE = 76; // Allows room for glow & badge
+        private const double BUBBLE_SIZE = 60;
+        private const double WINDOW_SIZE = 72; // Padding for glow & badge
         private Canvas rootCanvas;
         private Border bubbleBorder;
         private Border badgeBorder;
@@ -53,12 +54,11 @@ namespace ZoneHub {
         private DispatcherTimer teaserTimer;
 
         private Point mouseDownScreenPos;
-        private Point mouseDownWindowPos;
         private DateTime mouseDownTime;
         private bool isDragging = false;
 
         private DispatcherTimer pollTimer;
-        private long lastMessageTimestamp = 0;
+        private int lastMessageCount = -1;
         private int unreadCount = 0;
         private string configPath;
         private string serverUrl = "http://localhost:8080";
@@ -79,17 +79,21 @@ namespace ZoneHub {
                 "bubble_pos.ini"
             );
 
-            // Restore last saved position or default to bottom-right corner of screen
-            double screenW = SystemParameters.WorkArea.Width;
+            // Default position: DOCKED FLUSH ON THE LEFT EDGE (Exact match to user's screenshot)
             double screenH = SystemParameters.WorkArea.Height;
-            double defaultLeft = screenW - WINDOW_SIZE - 24;
-            double defaultTop = screenH - WINDOW_SIZE - 40;
+            double defaultLeft = 4;
+            double defaultTop = (screenH - WINDOW_SIZE) * 0.45;
 
             LoadPosition(defaultLeft, defaultTop);
 
             BuildUI();
             BuildTeaserWindow();
             InitPolling();
+
+            // Keep topmost active
+            Deactivated += (s, e) => {
+                Topmost = true;
+            };
         }
 
         private void BuildUI() {
@@ -99,34 +103,40 @@ namespace ZoneHub {
                 Background = Brushes.Transparent
             };
 
-            // Main White Circular Bubble (Like user's reference image)
+            // Main White Circular Bubble (Like user's reference image: crisp white circle)
             bubbleBorder = new Border {
                 Width = BUBBLE_SIZE,
                 Height = BUBBLE_SIZE,
                 CornerRadius = new CornerRadius(BUBBLE_SIZE / 2),
                 Background = Brushes.White,
                 BorderThickness = new Thickness(1.5),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(35, 0, 0, 0)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)),
                 Cursor = Cursors.Hand,
                 RenderTransformOrigin = new Point(0.5, 0.5),
                 RenderTransform = new ScaleTransform(1.0, 1.0)
             };
 
-            // Soft Realistic 3D Drop Shadow
+            // Realistic Soft 3D Drop Shadow
             bubbleBorder.Effect = new DropShadowEffect {
                 Color = Colors.Black,
                 BlurRadius = 14,
                 ShadowDepth = 3,
-                Opacity = 0.35
+                Opacity = 0.38
             };
 
-            // Inner Squircle App Icon (Blue rounded square inside the white circle)
+            // Inner Squircle App Icon (Blue-Cyan rounded square inside the white circle)
             Border squircleIcon = new Border {
-                Width = 44,
-                Height = 44,
-                CornerRadius = new CornerRadius(12),
+                Width = 42,
+                Height = 42,
+                CornerRadius = new CornerRadius(11),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                Effect = new DropShadowEffect {
+                    Color = Color.FromRgb(6, 182, 212),
+                    BlurRadius = 8,
+                    ShadowDepth = 1,
+                    Opacity = 0.35
+                }
             };
 
             // Linear Gradient background for squircle
@@ -138,10 +148,10 @@ namespace ZoneHub {
             gradient.GradientStops.Add(new GradientStop(Color.FromRgb(6, 182, 212), 1.0));  // Cyan
             squircleIcon.Background = gradient;
 
-            // ZoneHub Orbit SVG Icon
+            // ZoneHub Orbit SVG Vector Icon
             Viewbox iconBox = new Viewbox {
-                Width = 26,
-                Height = 26,
+                Width = 25,
+                Height = 25,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -202,23 +212,23 @@ namespace ZoneHub {
             Canvas.SetTop(bubbleBorder, 6);
             rootCanvas.Children.Add(bubbleBorder);
 
-            // Pulsing Green Online Dot (Top-Left)
+            // Green Pulse Dot (Online Indicator)
             pulseDot = new Border {
                 Width = 11,
                 Height = 11,
                 CornerRadius = new CornerRadius(5.5),
                 Background = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
                 BorderThickness = new Thickness(2),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(11, 15, 25)),
+                BorderBrush = Brushes.White,
                 Effect = new DropShadowEffect {
                     Color = Color.FromRgb(16, 185, 129),
                     BlurRadius = 8,
                     ShadowDepth = 0,
-                    Opacity = 0.9
+                    Opacity = 0.95
                 }
             };
-            Canvas.SetLeft(pulseDot, 6);
-            Canvas.SetTop(pulseDot, 6);
+            Canvas.SetLeft(pulseDot, 5);
+            Canvas.SetTop(pulseDot, 5);
             rootCanvas.Children.Add(pulseDot);
 
             // Red Unread Badge (Top-Right)
@@ -228,14 +238,14 @@ namespace ZoneHub {
                 CornerRadius = new CornerRadius(10),
                 Background = new SolidColorBrush(Color.FromRgb(244, 63, 94)),
                 BorderThickness = new Thickness(2),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(11, 15, 25)),
+                BorderBrush = Brushes.White,
                 Padding = new Thickness(3, 0, 3, 0),
                 Visibility = Visibility.Collapsed,
                 Effect = new DropShadowEffect {
                     Color = Color.FromRgb(244, 63, 94),
                     BlurRadius = 8,
                     ShadowDepth = 1,
-                    Opacity = 0.85
+                    Opacity = 0.9
                 }
             };
             badgeText = new TextBlock {
@@ -261,7 +271,7 @@ namespace ZoneHub {
             bubbleBorder.MouseEnter += (s, e) => {
                 ScaleTransform st = bubbleBorder.RenderTransform as ScaleTransform;
                 if (st != null) {
-                    DoubleAnimation anim = new DoubleAnimation(1.08, TimeSpan.FromMilliseconds(150));
+                    DoubleAnimation anim = new DoubleAnimation(1.1, TimeSpan.FromMilliseconds(150));
                     st.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
                     st.BeginAnimation(ScaleTransform.ScaleYProperty, anim);
                 }
@@ -291,17 +301,17 @@ namespace ZoneHub {
             };
 
             Border teaserBorder = new Border {
-                Background = new SolidColorBrush(Color.FromArgb(245, 15, 23, 42)),
+                Background = new SolidColorBrush(Color.FromArgb(248, 15, 23, 42)),
                 BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(120, 99, 102, 241)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(140, 99, 102, 241)),
                 CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(10, 8, 10, 8),
                 Cursor = Cursors.Hand,
                 Effect = new DropShadowEffect {
                     Color = Colors.Black,
-                    BlurRadius = 20,
-                    ShadowDepth = 6,
-                    Opacity = 0.7
+                    BlurRadius = 22,
+                    ShadowDepth = 5,
+                    Opacity = 0.75
                 }
             };
 
@@ -315,7 +325,14 @@ namespace ZoneHub {
                 Width = 28,
                 Height = 28,
                 CornerRadius = new CornerRadius(8),
-                Background = new LinearGradientBrush(Color.FromRgb(99, 102, 241), Color.FromRgb(6, 182, 212), 45)
+                Background = new LinearGradientBrush {
+                    StartPoint = new Point(0, 0),
+                    EndPoint = new Point(1, 1),
+                    GradientStops = new GradientStopCollection {
+                        new GradientStop(Color.FromRgb(99, 102, 241), 0.0),
+                        new GradientStop(Color.FromRgb(6, 182, 212), 1.0)
+                    }
+                }
             };
             TextBlock avatarText = new TextBlock {
                 Text = "💬",
@@ -381,29 +398,26 @@ namespace ZoneHub {
         }
 
         private void ShowDesktopTeaser(string user, string message) {
-            teaserUser.Text = string.IsNullOrEmpty(user) ? "Team Member" : user;
-            teaserText.Text = string.IsNullOrEmpty(message) ? "Sent a file" : message;
+            try {
+                teaserUser.Text = string.IsNullOrEmpty(user) ? "Team Member" : user;
+                teaserText.Text = string.IsNullOrEmpty(message) ? "Sent a file" : message;
 
-            // Position teaser immediately to the left of the bubble
-            double screenW = SystemParameters.WorkArea.Width;
-            double teaserLeft = Left - teaserWindow.Width - 10;
-            if (teaserLeft < 10) {
-                // If bubble is on the left edge, show teaser on the right of the bubble
-                teaserLeft = Left + Width + 10;
-            }
-            teaserWindow.Left = teaserLeft;
-            teaserWindow.Top = Top + (Height - teaserWindow.Height) / 2;
+                double screenW = SystemParameters.WorkArea.Width;
+                double teaserLeft = (Left < screenW / 2) ? (Left + Width + 8) : (Left - teaserWindow.Width - 8);
 
-            teaserWindow.Show();
-            teaserTimer.Stop();
-            teaserTimer.Start();
+                teaserWindow.Left = teaserLeft;
+                teaserWindow.Top = Top + (Height - teaserWindow.Height) / 2;
+
+                teaserWindow.Show();
+                teaserTimer.Stop();
+                teaserTimer.Start();
+            } catch { }
         }
 
         // Mouse Drag & Click Handling
         private void OnBubbleMouseDown(object sender, MouseButtonEventArgs e) {
             if (e.ChangedButton == MouseButton.Left) {
                 mouseDownScreenPos = PointToScreen(e.GetPosition(this));
-                mouseDownWindowPos = e.GetPosition(this);
                 mouseDownTime = DateTime.Now;
                 isDragging = false;
                 bubbleBorder.CaptureMouse();
@@ -416,7 +430,7 @@ namespace ZoneHub {
                 double dx = currentScreenPos.X - mouseDownScreenPos.X;
                 double dy = currentScreenPos.Y - mouseDownScreenPos.Y;
 
-                if (!isDragging && (Math.Abs(dx) > 4 || Math.Abs(dy) > 4)) {
+                if (!isDragging && (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)) {
                     isDragging = true;
                 }
 
@@ -442,7 +456,7 @@ namespace ZoneHub {
 
                 if (!isDragging) {
                     TimeSpan elapsed = DateTime.Now - mouseDownTime;
-                    if (elapsed.TotalMilliseconds < 400) {
+                    if (elapsed.TotalMilliseconds < 450) {
                         // User Clicked the Bubble!
                         OnBubbleClicked();
                     }
@@ -457,8 +471,8 @@ namespace ZoneHub {
         private void SnapToNearestEdge() {
             try {
                 double screenW = SystemParameters.WorkArea.Width;
-                double leftEdge = 8;
-                double rightEdge = screenW - Width - 8;
+                double leftEdge = 4;
+                double rightEdge = screenW - Width - 4;
 
                 double targetLeft = (Left + Width / 2 < screenW / 2) ? leftEdge : rightEdge;
 
@@ -476,12 +490,11 @@ namespace ZoneHub {
         }
 
         private void OnBubbleClicked() {
-            // Clear unread badge
             unreadCount = 0;
             badgeBorder.Visibility = Visibility.Collapsed;
             teaserWindow.Hide();
 
-            // Open or bring ZoneHub to the front in full view!
+            // Open ZoneHub in default browser
             OpenZoneHubFull();
         }
 
@@ -495,7 +508,6 @@ namespace ZoneHub {
 
         private void OpenZoneHubMini() {
             try {
-                // Try launching in a clean app window via Edge or Chrome
                 string miniUrl = serverUrl + "/?view=mini";
                 string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
                 if (!File.Exists(edgePath)) {
@@ -525,6 +537,22 @@ namespace ZoneHub {
 
             cm.Items.Add(new Separator());
 
+            MenuItem miSnapLeft = new MenuItem { Header = "⬅ Snap to Left Edge" };
+            miSnapLeft.Click += (s, args) => {
+                Left = 4;
+                SavePosition();
+            };
+            cm.Items.Add(miSnapLeft);
+
+            MenuItem miSnapRight = new MenuItem { Header = "➡ Snap to Right Edge" };
+            miSnapRight.Click += (s, args) => {
+                Left = SystemParameters.WorkArea.Width - Width - 4;
+                SavePosition();
+            };
+            cm.Items.Add(miSnapRight);
+
+            cm.Items.Add(new Separator());
+
             MenuItem miAutoStart = new MenuItem {
                 Header = "🚀 Run on Windows Startup",
                 IsCheckable = true,
@@ -535,27 +563,18 @@ namespace ZoneHub {
             };
             cm.Items.Add(miAutoStart);
 
-            MenuItem miResetPos = new MenuItem { Header = "🎯 Reset Position (Bottom-Right)" };
-            miResetPos.Click += (s, args) => {
-                Left = SystemParameters.WorkArea.Width - WINDOW_SIZE - 24;
-                Top = SystemParameters.WorkArea.Height - WINDOW_SIZE - 40;
-                SavePosition();
-            };
-            cm.Items.Add(miResetPos);
-
-            cm.Items.Add(new Separator());
-
             MenuItem miExit = new MenuItem { Header = "✕ Exit Desktop Bubble" };
             miExit.Click += (s, args) => {
-                teaserWindow.Close();
-                Close();
+                try { teaserWindow.Close(); } catch { }
+                try { Close(); } catch { }
+                Application.Current.Shutdown();
             };
             cm.Items.Add(miExit);
 
             cm.IsOpen = true;
         }
 
-        // Real-Time Background Polling for Chat Messages
+        // Real-Time Polling for Messages from ZoneHub server
         private void InitPolling() {
             pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             pollTimer.Tick += (s, e) => PollServer();
@@ -565,78 +584,76 @@ namespace ZoneHub {
         private void PollServer() {
             ThreadPool.QueueUserWorkItem(state => {
                 try {
-                    string pollUrl = serverUrl + "/api/chat/poll?since=" + lastMessageTimestamp;
+                    string pollUrl = serverUrl + "/api/messages?t=" + DateTime.Now.Ticks;
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(pollUrl);
                     request.Timeout = 2000;
                     using (HttpWebResponse response = (HttpWebResponse)request.GetResponse()) {
                         if (response.StatusCode == HttpStatusCode.OK) {
                             using (StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8)) {
                                 string json = reader.ReadToEnd();
-                                ParsePollResult(json);
+                                ParseMessagesResult(json);
                             }
                         }
                     }
                 } catch {
-                    // Server might be temporarily restarting
+                    // Safe silent ignore if server temporarily restarting
                 }
             });
         }
 
-        private void ParsePollResult(string json) {
-            if (string.IsNullOrEmpty(json) || json.Length < 10) return;
+        private void ParseMessagesResult(string json) {
+            try {
+                if (string.IsNullOrEmpty(json) || json.Length < 5) return;
 
-            // Simple fast JSON extractor for zero dependencies
-            // Looks for "time":123456789 and "text":"..." and "user":"..."
-            int timeIdx = json.LastIndexOf("\"time\":");
-            if (timeIdx != -1) {
-                int start = timeIdx + 7;
-                int end = json.IndexOfAny(new char[] { ',', '}' }, start);
-                if (end > start) {
-                    long msgTime;
-                    if (long.TryParse(json.Substring(start, end - start).Trim(), out msgTime)) {
-                        if (lastMessageTimestamp == 0) {
-                            // Initial fetch - record baseline time without alerting
-                            lastMessageTimestamp = msgTime;
-                            return;
-                        }
-
-                        if (msgTime > lastMessageTimestamp) {
-                            lastMessageTimestamp = msgTime;
-
-                            // Extract sender and message text
-                            string senderName = "Team Member";
-                            string messageText = "New message";
-
-                            int userIdx = json.LastIndexOf("\"user\":");
-                            if (userIdx != -1) {
-                                int uStart = json.IndexOf('"', userIdx + 7) + 1;
-                                int uEnd = json.IndexOf('"', uStart);
-                                if (uEnd > uStart) senderName = json.Substring(uStart, uEnd - uStart);
-                            }
-
-                            int textIdx = json.LastIndexOf("\"text\":");
-                            if (textIdx != -1) {
-                                int tStart = json.IndexOf('"', textIdx + 7) + 1;
-                                int tEnd = json.IndexOf('"', tStart);
-                                if (tEnd > tStart) messageText = json.Substring(tStart, tEnd - tStart);
-                            }
-
-                            // Trigger on UI thread
-                            Dispatcher.Invoke(new Action(() => {
-                                OnNewMessageReceived(senderName, messageText);
-                            }));
-                        }
-                    }
+                // Count messages by counting occurrence of "id":
+                int count = 0;
+                int idx = 0;
+                while ((idx = json.IndexOf("\"id\":", idx)) != -1) {
+                    count++;
+                    idx += 5;
                 }
-            }
+
+                if (lastMessageCount == -1) {
+                    // Initial load - establish baseline
+                    lastMessageCount = count;
+                    return;
+                }
+
+                if (count > lastMessageCount) {
+                    int diff = count - lastMessageCount;
+                    lastMessageCount = count;
+
+                    // Extract latest sender name
+                    string sender = "Team Member";
+                    string preview = "New message";
+
+                    int lastUserIdx = json.LastIndexOf("\"user\":");
+                    if (lastUserIdx != -1) {
+                        int uStart = json.IndexOf('"', lastUserIdx + 7) + 1;
+                        int uEnd = json.IndexOf('"', uStart);
+                        if (uEnd > uStart) sender = json.Substring(uStart, uEnd - uStart);
+                    }
+
+                    int lastTextIdx = json.LastIndexOf("\"text\":");
+                    if (lastTextIdx != -1) {
+                        int tStart = json.IndexOf('"', lastTextIdx + 7) + 1;
+                        int tEnd = json.IndexOf('"', tStart);
+                        if (tEnd > tStart) preview = json.Substring(tStart, tEnd - tStart);
+                    }
+
+                    Dispatcher.Invoke(new Action(() => {
+                        OnNewMessageReceived(sender, preview, diff);
+                    }));
+                }
+            } catch { }
         }
 
-        private void OnNewMessageReceived(string user, string text) {
-            unreadCount++;
+        private void OnNewMessageReceived(string user, string text, int diff) {
+            unreadCount += diff;
             badgeText.Text = unreadCount > 99 ? "99+" : unreadCount.ToString();
             badgeBorder.Visibility = Visibility.Visible;
 
-            // Subtle Bubble Bounce Animation
+            // Bubble bounce animation
             ScaleTransform st = bubbleBorder.RenderTransform as ScaleTransform;
             if (st != null) {
                 DoubleAnimation bounce = new DoubleAnimation(1.2, TimeSpan.FromMilliseconds(180)) {
@@ -647,16 +664,13 @@ namespace ZoneHub {
                 st.BeginAnimation(ScaleTransform.ScaleYProperty, bounce);
             }
 
-            // Play clean system alert sound
             try {
                 System.Media.SystemSounds.Asterisk.Play();
             } catch { }
 
-            // Show floating Desktop Teaser Pill
             ShowDesktopTeaser(user, text);
         }
 
-        // Persistence: Load & Save Bubble Desktop Position
         private void LoadPosition(double defaultLeft, double defaultTop) {
             try {
                 if (File.Exists(configPath)) {
@@ -682,7 +696,6 @@ namespace ZoneHub {
             } catch { }
         }
 
-        // Windows Auto-Start Registry Handling
         private bool IsAutoStartEnabled() {
             try {
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false)) {
