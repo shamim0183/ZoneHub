@@ -12,6 +12,7 @@ messages.json
 file_metadata.json
 online_url.txt
 hub_config.json
+*.ini
 
 # User shared media (Heavy videos & large uploads)
 # Keep folder structure via .gitkeep
