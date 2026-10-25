@@ -52,6 +52,8 @@ namespace ZoneHub
         private static object MessagesLock = new object();
         private static object MetadataLock = new object();
         private static object ConfigLock = new object();
+        private static string PendingTargetTab = "";
+        private static object TargetTabLock = new object();
 
         public static string GetCurrentLocalIp()
         {
@@ -335,6 +337,13 @@ namespace ZoneHub
                     return;
                 }
 
+                // Handle GET / POST target-tab (Desktop Bubble signal to switch tabs)
+                if (decodedPath.Equals("/api/target-tab", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleTargetTab(stream, req);
+                    return;
+                }
+
                 // Handle GET / POST config (Dynamic Hub Name)
                 if (decodedPath.Equals("/api/config", StringComparison.OrdinalIgnoreCase))
                 {
@@ -530,6 +539,22 @@ namespace ZoneHub
                 }
             }
 
+            // Check proxy headers (Cloudflare, reverse proxies) to properly detect remote employees
+            if (ctx.Headers.ContainsKey("cf-connecting-ip"))
+            {
+                ctx.ClientIp = ctx.Headers["cf-connecting-ip"].Trim();
+                ctx.IsLocalhost = false;
+            }
+            else if (ctx.Headers.ContainsKey("x-forwarded-for"))
+            {
+                string fwd = ctx.Headers["x-forwarded-for"];
+                if (!string.IsNullOrEmpty(fwd))
+                {
+                    ctx.ClientIp = fwd.Split(',')[0].Trim();
+                    ctx.IsLocalhost = false;
+                }
+            }
+
             int bodyStartIndex = headerEndIndex + delimiterLength;
             int leftoverLength = totalRead - bodyStartIndex;
             if (leftoverLength > 0)
@@ -574,44 +599,50 @@ namespace ZoneHub
             }
         }
 
-        #region My Info (PC Name Detection)
+        #region My Info & UI Signals
         private static void ServeMyInfo(NetworkStream stream, RequestContext req)
         {
             string defaultName = "";
-            if (req.IsLocalhost)
+            bool isHost = req.IsLocalhost;
+            if (isHost)
             {
                 defaultName = Environment.UserName;
-            }
-            else if (!string.IsNullOrEmpty(req.ClientIp))
-            {
-                try
-                {
-                    IPAddress ip;
-                    if (IPAddress.TryParse(req.ClientIp, out ip))
-                    {
-                        var entry = Dns.GetHostEntry(ip);
-                        if (entry != null && !string.IsNullOrEmpty(entry.HostName))
-                        {
-                            defaultName = entry.HostName.Split('.')[0];
-                        }
-                    }
-                }
-                catch {}
-            }
-
-            if (string.IsNullOrEmpty(defaultName))
-            {
-                string ipTail = req.ClientIp.Replace(".", "_").Replace(":", "_");
-                defaultName = "Employee_" + (ipTail.Length > 3 ? ipTail.Substring(ipTail.Length - 3) : "PC");
             }
 
             JavaScriptSerializer js = new JavaScriptSerializer();
             var dict = new Dictionary<string, object>();
             dict["defaultName"] = defaultName;
             dict["clientIp"] = req.ClientIp;
-            dict["isHost"] = req.IsLocalhost;
+            dict["isHost"] = isHost;
 
             SendJsonResponse(stream, 200, js.Serialize(dict));
+        }
+
+        private static void HandleTargetTab(NetworkStream stream, RequestContext req)
+        {
+            string setVal = "";
+            if (req.Url.Contains("set="))
+            {
+                try
+                {
+                    setVal = req.Url.Split(new[] { "set=" }, StringSplitOptions.None)[1].Split('&')[0];
+                }
+                catch {}
+            }
+
+            lock (TargetTabLock)
+            {
+                if (!string.IsNullOrEmpty(setVal))
+                {
+                    PendingTargetTab = setVal;
+                    SendJsonResponse(stream, 200, "{\"success\":true,\"targetTab\":\"" + JsonEscape(PendingTargetTab) + "\"}");
+                    return;
+                }
+
+                string current = PendingTargetTab;
+                PendingTargetTab = "";
+                SendJsonResponse(stream, 200, "{\"targetTab\":\"" + JsonEscape(current) + "\"}");
+            }
         }
         #endregion
 

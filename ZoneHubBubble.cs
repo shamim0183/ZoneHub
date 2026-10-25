@@ -397,7 +397,9 @@ namespace ZoneHub {
             teaserBorder.Child = grid;
             teaserBorder.MouseLeftButtonDown += (s, e) => {
                 teaserWindow.Hide();
-                ToggleZoneHubApp();
+                unreadCount = 0;
+                badgeBorder.Visibility = Visibility.Collapsed;
+                ToggleZoneHubApp(openChatTab: true);
             };
 
             teaserWindow.Content = teaserBorder;
@@ -502,12 +504,13 @@ namespace ZoneHub {
         }
 
         private void OnBubbleClicked() {
+            bool hasUnread = (unreadCount > 0);
             unreadCount = 0;
             badgeBorder.Visibility = Visibility.Collapsed;
             teaserWindow.Hide();
 
-            // Toggle ZoneHub App (Opens if closed, Restores if minimized, Minimizes if in foreground!)
-            ToggleZoneHubApp();
+            // Toggle ZoneHub App (Opens if closed, Restores if minimized, and opens chat tab if notification arrived!)
+            ToggleZoneHubApp(openChatTab: hasUnread);
         }
 
         private IntPtr FindZoneHubAppWindow() {
@@ -530,31 +533,50 @@ namespace ZoneHub {
             return found;
         }
 
-        private void ToggleZoneHubApp() {
+        private void ToggleZoneHubApp(bool openChatTab = false) {
             try {
+                if (openChatTab) {
+                    SendTargetTabSignal("chat");
+                }
+
                 IntPtr appHwnd = FindZoneHubAppWindow();
 
                 if (appHwnd != IntPtr.Zero) {
                     IntPtr fgHwnd = GetForegroundWindow();
-                    if (fgHwnd == appHwnd && !IsIconic(appHwnd)) {
-                        // App is open and focused in foreground -> MINIMIZE IT!
+                    if (fgHwnd == appHwnd && !IsIconic(appHwnd) && !openChatTab) {
+                        // App is open and focused in foreground and NO unread chat -> MINIMIZE IT!
                         ShowWindow(appHwnd, SW_MINIMIZE);
                     } else {
-                        // App is minimized or behind other windows -> RESTORE & BRING TO FRONT!
+                        // App is minimized or behind other windows or has unread chat -> RESTORE & BRING TO FRONT!
                         ShowWindow(appHwnd, SW_RESTORE);
                         SetForegroundWindow(appHwnd);
                     }
                 } else {
                     // App is not open yet -> Launch as standalone native Desktop App!
-                    LaunchStandaloneApp();
+                    LaunchStandaloneApp(openChatTab ? (serverUrl + "/?tab=chat") : (serverUrl + "/"));
                 }
             } catch {
-                LaunchStandaloneApp();
+                LaunchStandaloneApp(openChatTab ? (serverUrl + "/?tab=chat") : (serverUrl + "/"));
             }
         }
 
-        private void LaunchStandaloneApp() {
-            string appUrl = serverUrl + "/";
+        private void SendTargetTabSignal(string tabName) {
+            try {
+                ThreadPool.QueueUserWorkItem(state => {
+                    try {
+                        using (WebClient wc = new WebClient()) {
+                            wc.DownloadString(serverUrl + "/api/target-tab?set=" + tabName);
+                        }
+                    } catch { }
+                });
+            } catch { }
+        }
+
+        private void LaunchStandaloneApp(string appUrl = null) {
+            if (string.IsNullOrEmpty(appUrl)) {
+                appUrl = serverUrl + "/";
+            }
+
             string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
             if (!File.Exists(edgePath)) {
                 edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
@@ -562,7 +584,7 @@ namespace ZoneHub {
 
             string chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
             if (!File.Exists(chromePath)) {
-                chromePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
+                chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
             }
 
             try {

@@ -9,28 +9,74 @@ if (!myUserId) {
     localStorage.setItem('zonehub_user_id', myUserId);
 }
 
-// User Name State (Default from PC Hostname)
-let currentUserName = localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name');
-if (!currentUserName) {
+// User Name State
+let isCurrentHost = false;
+let currentUserName = localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '';
+
+function initUserInfo() {
     fetch('/api/my-info')
         .then(r => r.json())
         .then(info => {
-            currentUserName = info.defaultName || 'Employee';
-            localStorage.setItem('zonehub_user_name', currentUserName);
-            updateUserDisplay();
+            isCurrentHost = !!info.isHost;
+            const roleLabel = document.getElementById('userBadgeRoleLabel');
+            if (roleLabel) {
+                roleLabel.innerText = isCurrentHost ? 'Host:' : 'You:';
+            }
+
+            let stored = localStorage.getItem('zonehub_user_name');
+            // If stored name is a machine default like 'Employee_109' or non-host has 'obak3':
+            const isInvalidOrMachineName = !stored || (!isCurrentHost && (stored === 'obak3' || stored.startsWith('Employee_')));
+
+            if (isCurrentHost) {
+                currentUserName = stored || info.defaultName || 'Host';
+                localStorage.setItem('zonehub_user_name', currentUserName);
+                updateUserDisplay();
+            } else if (isInvalidOrMachineName) {
+                openNamePromptModal();
+            } else {
+                currentUserName = stored;
+                updateUserDisplay();
+            }
         })
         .catch(() => {
-            currentUserName = 'Employee';
-            updateUserDisplay();
+            if (!currentUserName || (!isCurrentHost && currentUserName.startsWith('Employee_'))) {
+                openNamePromptModal();
+            } else {
+                updateUserDisplay();
+            }
         });
-} else {
+}
+
+function openNamePromptModal() {
+    const modal = document.getElementById('firstTimeNameModal');
+    const input = document.getElementById('employeeNameInput');
+    if (modal) {
+        modal.classList.add('active');
+        if (input) setTimeout(() => input.focus(), 150);
+    }
+}
+
+function saveEmployeeName() {
+    const input = document.getElementById('employeeNameInput');
+    const modal = document.getElementById('firstTimeNameModal');
+    if (!input) return;
+    const val = input.value.trim();
+    if (!val) {
+        alert('দয়া করে আপনার নাম লিখুন');
+        input.focus();
+        return;
+    }
+    currentUserName = val;
+    localStorage.setItem('zonehub_user_name', currentUserName);
     updateUserDisplay();
+    if (modal) modal.classList.remove('active');
+    showToast('👋 স্বাগতম, ' + currentUserName + '!');
 }
 
 function updateUserDisplay() {
     const nameEl = document.getElementById('currentUserNameDisplay');
     const avatarEl = document.getElementById('currentUserAvatar');
-    if (nameEl) nameEl.innerText = currentUserName || 'Employee';
+    if (nameEl) nameEl.innerText = currentUserName || 'You';
     const init = (currentUserName || 'EM').substring(0, 2).toUpperCase();
     if (avatarEl) avatarEl.innerText = init;
 }
@@ -854,10 +900,23 @@ function switchPwaTab(tabName) {
 // ==========================================
 // Bootstrap & Live Polling Initializer
 // ==========================================
+// Live UI Signal for Target Tab (from Desktop Bubble or URL)
+async function checkTargetTabSignal() {
+    try {
+        const res = await fetch('/api/target-tab?t=' + Date.now());
+        const data = await res.json();
+        if (data && data.targetTab) {
+            switchView(data.targetTab);
+        }
+    } catch (e) {}
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     // Check if opened as Corner Mini Dock:
     if (window.location.search.includes('view=mini')) {
         document.body.classList.add('mini-dock-mode');
+        switchView('chat');
+    } else if (window.location.search.includes('tab=chat')) {
         switchView('chat');
     } else if (window.innerWidth < 768) {
         switchView('files');
@@ -872,6 +931,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    initUserInfo();
     fetchHubConfig();
     initPwaInstallState();
     autoRequestNotificationPermission();
@@ -883,6 +943,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof loadMessages === 'function') setInterval(loadMessages, 2000);
     if (typeof loadFileList === 'function') setInterval(loadFileList, 8000);
     if (typeof loadFoldersList === 'function') setInterval(loadFoldersList, 8000);
+    setInterval(checkTargetTabSignal, 800);
 });
 
 // Auto-unlock Web Audio chime and prompt Notification permission on first click anywhere
