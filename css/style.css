@@ -2641,34 +2641,11 @@
             display: block;
         }
 
-        /* Floating Circle Bubble Widget (Like user's reference image: White circular disc with squircle app icon) */
-        .floating-chat-head {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            width: 62px;
-            height: 62px;
-            border-radius: 50%;
-            background: #ffffff;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 99999;
-            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
-            border: 1.5px solid rgba(0, 0, 0, 0.08);
-            user-select: none;
-        }
-        .floating-chat-head:hover {
-            transform: scale(1.1) translateY(-2px);
-            box-shadow: 0 14px 38px rgba(0, 0, 0, 0.55), 0 0 25px rgba(6, 182, 212, 0.4);
-        }
-        .floating-chat-head:active {
-            transform: scale(0.95);
-        }
-        .floating-chat-head.dock-open {
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.4), 0 10px 30px rgba(0, 0, 0, 0.45);
+        /* In-app floating bubble is disabled - desktop bubble handles floating on Windows */
+        .floating-chat-head, .corner-dock-card {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
         }
         .chat-head-squircle {
             width: 44px;
