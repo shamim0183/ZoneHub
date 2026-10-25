@@ -53,16 +53,13 @@ namespace ZoneHub {
         private TextBlock teaserUser;
         private TextBlock teaserText;
         private DispatcherTimer teaserTimer;
-
-        private Point mouseDownScreenPos;
-        private DateTime mouseDownTime;
-        private bool isDragging = false;
-
         private DispatcherTimer pollTimer;
         private int lastMessageCount = -1;
         private int unreadCount = 0;
         private string configPath;
         private string serverUrl = "http://localhost:8080";
+        private IntPtr cachedAppHwnd = IntPtr.Zero;
+        private bool isAppRestoredState = false;
 
         // Win32 API for toggling and minimizing/restoring the ZoneHub App window
         [DllImport("user32.dll")]
@@ -78,6 +75,10 @@ namespace ZoneHub {
         private static extern bool IsIconic(IntPtr hWnd);
 
         [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool IsWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
         private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -85,6 +86,16 @@ namespace ZoneHub {
 
         [DllImport("user32.dll")]
         private static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetCursorPos(out WinPoint lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WinPoint {
+            public int X;
+            public int Y;
+        }
 
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -141,6 +152,16 @@ namespace ZoneHub {
             Deactivated += (s, e) => {
                 Topmost = true;
             };
+
+            // Register this machine's actual device name with ZoneHub server
+            ThreadPool.QueueUserWorkItem(s => {
+                try {
+                    string myPc = Environment.MachineName;
+                    using (WebClient wc = new WebClient()) {
+                        wc.DownloadString(serverUrl + "/api/register-device?name=" + Uri.EscapeDataString(myPc));
+                    }
+                } catch { }
+            });
         }
 
         private void BuildUI() {
@@ -293,8 +314,6 @@ namespace ZoneHub {
 
             // Mouse Event Handlers for Dragging & Clicking
             bubbleBorder.MouseLeftButtonDown += OnBubbleMouseDown;
-            bubbleBorder.MouseMove += OnBubbleMouseMove;
-            bubbleBorder.MouseLeftButtonUp += OnBubbleMouseUp;
             bubbleBorder.MouseRightButtonUp += OnBubbleRightClick;
 
             // Hover animations
@@ -446,79 +465,44 @@ namespace ZoneHub {
             } catch { }
         }
 
-        // Mouse Drag & Click Handling
+        // Universal Dragging & Click Handling
         private void OnBubbleMouseDown(object sender, MouseButtonEventArgs e) {
             if (e.ChangedButton == MouseButton.Left) {
-                mouseDownScreenPos = PointToScreen(e.GetPosition(this));
-                mouseDownTime = DateTime.Now;
-                isDragging = false;
-                bubbleBorder.CaptureMouse();
-            }
-        }
+                WinPoint startPt;
+                GetCursorPos(out startPt);
+                DateTime startTime = DateTime.Now;
 
-        private void OnBubbleMouseMove(object sender, MouseEventArgs e) {
-            if (bubbleBorder.IsMouseCaptured && e.LeftButton == MouseButtonState.Pressed) {
-                Point currentScreenPos = PointToScreen(e.GetPosition(this));
-                double dx = currentScreenPos.X - mouseDownScreenPos.X;
-                double dy = currentScreenPos.Y - mouseDownScreenPos.Y;
+                try {
+                    DragMove();
+                } catch { }
 
-                if (!isDragging && (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)) {
-                    isDragging = true;
-                }
+                WinPoint endPt;
+                GetCursorPos(out endPt);
+                int dx = endPt.X - startPt.X;
+                int dy = endPt.Y - startPt.Y;
+                double dist = Math.Sqrt(dx * dx + dy * dy);
+                TimeSpan elapsed = DateTime.Now - startTime;
 
-                if (isDragging) {
-                    Left += dx;
-                    Top += dy;
-                    mouseDownScreenPos = currentScreenPos;
-
-                    // Keep inside work area bounds
-                    double maxLeft = SystemParameters.WorkArea.Right - Width;
-                    double maxTop = SystemParameters.WorkArea.Bottom - Height;
-                    if (Left < 0) Left = 0;
-                    if (Top < 0) Top = 0;
-                    if (Left > maxLeft) Left = maxLeft;
-                    if (Top > maxTop) Top = maxTop;
-                }
-            }
-        }
-
-        private void OnBubbleMouseUp(object sender, MouseButtonEventArgs e) {
-            if (bubbleBorder.IsMouseCaptured) {
-                bubbleBorder.ReleaseMouseCapture();
-
-                if (!isDragging) {
-                    TimeSpan elapsed = DateTime.Now - mouseDownTime;
-                    if (elapsed.TotalMilliseconds < 450) {
-                        // User Clicked the Bubble!
-                        OnBubbleClicked();
-                    }
+                if (dist < 6 && elapsed.TotalMilliseconds < 500) {
+                    // Tap / Click on the Bubble!
+                    OnBubbleClicked();
                 } else {
-                    // Finished dragging - smoothly snap to nearest edge (left or right)
-                    SnapToNearestEdge();
+                    // Universal move! The user moved the bubble anywhere on screen.
+                    ClampInsideScreen();
+                    SavePosition();
                 }
-                isDragging = false;
             }
         }
 
-        private void SnapToNearestEdge() {
+        private void ClampInsideScreen() {
             try {
-                double screenW = SystemParameters.WorkArea.Width;
-                double leftEdge = 4;
-                double rightEdge = screenW - Width - 4;
-
-                double targetLeft = (Left + Width / 2 < screenW / 2) ? leftEdge : rightEdge;
-
-                DoubleAnimation anim = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(220)) {
-                    EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut }
-                };
-                anim.Completed += (s, e) => {
-                    Left = targetLeft;
-                    SavePosition();
-                };
-                this.BeginAnimation(Window.LeftProperty, anim);
-            } catch {
-                SavePosition();
-            }
+                double screenW = SystemParameters.VirtualScreenWidth;
+                double screenH = SystemParameters.VirtualScreenHeight;
+                if (Left < 0) Left = 0;
+                if (Top < 0) Top = 0;
+                if (Left > screenW - Width) Left = screenW - Width;
+                if (Top > screenH - Height) Top = screenH - Height;
+            } catch { }
         }
 
         private void OnBubbleClicked() {
@@ -527,23 +511,41 @@ namespace ZoneHub {
             badgeBorder.Visibility = Visibility.Collapsed;
             teaserWindow.Hide();
 
-            // Toggle ZoneHub App (Opens if closed, Restores if minimized, and opens chat tab if notification arrived!)
+            // Toggle ZoneHub App (First time opens, then toggles between Minimize and Restore!)
             ToggleZoneHubApp(openChatTab: hasUnread);
         }
 
+        private bool IsMatchingZoneHubTitle(string title) {
+            if (string.IsNullOrEmpty(title)) return false;
+            return title.IndexOf("ZoneHub", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("Media Hub", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf("Team Chat", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   title.IndexOf(":8080", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private IntPtr FindZoneHubAppWindow() {
+            if (cachedAppHwnd != IntPtr.Zero && IsWindow(cachedAppHwnd)) {
+                StringBuilder sb = new StringBuilder(512);
+                GetWindowText(cachedAppHwnd, sb, 512);
+                string title = sb.ToString();
+                if (IsMatchingZoneHubTitle(title)) {
+                    return cachedAppHwnd;
+                }
+            }
+
             IntPtr found = IntPtr.Zero;
             try {
                 EnumWindows((hWnd, lParam) => {
                     if (!IsWindowVisible(hWnd) && !IsIconic(hWnd)) return true;
-                    StringBuilder sb = new StringBuilder(256);
-                    GetWindowText(hWnd, sb, 256);
+                    StringBuilder sb = new StringBuilder(512);
+                    GetWindowText(hWnd, sb, 512);
                     string title = sb.ToString();
-                    if (!string.IsNullOrEmpty(title) &&
-                        title.IndexOf("ZoneHub", StringComparison.OrdinalIgnoreCase) >= 0 &&
-                        !title.Contains("Desktop Bubble")) {
-                        found = hWnd;
-                        return false; // Found match, stop enum
+                    if (!string.IsNullOrEmpty(title) && !title.Contains("Desktop Bubble")) {
+                        if (IsMatchingZoneHubTitle(title)) {
+                            found = hWnd;
+                            cachedAppHwnd = hWnd;
+                            return false; // Found match, stop enum
+                        }
                     }
                     return true;
                 }, IntPtr.Zero);
@@ -560,21 +562,32 @@ namespace ZoneHub {
                 IntPtr appHwnd = FindZoneHubAppWindow();
 
                 if (appHwnd != IntPtr.Zero) {
-                    IntPtr fgHwnd = GetForegroundWindow();
-                    if (fgHwnd == appHwnd && !IsIconic(appHwnd) && !openChatTab) {
-                        // App is open and focused in foreground and NO unread chat -> MINIMIZE IT!
-                        ShowWindow(appHwnd, SW_MINIMIZE);
-                    } else {
-                        // App is minimized or behind other windows or has unread chat -> RESTORE & BRING TO FRONT!
+                    bool isMinimized = IsIconic(appHwnd);
+                    if (isMinimized) {
+                        // Window is currently minimized -> RESTORE AND BRING TO FRONT!
                         ShowWindow(appHwnd, SW_RESTORE);
                         SetForegroundWindow(appHwnd);
+                        isAppRestoredState = true;
+                    } else if (isAppRestoredState && !openChatTab) {
+                        // Window is currently visible on screen -> MINIMIZE IT!
+                        ShowWindow(appHwnd, SW_MINIMIZE);
+                        isAppRestoredState = false;
+                    } else {
+                        // Window is behind other windows or new chat notification arrived -> BRING TO FRONT!
+                        ShowWindow(appHwnd, SW_RESTORE);
+                        SetForegroundWindow(appHwnd);
+                        isAppRestoredState = true;
                     }
                 } else {
-                    // App is not open yet -> Launch as standalone native Desktop App!
-                    LaunchStandaloneApp(openChatTab ? (serverUrl + "/?tab=chat") : (serverUrl + "/"));
+                    // First time only: App is closed -> Launch standalone native Desktop App!
+                    string targetUrl = BuildAppUrl(openChatTab ? "tab=chat" : null);
+                    LaunchStandaloneApp(targetUrl);
+                    isAppRestoredState = true;
                 }
             } catch {
-                LaunchStandaloneApp(openChatTab ? (serverUrl + "/?tab=chat") : (serverUrl + "/"));
+                string targetUrl = BuildAppUrl(openChatTab ? "tab=chat" : null);
+                LaunchStandaloneApp(targetUrl);
+                isAppRestoredState = true;
             }
         }
 
@@ -590,12 +603,22 @@ namespace ZoneHub {
             } catch { }
         }
 
-        private void LaunchStandaloneApp(string appUrl = null) {
+        private string BuildAppUrl(string extraParams = null) {
+            string cleanServer = serverUrl.TrimEnd('/');
             string myPcName = Environment.MachineName;
+            StringBuilder sb = new StringBuilder();
+            sb.Append(cleanServer).Append("/?");
+            if (!string.IsNullOrEmpty(extraParams)) {
+                string ep = extraParams.TrimStart('?', '&');
+                sb.Append(ep).Append("&");
+            }
+            sb.Append("user=").Append(Uri.EscapeDataString(myPcName));
+            return sb.ToString();
+        }
+
+        private void LaunchStandaloneApp(string appUrl = null) {
             if (string.IsNullOrEmpty(appUrl)) {
-                appUrl = serverUrl + "/?user=" + Uri.EscapeDataString(myPcName);
-            } else if (!appUrl.Contains("user=")) {
-                appUrl += (appUrl.Contains("?") ? "&" : "/?") + "user=" + Uri.EscapeDataString(myPcName);
+                appUrl = BuildAppUrl(null);
             }
 
             string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
@@ -622,8 +645,7 @@ namespace ZoneHub {
         }
 
         private void OpenZoneHubMini() {
-            string myPcName = Environment.MachineName;
-            string miniUrl = serverUrl + "/?view=mini&user=" + Uri.EscapeDataString(myPcName);
+            string miniUrl = BuildAppUrl("view=mini");
             double screenW = SystemParameters.WorkArea.Width;
             double screenH = SystemParameters.WorkArea.Height;
             int winW = 400;

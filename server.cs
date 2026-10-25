@@ -54,6 +54,7 @@ namespace ZoneHub
         private static object ConfigLock = new object();
         private static string PendingTargetTab = "";
         private static object TargetTabLock = new object();
+        private static Dictionary<string, string> DeviceNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public static string GetCurrentLocalIp()
         {
@@ -316,6 +317,13 @@ namespace ZoneHub
                 string pathOnly = req.Url.Split('?')[0];
                 string decodedPath = Uri.UnescapeDataString(pathOnly);
 
+                // Normalize redundant leading slashes (e.g. "//", "///" -> "/")
+                while (decodedPath.StartsWith("//"))
+                {
+                    decodedPath = decodedPath.Substring(1);
+                }
+                if (string.IsNullOrEmpty(decodedPath)) decodedPath = "/";
+
                 // Handle GET / HEAD dashboard
                 if ((req.Method == "GET" || req.Method == "HEAD") && (decodedPath == "/" || decodedPath.Equals("/index.html", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -341,6 +349,28 @@ namespace ZoneHub
                 if (decodedPath.Equals("/api/target-tab", StringComparison.OrdinalIgnoreCase))
                 {
                     HandleTargetTab(stream, req);
+                    return;
+                }
+
+                // Handle GET / POST register-device (Desktop Bubble registers actual Windows PC name)
+                if (decodedPath.Equals("/api/register-device", StringComparison.OrdinalIgnoreCase))
+                {
+                    string devName = "";
+                    if (req.Url.Contains("name="))
+                    {
+                        int nIdx = req.Url.IndexOf("name=") + 5;
+                        int nEnd = req.Url.IndexOf('&', nIdx);
+                        string rawName = (nEnd == -1) ? req.Url.Substring(nIdx) : req.Url.Substring(nIdx, nEnd - nIdx);
+                        devName = Uri.UnescapeDataString(rawName).Trim();
+                    }
+                    if (!string.IsNullOrEmpty(devName) && !string.IsNullOrEmpty(req.ClientIp))
+                    {
+                        lock (DeviceNameCache)
+                        {
+                            DeviceNameCache[req.ClientIp] = devName;
+                        }
+                    }
+                    SendJsonResponse(stream, 200, "{\"success\":true}");
                     return;
                 }
 
@@ -610,19 +640,30 @@ namespace ZoneHub
             }
             else if (!string.IsNullOrEmpty(req.ClientIp))
             {
-                try
+                lock (DeviceNameCache)
                 {
-                    IPAddress ip;
-                    if (IPAddress.TryParse(req.ClientIp, out ip))
+                    if (DeviceNameCache.ContainsKey(req.ClientIp))
                     {
-                        var entry = Dns.GetHostEntry(ip);
-                        if (entry != null && !string.IsNullOrEmpty(entry.HostName))
-                        {
-                            defaultName = entry.HostName.Split('.')[0];
-                        }
+                        defaultName = DeviceNameCache[req.ClientIp];
                     }
                 }
-                catch {}
+
+                if (string.IsNullOrEmpty(defaultName))
+                {
+                    try
+                    {
+                        IPAddress ip;
+                        if (IPAddress.TryParse(req.ClientIp, out ip))
+                        {
+                            var entry = Dns.GetHostEntry(ip);
+                            if (entry != null && !string.IsNullOrEmpty(entry.HostName))
+                            {
+                                defaultName = entry.HostName.Split('.')[0];
+                            }
+                        }
+                    }
+                    catch {}
+                }
 
                 if (string.IsNullOrEmpty(defaultName))
                 {

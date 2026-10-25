@@ -33,8 +33,12 @@ function initUserInfo() {
             }
 
             let stored = localStorage.getItem('zonehub_user_name');
-            if (stored && (isCurrentHost || stored !== 'obak3')) {
+            const isPlaceholder = !stored || stored.startsWith('Employee_') || stored === 'Employee';
+            if (stored && !isPlaceholder && (isCurrentHost || stored !== 'obak3')) {
                 currentUserName = stored;
+            } else if (info.defaultName && !info.defaultName.startsWith('Employee_')) {
+                currentUserName = info.defaultName;
+                localStorage.setItem('zonehub_user_name', currentUserName);
             } else if (isCurrentHost) {
                 currentUserName = info.defaultName || 'Host';
                 localStorage.setItem('zonehub_user_name', currentUserName);
@@ -79,7 +83,7 @@ async function fetchHubConfig() {
             if (hubConfigData.hubName) {
                 const titleEl = document.getElementById('hubTitleText');
                 if (titleEl) titleEl.innerText = hubConfigData.hubName;
-                document.title = hubConfigData.hubName + ' & Team Chat';
+                document.title = hubConfigData.hubName + ' & Team Chat • ZoneHub';
             }
             const chipUser = document.getElementById('chipUserHub');
             const chipUserText = document.getElementById('chipUserHubText');
@@ -150,7 +154,7 @@ async function saveCustomHubName() {
         if (data.success) {
             const titleEl = document.getElementById('hubTitleText');
             if (titleEl) titleEl.innerText = data.hubName;
-            document.title = data.hubName + ' & Team Chat';
+            document.title = data.hubName + ' & Team Chat • ZoneHub';
             showToast('Hub Name updated: ' + data.hubName);
             const modal = document.getElementById('hubRenameModal');
             if (modal) modal.classList.remove('active');
@@ -446,7 +450,7 @@ function stopTitleBlink() {
         clearInterval(titleBlinkInterval);
         titleBlinkInterval = null;
     }
-    const baseTitle = (hubConfigData && hubConfigData.hubName ? hubConfigData.hubName : 'Media Hub') + ' & Team Chat';
+    const baseTitle = (hubConfigData && hubConfigData.hubName ? hubConfigData.hubName : 'Media Hub') + ' & Team Chat • ZoneHub';
     document.title = baseTitle;
 }
 
