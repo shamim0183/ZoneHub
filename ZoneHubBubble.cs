@@ -614,6 +614,15 @@ namespace ZoneHub {
             miMini.Click += (s, args) => OpenZoneHubMini();
             cm.Items.Add(miMini);
 
+            MenuItem miCopy = new MenuItem { Header = "📋 Copy App Link (http://localhost:8080)" };
+            miCopy.Click += (s, args) => {
+                try {
+                    Clipboard.SetText(serverUrl + "/");
+                    MessageBox.Show("ZoneHub App Link Copied:\n" + serverUrl + "/", "ZoneHub");
+                } catch { }
+            };
+            cm.Items.Add(miCopy);
+
             cm.Items.Add(new Separator());
 
             MenuItem miSnapLeft = new MenuItem { Header = "⬅ Snap to Left Edge" };
