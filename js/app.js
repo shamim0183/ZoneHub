@@ -653,10 +653,9 @@ function switchView(view) {
         filesWrapper.style.display = 'none';
         chatWrapper.style.display = 'block';
         if (tabChatOnlyBtn) tabChatOnlyBtn.classList.add('active');
-        setTimeout(() => {
-            const msgBox = document.getElementById('chatMessages');
-            if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
-        }, 50);
+        if (typeof scrollChatToBottom === 'function') {
+            scrollChatToBottom(true);
+        }
     }
 }
 
@@ -888,6 +887,9 @@ async function checkTargetTabSignal() {
         const data = await res.json();
         if (data && data.targetTab) {
             switchView(data.targetTab);
+            if (typeof scrollChatToBottom === 'function') {
+                scrollChatToBottom(true);
+            }
         }
     } catch (e) {}
 }
@@ -924,7 +926,15 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof loadMessages === 'function') setInterval(loadMessages, 2000);
     if (typeof loadFileList === 'function') setInterval(loadFileList, 8000);
     if (typeof loadFoldersList === 'function') setInterval(loadFoldersList, 8000);
-    setInterval(checkTargetTabSignal, 800);
+    setInterval(checkTargetTabSignal, 400);
+});
+
+// Auto-switch & scroll on window focus
+window.addEventListener('focus', () => {
+    checkTargetTabSignal();
+    if (typeof scrollChatToBottom === 'function' && (currentActiveView === 'chat' || currentActiveView === 'split')) {
+        scrollChatToBottom(true);
+    }
 });
 
 // Auto-unlock Web Audio chime and prompt Notification permission on first click anywhere

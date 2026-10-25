@@ -12,6 +12,75 @@
             }
         }
 
+        function formatMessageText(rawText) {
+            if (!rawText) return '';
+            let text = escapeHtml(rawText);
+
+            // Extract YouTube video IDs if present
+            const ytVideoIds = [];
+            const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/gi;
+            let m;
+            while ((m = ytRegex.exec(rawText)) !== null) {
+                if (!ytVideoIds.includes(m[1])) {
+                    ytVideoIds.push(m[1]);
+                }
+            }
+
+            // Convert URLs into safe, styled clickable links
+            const urlPattern = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+            text = text.replace(urlPattern, (matchedUrl) => {
+                let trailing = '';
+                while (/[.,!?:;)]$/.test(matchedUrl)) {
+                    trailing = matchedUrl.slice(-1) + trailing;
+                    matchedUrl = matchedUrl.slice(0, -1);
+                }
+
+                let fullHref = matchedUrl;
+                if (matchedUrl.toLowerCase().startsWith('www.')) {
+                    fullHref = 'https://' + matchedUrl;
+                }
+
+                const isYt = /youtube\.com|youtu\.be/i.test(matchedUrl);
+                const icon = isYt ? '<span style="color:#ef4444;margin-right:3px;">▶️</span>' : '<span style="color:#38bdf8;margin-right:3px;">🔗</span>';
+                const ytClass = isYt ? 'chat-yt-link' : '';
+
+                return '<a href="' + fullHref + '" target="_blank" rel="noopener noreferrer" class="chat-link ' + ytClass + '" title="Open link in new tab">' + icon + matchedUrl + '</a>' + trailing;
+            });
+
+            // Append interactive YouTube video preview cards
+            if (ytVideoIds.length > 0) {
+                let ytCardsHtml = '<div class="chat-yt-cards-wrapper">';
+                ytVideoIds.forEach(vidId => {
+                    const ytWatchUrl = 'https://www.youtube.com/watch?v=' + vidId;
+                    const thumbUrl = 'https://img.youtube.com/vi/' + vidId + '/hqdefault.jpg';
+                    ytCardsHtml += 
+                        '<a href="' + ytWatchUrl + '" target="_blank" rel="noopener noreferrer" class="yt-preview-card" title="Click to watch on YouTube">' +
+                            '<div class="yt-thumb-box">' +
+                                '<img src="' + thumbUrl + '" alt="YouTube Thumbnail" class="yt-thumb-img" loading="lazy" onload="scrollChatToBottom()" />' +
+                                '<div class="yt-play-icon">▶</div>' +
+                            '</div>' +
+                            '<div class="yt-card-info">' +
+                                '<div class="yt-card-badge">🔴 YouTube</div>' +
+                                '<div class="yt-card-url">' + ytWatchUrl + '</div>' +
+                            '</div>' +
+                        '</a>';
+                });
+                ytCardsHtml += '</div>';
+                text += ytCardsHtml;
+            }
+
+            return text;
+        }
+
+        function scrollChatToBottom(force) {
+            const container = document.getElementById('chatMessages');
+            if (!container) return;
+            container.scrollTop = container.scrollHeight;
+            setTimeout(() => { if (container) container.scrollTop = container.scrollHeight; }, 60);
+            setTimeout(() => { if (container) container.scrollTop = container.scrollHeight; }, 180);
+            setTimeout(() => { if (container) container.scrollTop = container.scrollHeight; }, 400);
+        }
+
         function renderMessages(messages) {
             const container = document.getElementById('chatMessages');
             document.getElementById('chatCountBadge').innerText = messages.length;
@@ -48,9 +117,8 @@
                     }
                 }
             }
-            isFirstMessagesLoad = false;
 
-            const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 60;
+            const isScrolledToBottom = isFirstMessagesLoad || (container.scrollHeight - container.clientHeight <= container.scrollTop + 80);
 
             container.innerHTML = '';
             if (messages.length === 0) {
@@ -71,10 +139,10 @@
                 if (isDeleted) {
                     contentHtml = '<div class="msg-text">' + escapeHtml(msg.text) + '</div>';
                 } else if (msg.type === 'image' && msg.imageUrl) {
-                    const caption = msg.text ? '<div class="msg-text" style="margin-top:6px;">' + escapeHtml(msg.text) + '</div>' : '';
+                    const caption = msg.text ? '<div class="msg-text" style="margin-top:6px;">' + formatMessageText(msg.text) + '</div>' : '';
                     contentHtml = 
                         '<div class="chat-photo-wrapper">' +
-                            '<img src="' + msg.imageUrl + '" class="chat-inline-photo" loading="lazy" onclick="previewMedia(\'' + msg.imageUrl + '\', \'Picture from ' + escapeQuotes(msg.user) + '\', \'image\')" title="Click for Fullscreen View" />' +
+                            '<img src="' + msg.imageUrl + '" class="chat-inline-photo" loading="lazy" onclick="previewMedia(\'' + msg.imageUrl + '\', \'Picture from ' + escapeQuotes(msg.user) + '\', \'image\')" title="Click for Fullscreen View" onload="scrollChatToBottom()" />' +
                             '<div class="chat-photo-overlay">' +
                                 '<button onclick="triggerDownloadTracked(\'' + msg.imageUrl + '\', \'chat_photo.jpg\')" class="chat-photo-dl-btn" title="Download to PC">' +
                                     '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Download' +
@@ -107,7 +175,7 @@
                             '</div>' +
                         '</div>';
                 } else {
-                    contentHtml = '<div class="msg-text">' + escapeHtml(msg.text) + '</div>';
+                    contentHtml = '<div class="msg-text">' + formatMessageText(msg.text) + '</div>';
                 }
 
                 // Reactions bar
@@ -180,9 +248,10 @@
 
             currentMessages = messages;
 
-            if (isScrolledToBottom || messages.length === 1) {
-                container.scrollTop = container.scrollHeight;
+            if (isScrolledToBottom || isFirstMessagesLoad || messages.length === 1) {
+                scrollChatToBottom();
             }
+            isFirstMessagesLoad = false;
         }
 
         // Chat Photo Upload Handler
