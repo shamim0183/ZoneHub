@@ -108,9 +108,10 @@ namespace ZoneHub {
                 "bubble_pos.ini"
             );
 
-            // Default position: DOCKED FLUSH ON THE LEFT EDGE (Exact match to user's screenshot)
+            // Default position: DOCKED FLUSH ON THE RIGHT EDGE (Matching user's preferred layout)
+            double screenW = SystemParameters.WorkArea.Width;
             double screenH = SystemParameters.WorkArea.Height;
-            double defaultLeft = 4;
+            double defaultLeft = Math.Max(10, screenW - WINDOW_SIZE - 4);
             double defaultTop = (screenH - WINDOW_SIZE) * 0.45;
 
             // Auto-detect server URL (works on both Host PC and Employee PCs)
@@ -621,7 +622,17 @@ namespace ZoneHub {
         }
 
         private void OpenZoneHubMini() {
-            string miniUrl = serverUrl + "/?view=mini";
+            string myPcName = Environment.MachineName;
+            string miniUrl = serverUrl + "/?view=mini&user=" + Uri.EscapeDataString(myPcName);
+            double screenW = SystemParameters.WorkArea.Width;
+            double screenH = SystemParameters.WorkArea.Height;
+            int winW = 400;
+            int winH = (int)Math.Min(780, screenH - 60);
+            int posX = (int)(screenW - winW - 12);
+            int posY = 40;
+
+            string flags = string.Format("--app=\"{0}\" --window-size={1},{2} --window-position={3},{4}", miniUrl, winW, winH, posX, posY);
+
             string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
             if (!File.Exists(edgePath)) {
                 edgePath = @"C:\Program Files\Microsoft\Edge\Application\msedge.exe";
@@ -634,9 +645,9 @@ namespace ZoneHub {
 
             try {
                 if (File.Exists(edgePath)) {
-                    Process.Start(edgePath, string.Format("--app=\"{0}\"", miniUrl));
+                    Process.Start(edgePath, flags);
                 } else if (File.Exists(chromePath)) {
-                    Process.Start(chromePath, string.Format("--app=\"{0}\"", miniUrl));
+                    Process.Start(chromePath, flags);
                 } else {
                     Process.Start(miniUrl);
                 }
@@ -648,15 +659,15 @@ namespace ZoneHub {
         private void OnBubbleRightClick(object sender, MouseButtonEventArgs e) {
             ContextMenu cm = new ContextMenu();
 
-            MenuItem miToggle = new MenuItem { Header = "⚡ Open / Minimize App (Toggle)" };
-            miToggle.Click += (s, args) => ToggleZoneHubApp();
-            cm.Items.Add(miToggle);
-
-            MenuItem miMini = new MenuItem { Header = "📌 Open Mini Dock Window" };
+            MenuItem miMini = new MenuItem { Header = "📌 Open Corner Dock (এক কোণায় মিনি চ্যাট)" };
             miMini.Click += (s, args) => OpenZoneHubMini();
             cm.Items.Add(miMini);
 
-            MenuItem miCopy = new MenuItem { Header = "📋 Copy App Link (http://localhost:8080)" };
+            MenuItem miToggle = new MenuItem { Header = "⚡ Open / Minimize Full App (ফুল অ্যাপ ওপেন)" };
+            miToggle.Click += (s, args) => ToggleZoneHubApp();
+            cm.Items.Add(miToggle);
+
+            MenuItem miCopy = new MenuItem { Header = "📋 Copy App Link (" + serverUrl + ")" };
             miCopy.Click += (s, args) => {
                 try {
                     Clipboard.SetText(serverUrl + "/");
