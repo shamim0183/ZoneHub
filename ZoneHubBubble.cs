@@ -113,6 +113,23 @@ namespace ZoneHub {
             double defaultLeft = 4;
             double defaultTop = (screenH - WINDOW_SIZE) * 0.45;
 
+            // Auto-detect server URL (works on both Host PC and Employee PCs)
+            string serverFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bubble_server.txt");
+            if (File.Exists(serverFile)) {
+                try {
+                    string s = File.ReadAllText(serverFile).Trim();
+                    if (!string.IsNullOrEmpty(s)) serverUrl = s.TrimEnd('/');
+                } catch { }
+            } else {
+                try {
+                    using (var wc = new WebClient()) {
+                        wc.DownloadString("http://localhost:8080/api/my-info");
+                    }
+                } catch {
+                    serverUrl = "http://192.168.0.118:8080";
+                }
+            }
+
             LoadPosition(defaultLeft, defaultTop);
 
             BuildUI();
@@ -573,8 +590,11 @@ namespace ZoneHub {
         }
 
         private void LaunchStandaloneApp(string appUrl = null) {
+            string myPcName = Environment.MachineName;
             if (string.IsNullOrEmpty(appUrl)) {
-                appUrl = serverUrl + "/";
+                appUrl = serverUrl + "/?user=" + Uri.EscapeDataString(myPcName);
+            } else if (!appUrl.Contains("user=")) {
+                appUrl += (appUrl.Contains("?") ? "&" : "/?") + "user=" + Uri.EscapeDataString(myPcName);
             }
 
             string edgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";

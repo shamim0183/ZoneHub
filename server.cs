@@ -608,6 +608,33 @@ namespace ZoneHub
             {
                 defaultName = Environment.UserName;
             }
+            else if (!string.IsNullOrEmpty(req.ClientIp))
+            {
+                try
+                {
+                    IPAddress ip;
+                    if (IPAddress.TryParse(req.ClientIp, out ip))
+                    {
+                        var entry = Dns.GetHostEntry(ip);
+                        if (entry != null && !string.IsNullOrEmpty(entry.HostName))
+                        {
+                            defaultName = entry.HostName.Split('.')[0];
+                        }
+                    }
+                }
+                catch {}
+
+                if (string.IsNullOrEmpty(defaultName))
+                {
+                    string ipTail = req.ClientIp.Replace(".", "_").Replace(":", "_");
+                    string shortNum = (ipTail.Length > 3 ? ipTail.Substring(ipTail.Length - 3) : "PC");
+                    defaultName = "Employee_" + shortNum;
+                }
+            }
+            else
+            {
+                defaultName = "Employee";
+            }
 
             JavaScriptSerializer js = new JavaScriptSerializer();
             var dict = new Dictionary<string, object>();

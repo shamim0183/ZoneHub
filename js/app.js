@@ -14,6 +14,15 @@ let isCurrentHost = false;
 let currentUserName = localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '';
 
 function initUserInfo() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlUser = urlParams.get('user') || urlParams.get('name') || urlParams.get('pc');
+    if (urlUser && urlUser.trim()) {
+        currentUserName = urlUser.trim();
+        localStorage.setItem('zonehub_user_name', currentUserName);
+        updateUserDisplay();
+        return;
+    }
+
     fetch('/api/my-info')
         .then(r => r.json())
         .then(info => {
@@ -24,53 +33,21 @@ function initUserInfo() {
             }
 
             let stored = localStorage.getItem('zonehub_user_name');
-            // If stored name is a machine default like 'Employee_109' or non-host has 'obak3':
-            const isInvalidOrMachineName = !stored || (!isCurrentHost && (stored === 'obak3' || stored.startsWith('Employee_')));
-
-            if (isCurrentHost) {
-                currentUserName = stored || info.defaultName || 'Host';
-                localStorage.setItem('zonehub_user_name', currentUserName);
-                updateUserDisplay();
-            } else if (isInvalidOrMachineName) {
-                openNamePromptModal();
-            } else {
+            if (stored && (isCurrentHost || stored !== 'obak3')) {
                 currentUserName = stored;
-                updateUserDisplay();
+            } else if (isCurrentHost) {
+                currentUserName = info.defaultName || 'Host';
+                localStorage.setItem('zonehub_user_name', currentUserName);
+            } else {
+                currentUserName = info.defaultName || 'Employee';
+                localStorage.setItem('zonehub_user_name', currentUserName);
             }
+            updateUserDisplay();
         })
         .catch(() => {
-            if (!currentUserName || (!isCurrentHost && currentUserName.startsWith('Employee_'))) {
-                openNamePromptModal();
-            } else {
-                updateUserDisplay();
-            }
+            if (!currentUserName) currentUserName = 'Employee';
+            updateUserDisplay();
         });
-}
-
-function openNamePromptModal() {
-    const modal = document.getElementById('firstTimeNameModal');
-    const input = document.getElementById('employeeNameInput');
-    if (modal) {
-        modal.classList.add('active');
-        if (input) setTimeout(() => input.focus(), 150);
-    }
-}
-
-function saveEmployeeName() {
-    const input = document.getElementById('employeeNameInput');
-    const modal = document.getElementById('firstTimeNameModal');
-    if (!input) return;
-    const val = input.value.trim();
-    if (!val) {
-        alert('দয়া করে আপনার নাম লিখুন');
-        input.focus();
-        return;
-    }
-    currentUserName = val;
-    localStorage.setItem('zonehub_user_name', currentUserName);
-    updateUserDisplay();
-    if (modal) modal.classList.remove('active');
-    showToast('👋 স্বাগতম, ' + currentUserName + '!');
 }
 
 function updateUserDisplay() {

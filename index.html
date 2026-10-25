@@ -69,6 +69,9 @@
                 <button onclick="toggleMiniDock()" class="btn btn-secondary btn-mini-dock" title="Open Floating Mini Dock in screen corner" style="font-weight:700;gap:6px;">
                     📌 Mini Dock
                 </button>
+                <a href="/ZoneHubBubble.exe" download="ZoneHubBubble.exe" class="btn btn-secondary" title="Download Floating Desktop Bubble for this Windows PC" style="font-weight:700;gap:6px;text-decoration:none;">
+                    🖥️ Desktop Bubble
+                </a>
                 <button id="expandFullBtn" onclick="expandToFullView()" class="btn btn-primary btn-expand-full" style="display:none;padding:6px 12px;font-size:12px;font-weight:700;">
                     ⤢ Full View
                 </button>
@@ -526,21 +529,6 @@
                     বুঝেছি (Got It)
                 </button>
             </div>
-        </div>
-    </div>
-
-    <!-- First-time Employee Name Modal -->
-    <div id="firstTimeNameModal" class="modal-backdrop">
-        <div class="modal-card" style="max-width: 440px; text-align: center; border: 1px solid rgba(99, 102, 241, 0.4); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(99, 102, 241, 0.2);">
-            <div style="font-size: 38px; margin-bottom: 8px;">👋</div>
-            <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 800; color: #fff;">টিম চ্যাটে স্বাগতম!</h3>
-            <p style="margin: 0 0 20px 0; font-size: 13px; color: var(--text-muted); line-height: 1.5;">
-                মেসেজ পাঠানো, ভয়েস নোট ও ফাইল শেয়ার করার জন্য আপনার আসল নাম লিখুন:
-            </p>
-            <input type="text" id="employeeNameInput" class="hub-rename-input" placeholder="আপনার নাম (যেমন: রহিম, শান্ত, তানভীর...)" maxlength="25" style="margin-bottom: 16px; text-align: center; font-size: 15px; font-weight: 600;" onkeydown="if(event.key==='Enter') saveEmployeeName();" />
-            <button type="button" class="btn btn-primary" onclick="saveEmployeeName()" style="width: 100%; justify-content: center; padding: 12px; font-weight: 700; font-size: 14px;">
-                যোগ দিন (Join ZoneHub)
-            </button>
         </div>
     </div>
 
