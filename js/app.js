@@ -642,8 +642,8 @@ async function toggleMiniDock() {
         return;
     }
 
-    // Open the sleek in-page Corner Mini Dock above the floating bubble:
-    toggleCornerDock(true);
+    // Open true Always-On-Top mini window over Premiere / Photoshop / Folders
+    openAlwaysOnTopOsWindow();
 }
 
 // Detach into Always-On-Top OS Window (stays above Premiere, Photoshop, Folders)
