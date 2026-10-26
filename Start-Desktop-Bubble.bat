@@ -4,5 +4,5 @@ cd /d "%~dp0"
 if not exist ZoneHubBubble.exe (
     call Build.bat
 )
-start "" "%~dp0ZoneHubBubble.exe"
+start "" "%~dp0ZoneHubBubble.exe" %*
 exit

@@ -1,4 +1,4 @@
-﻿        // Drag & Drop Upload Logic
+        // Drag & Drop Upload Logic
         const dropZone = document.getElementById('dropZone');
         const progressContainer = document.getElementById('progressContainer');
         const progressFileName = document.getElementById('progressFileName');
@@ -187,7 +187,10 @@
                     '</div>' +
                     '<div class="folder-stats-footer">' +
                         '<span>📁 ' + escapeHtml(folder.name) + '</span>' +
-                        '<span style="font-weight:600;color:var(--text-main);">' + folder.sizeFormatted + '</span>' +
+                        (folder.fileCount > 0 
+                            ? '<button onclick="event.stopPropagation(); downloadFolderById(\'' + escapeQuotes(folder.id) + '\')" class="folder-dl-badge" title="Download all ' + folder.fileCount + ' files in this folder">📥 Download (' + folder.fileCount + ')</button>'
+                            : '<span style="font-weight:600;color:var(--text-main);">' + folder.sizeFormatted + '</span>'
+                        ) +
                     '</div>';
                 container.appendChild(card);
             });
@@ -388,8 +391,12 @@
                 const uploaderName = file.uploader || 'obak3';
                 const folderTag = file.folder ? '<span class="meta-tag folder-badge" onclick="event.stopPropagation(); openFolder(\'' + escapeQuotes(file.folder) + '\')" title="Click to view this folder">📁 ' + escapeHtml(file.folder) + '</span>' : '';
 
+                const isChecked = selectedFilesMap.has(fileUrl);
+                const checkboxHtml = '<input type="checkbox" class="file-select-checkbox" ' + (isChecked ? 'checked' : '') + ' onchange="onFileCheckboxChanged(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', this)" onclick="event.stopPropagation()" title="Select to batch download" />';
+
                 card.innerHTML = 
                     '<div class="file-info">' +
+                        checkboxHtml +
                         thumbHtml +
                         '<div class="file-details">' +
                             '<div class="file-name" title="' + escapeHtml(file.name) + '">' + escapeHtml(file.name) + '</div>' +
@@ -415,6 +422,90 @@
             });
 
             filterFiles();
+            updateMultiSelectBar();
+        }
+
+        // Multi-Select & Batch Download System
+        const selectedFilesMap = new Map(); // url -> name
+
+        function onFileCheckboxChanged(url, name, checkboxEl) {
+            if (checkboxEl.checked) {
+                selectedFilesMap.set(url, name);
+            } else {
+                selectedFilesMap.delete(url);
+            }
+            updateMultiSelectBar();
+        }
+
+        function updateMultiSelectBar() {
+            const bar = document.getElementById('multiSelectBar');
+            const countEl = document.getElementById('multiSelectCount');
+            const dlCountEl = document.getElementById('multiSelectDlCount');
+            if (!bar) return;
+
+            const count = selectedFilesMap.size;
+            if (count > 0) {
+                bar.style.display = 'flex';
+                if (countEl) countEl.innerText = count + ' Selected';
+                if (dlCountEl) dlCountEl.innerText = count;
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function selectAllVisibleFiles() {
+            const cards = document.querySelectorAll('.file-card');
+            cards.forEach(card => {
+                if (card.style.display !== 'none') {
+                    const cb = card.querySelector('.file-select-checkbox');
+                    if (cb) {
+                        cb.checked = true;
+                        const filename = card.getAttribute('data-filename');
+                        const fileObj = allFiles.find(f => f.name === filename);
+                        if (fileObj) {
+                            selectedFilesMap.set(fileObj.url, fileObj.name);
+                        }
+                    }
+                }
+            });
+            updateMultiSelectBar();
+        }
+
+        function clearFileSelection() {
+            selectedFilesMap.clear();
+            document.querySelectorAll('.file-select-checkbox').forEach(cb => cb.checked = false);
+            updateMultiSelectBar();
+        }
+
+        function downloadSelectedFiles() {
+            if (selectedFilesMap.size === 0) return;
+            const entries = Array.from(selectedFilesMap.entries());
+            showToast('Starting multi-download of ' + entries.length + ' files...');
+            entries.forEach(([url, name], idx) => {
+                setTimeout(() => {
+                    triggerDownloadTracked(url, name);
+                }, idx * 400);
+            });
+            clearFileSelection();
+        }
+
+        function downloadActiveFolderAll() {
+            if (!selectedFolderId) return;
+            downloadFolderById(selectedFolderId);
+        }
+
+        function downloadFolderById(folderId) {
+            const folderFiles = allFiles.filter(f => f.folder && f.folder.toLowerCase() === folderId.toLowerCase());
+            if (folderFiles.length === 0) {
+                showToast('No files in folder: ' + folderId);
+                return;
+            }
+            showToast('Downloading all ' + folderFiles.length + ' files in ' + folderId + '...');
+            folderFiles.forEach((f, idx) => {
+                setTimeout(() => {
+                    triggerDownloadTracked(f.url, f.name);
+                }, idx * 400);
+            });
         }
 
         function filterFiles() {
@@ -505,24 +596,91 @@
             xhr.send();
         }
 
-        // Media Preview Modal (Pictures, GIFs, Videos)
-        function previewMedia(url, title, type) {
+        // Media Preview Modal & WhatsApp Album Lightbox
+        let currentAlbumList = [];
+        let currentAlbumIndex = 0;
+        let currentAlbumSender = '';
+
+        function openAlbumLightbox(mediaUrls, startIndex, senderName) {
+            if (!mediaUrls || mediaUrls.length === 0) return;
+            currentAlbumList = mediaUrls;
+            currentAlbumIndex = startIndex || 0;
+            currentAlbumSender = senderName || '';
+            renderAlbumLightboxItem();
             const modal = document.getElementById('mediaModal');
-            const modalBody = document.getElementById('modalBody');
+            if (modal) modal.classList.add('active');
+        }
+
+        function renderAlbumLightboxItem() {
+            if (!currentAlbumList || currentAlbumList.length === 0) return;
+            if (currentAlbumIndex < 0) currentAlbumIndex = currentAlbumList.length - 1;
+            if (currentAlbumIndex >= currentAlbumList.length) currentAlbumIndex = 0;
+
+            const url = currentAlbumList[currentAlbumIndex];
+            const cleanUrl = url.split('?')[0];
+            const filename = cleanUrl.split('/').pop() || 'media_item';
+            const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(filename);
+
             const modalTitle = document.getElementById('modalFileName');
+            const modalBody = document.getElementById('modalBody');
             const downloadBtn = document.getElementById('modalDownloadBtn');
+            const counterBadge = document.getElementById('modalAlbumCounter');
+            const prevBtn = document.getElementById('modalPrevBtn');
+            const nextBtn = document.getElementById('modalNextBtn');
+            const downloadAllBtn = document.getElementById('modalDownloadAllBtn');
 
-            modalTitle.innerText = title;
-            downloadBtn.dataset.url = url;
-            downloadBtn.dataset.title = title;
-
-            if (type === 'image' || type === 'gif') {
-                modalBody.innerHTML = '<img src="' + url + '" alt="' + escapeHtml(title) + '">';
-            } else if (type === 'video') {
-                modalBody.innerHTML = '<video controls autoplay src="' + url + '"></video>';
+            if (modalTitle) {
+                modalTitle.innerText = filename + (currentAlbumSender ? ' • ' + currentAlbumSender : '');
+            }
+            if (downloadBtn) {
+                downloadBtn.dataset.url = url;
+                downloadBtn.dataset.title = filename;
             }
 
-            modal.classList.add('active');
+            if (currentAlbumList.length > 1) {
+                if (counterBadge) {
+                    counterBadge.style.display = 'inline-block';
+                    counterBadge.innerText = (currentAlbumIndex + 1) + ' / ' + currentAlbumList.length;
+                }
+                if (prevBtn) prevBtn.style.display = 'flex';
+                if (nextBtn) nextBtn.style.display = 'flex';
+                if (downloadAllBtn) {
+                    downloadAllBtn.style.display = 'inline-flex';
+                    downloadAllBtn.innerText = '📥 Download All (' + currentAlbumList.length + ')';
+                }
+            } else {
+                if (counterBadge) counterBadge.style.display = 'none';
+                if (prevBtn) prevBtn.style.display = 'none';
+                if (nextBtn) nextBtn.style.display = 'none';
+                if (downloadAllBtn) downloadAllBtn.style.display = 'none';
+            }
+
+            if (isVideo) {
+                modalBody.innerHTML = '<video controls autoplay src="' + url + '" style="max-width:100%;max-height:75vh;border-radius:8px;"></video>';
+            } else {
+                modalBody.innerHTML = '<img src="' + url + '" alt="' + escapeHtml(filename) + '" style="max-width:100%;max-height:75vh;border-radius:8px;object-fit:contain;">';
+            }
+        }
+
+        function navigateAlbum(direction) {
+            if (!currentAlbumList || currentAlbumList.length <= 1) return;
+            currentAlbumIndex += direction;
+            renderAlbumLightboxItem();
+        }
+
+        function downloadCurrentAlbumAll() {
+            if (!currentAlbumList || currentAlbumList.length === 0) return;
+            showToast('Downloading ' + currentAlbumList.length + ' album files...');
+            currentAlbumList.forEach((url, idx) => {
+                setTimeout(() => {
+                    const filename = url.split('/').pop().split('?')[0] || ('album_media_' + (idx + 1) + '.jpg');
+                    triggerDownloadTracked(url, filename);
+                }, idx * 400);
+            });
+        }
+
+        function previewMedia(url, title, type) {
+            openAlbumLightbox([url], 0, title);
         }
 
         function closeMediaModal(e) {
@@ -535,7 +693,11 @@
         }
 
         document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('mediaModal');
+            if (!modal || !modal.classList.contains('active')) return;
             if (e.key === 'Escape') closeMediaModal();
+            else if (e.key === 'ArrowLeft') navigateAlbum(-1);
+            else if (e.key === 'ArrowRight') navigateAlbum(1);
         });
 
         // Video Player Control

@@ -31,5 +31,7 @@ echo Connecting to Cloudflare Global Edge Network...
 echo (Please wait a few seconds for your secure public HTTPS link)
 echo.
 
-%CF% tunnel --url http://localhost:8080
+del /f /q "%~dp0cloudflared.log" >nul 2>&1
+echo Tunnel active! Output is also synced to cloudflared.log for ZoneHub.
+%CF% tunnel --url http://localhost:8080 --logfile "%~dp0cloudflared.log"
 pause

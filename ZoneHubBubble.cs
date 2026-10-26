@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Diagnostics;
@@ -18,7 +19,7 @@ using Microsoft.Win32;
 namespace ZoneHub {
     public class BubbleApp : Application {
         [STAThread]
-        public static void Main() {
+        public static void Main(string[] args) {
             try {
                 AppDomain.CurrentDomain.UnhandledException += (s, e) => {
                     try { File.WriteAllText("bubble_err.log", e.ExceptionObject.ToString()); } catch { }
@@ -27,17 +28,51 @@ namespace ZoneHub {
                 bool createdNew;
                 using (Mutex mutex = new Mutex(true, "ZoneHub_Desktop_Bubble_Mutex_v4", out createdNew)) {
                     if (!createdNew) {
+                        IntPtr existingHwnd = FindExistingBubbleWindow();
+                        if (existingHwnd != IntPtr.Zero) {
+                            ShowWindow(existingHwnd, SW_RESTORE);
+                            SetForegroundWindow(existingHwnd);
+                        }
                         return;
                     }
                     BubbleApp app = new BubbleApp();
                     app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-                    BubbleWindow window = new BubbleWindow();
+                    string startupArg = args != null && args.Length > 0 ? args[0] : null;
+                    BubbleWindow window = new BubbleWindow(startupArg);
                     window.Show();
                     app.Run();
                 }
             } catch (Exception ex) {
                 try { File.WriteAllText("bubble_err.log", ex.ToString()); } catch { }
             }
+        }
+
+        private const int SW_RESTORE = 9;
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        private static IntPtr FindExistingBubbleWindow() {
+            IntPtr found = IntPtr.Zero;
+            try {
+                EnumWindows((hWnd, lParam) => {
+                    StringBuilder sb = new StringBuilder(512);
+                    GetWindowText(hWnd, sb, 512);
+                    string t = sb.ToString();
+                    if (!string.IsNullOrEmpty(t) && t.Contains("ZoneHub Desktop Bubble")) {
+                        found = hWnd;
+                        return false;
+                    }
+                    return true;
+                }, IntPtr.Zero);
+            } catch { }
+            return found;
         }
     }
 
@@ -103,7 +138,7 @@ namespace ZoneHub {
         private const int SW_MINIMIZE = 6;
         private const int SW_SHOW = 5;
 
-        public BubbleWindow() {
+        public BubbleWindow(string startupUrl = null) {
             Title = "ZoneHub Desktop Bubble";
             Width = WINDOW_SIZE;
             Height = WINDOW_SIZE;
@@ -119,28 +154,14 @@ namespace ZoneHub {
                 "bubble_pos.ini"
             );
 
-            // Default position: DOCKED FLUSH ON THE RIGHT EDGE (Matching user's preferred layout)
+            // Default position: DOCKED FLUSH ON THE RIGHT EDGE
             double screenW = SystemParameters.WorkArea.Width;
             double screenH = SystemParameters.WorkArea.Height;
             double defaultLeft = Math.Max(10, screenW - WINDOW_SIZE - 4);
             double defaultTop = (screenH - WINDOW_SIZE) * 0.45;
 
-            // Auto-detect server URL (works on both Host PC and Employee PCs)
-            string serverFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bubble_server.txt");
-            if (File.Exists(serverFile)) {
-                try {
-                    string s = File.ReadAllText(serverFile).Trim();
-                    if (!string.IsNullOrEmpty(s)) serverUrl = s.TrimEnd('/');
-                } catch { }
-            } else {
-                try {
-                    using (var wc = new WebClient()) {
-                        wc.DownloadString("http://localhost:8080/api/my-info");
-                    }
-                } catch {
-                    serverUrl = "http://192.168.0.118:8080";
-                }
-            }
+            // Resolve server URL fast without blocking UI thread
+            serverUrl = ResolveServerUrlFast(startupUrl);
 
             LoadPosition(defaultLeft, defaultTop);
 
@@ -148,12 +169,138 @@ namespace ZoneHub {
             BuildTeaserWindow();
             InitPolling();
 
+            // Asynchronously verify connection and discover server on LAN if needed
+            ThreadPool.QueueUserWorkItem(s => EnsureServerConnected());
+
+            // Welcome teaser so employee immediately sees where the bubble is docked
+            Dispatcher.BeginInvoke(new Action(() => {
+                ShowDesktopTeaser("ZoneHub Active", "Bubble docked to screen edge. Click to open!");
+            }));
+
             // Keep topmost active
             Deactivated += (s, e) => {
                 Topmost = true;
             };
+        }
 
-            // Register this machine's actual device name with ZoneHub server
+        private string ResolveServerUrlFast(string startupArg) {
+            if (!string.IsNullOrEmpty(startupArg) && startupArg.StartsWith("http", StringComparison.OrdinalIgnoreCase)) {
+                string clean = startupArg.TrimEnd('/');
+                SaveServerUrl(clean);
+                return clean;
+            }
+
+            string serverFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bubble_server.txt");
+            if (File.Exists(serverFile)) {
+                try {
+                    string saved = File.ReadAllText(serverFile).Trim().TrimEnd('/');
+                    if (!string.IsNullOrEmpty(saved)) return saved;
+                } catch { }
+            }
+
+            return "http://localhost:8080";
+        }
+
+        private void EnsureServerConnected() {
+            try {
+                if (TestServerReachable(serverUrl)) {
+                    UpdateConnectionIndicator(true);
+                    RegisterDeviceWithServer();
+                    return;
+                }
+
+                if (serverUrl != "http://localhost:8080" && TestServerReachable("http://localhost:8080")) {
+                    serverUrl = "http://localhost:8080";
+                    SaveServerUrl(serverUrl);
+                    UpdateConnectionIndicator(true);
+                    RegisterDeviceWithServer();
+                    return;
+                }
+
+                string lanDiscovered = DiscoverServerOnLan();
+                if (!string.IsNullOrEmpty(lanDiscovered) && TestServerReachable(lanDiscovered)) {
+                    serverUrl = lanDiscovered;
+                    SaveServerUrl(serverUrl);
+                    UpdateConnectionIndicator(true);
+                    RegisterDeviceWithServer();
+                    return;
+                }
+
+                UpdateConnectionIndicator(false);
+
+                // If not connected and no saved server file, proactively open IP prompt for employee
+                string serverFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bubble_server.txt");
+                if (!File.Exists(serverFile)) {
+                    Dispatcher.Invoke(new Action(() => PromptChangeServerUrl()));
+                }
+            } catch {
+                UpdateConnectionIndicator(false);
+            }
+        }
+
+        private void UpdateConnectionIndicator(bool connected) {
+            try {
+                Dispatcher.Invoke(new Action(() => {
+                    if (pulseDot != null) {
+                        pulseDot.Background = connected
+                            ? new SolidColorBrush(Color.FromRgb(16, 185, 129))
+                            : new SolidColorBrush(Color.FromRgb(245, 158, 11));
+                    }
+                }));
+            } catch { }
+        }
+
+        private static bool TestServerReachable(string url) {
+            if (string.IsNullOrEmpty(url)) return false;
+            try {
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url.TrimEnd('/') + "/api/my-info");
+                req.Timeout = 1200;
+                using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse()) {
+                    return resp.StatusCode == HttpStatusCode.OK;
+                }
+            } catch {
+                return false;
+            }
+        }
+
+        private static string DiscoverServerOnLan() {
+            try {
+                using (UdpClient udp = new UdpClient()) {
+                    udp.EnableBroadcast = true;
+                    byte[] req = Encoding.UTF8.GetBytes("ZONEHUB_DISCOVERY");
+                    udp.Send(req, req.Length, new IPEndPoint(IPAddress.Broadcast, 8089));
+                    
+                    int waited = 0;
+                    while (waited < 1200) {
+                        if (udp.Available > 0) {
+                            IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+                            byte[] resp = udp.Receive(ref sender);
+                            if (resp != null && resp.Length > 0) {
+                                string msg = Encoding.UTF8.GetString(resp);
+                                if (msg.StartsWith("ZONEHUB_OFFER|", StringComparison.OrdinalIgnoreCase)) {
+                                    string[] parts = msg.Split('|');
+                                    if (parts.Length > 1 && !string.IsNullOrEmpty(parts[1])) {
+                                        return parts[1].Trim().TrimEnd('/');
+                                    }
+                                }
+                            }
+                        }
+                        Thread.Sleep(50);
+                        waited += 50;
+                    }
+                }
+            } catch { }
+            return null;
+        }
+
+        private void SaveServerUrl(string url) {
+            try {
+                string serverFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bubble_server.txt");
+                File.WriteAllText(serverFile, url.TrimEnd('/'));
+            } catch { }
+        }
+
+        private void RegisterDeviceWithServer() {
             ThreadPool.QueueUserWorkItem(s => {
                 try {
                     string myPc = Environment.MachineName;
@@ -628,7 +775,7 @@ namespace ZoneHub {
 
             string chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
             if (!File.Exists(chromePath)) {
-                chromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+                chromePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
             }
 
             try {
@@ -678,6 +825,73 @@ namespace ZoneHub {
             }
         }
 
+        private void PromptChangeServerUrl() {
+            Window promptWin = new Window {
+                Title = "ZoneHub - Server Address",
+                Width = 440,
+                Height = 230,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                WindowStyle = WindowStyle.ToolWindow,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(15, 23, 42))
+            };
+
+            string defaultBoxVal = serverUrl;
+            if (string.IsNullOrEmpty(defaultBoxVal) || (defaultBoxVal == "http://localhost:8080" && !TestServerReachable("http://localhost:8080"))) {
+                defaultBoxVal = "http://192.168.0.109:8080";
+            }
+
+            StackPanel sp = new StackPanel { Margin = new Thickness(20) };
+            TextBlock lbl = new TextBlock {
+                Text = "Enter ZoneHub Server Address:\n(e.g. http://192.168.0.109:8080 or http://DESKTOP-Q4J8832:8080)",
+                Foreground = Brushes.White,
+                FontSize = 13,
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+            TextBox txt = new TextBox {
+                Text = defaultBoxVal,
+                FontSize = 13,
+                Padding = new Thickness(8, 6, 8, 6),
+                Background = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
+                Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(99, 102, 241)),
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+            Button btnSave = new Button {
+                Content = "Save & Connect",
+                Height = 36,
+                Background = new SolidColorBrush(Color.FromRgb(79, 70, 229)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                Cursor = Cursors.Hand
+            };
+            btnSave.Click += (s, e) => {
+                string val = txt.Text.Trim().TrimEnd('/');
+                if (!string.IsNullOrEmpty(val)) {
+                    if (!val.StartsWith("http://") && !val.StartsWith("https://")) {
+                        val = "http://" + val;
+                    }
+                    serverUrl = val;
+                    SaveServerUrl(serverUrl);
+                    bool ok = TestServerReachable(serverUrl);
+                    UpdateConnectionIndicator(ok);
+                    RegisterDeviceWithServer();
+                    promptWin.Close();
+                    if (ok) {
+                        ShowDesktopTeaser("Connected!", "ZoneHub is online at " + serverUrl);
+                    } else {
+                        MessageBox.Show("Saved: " + serverUrl + "\n\nNote: Server is not responding at this URL yet.\nPlease check that the host PC is online and server.exe is running.", "ZoneHub Connection");
+                    }
+                }
+            };
+
+            sp.Children.Add(lbl);
+            sp.Children.Add(txt);
+            sp.Children.Add(btnSave);
+            promptWin.Content = sp;
+            promptWin.ShowDialog();
+        }
+
         private void OnBubbleRightClick(object sender, MouseButtonEventArgs e) {
             ContextMenu cm = new ContextMenu();
 
@@ -697,6 +911,10 @@ namespace ZoneHub {
                 } catch { }
             };
             cm.Items.Add(miCopy);
+
+            MenuItem miServer = new MenuItem { Header = "⚙ Change Server Address (" + serverUrl + ")" };
+            miServer.Click += (s, args) => PromptChangeServerUrl();
+            cm.Items.Add(miServer);
 
             cm.Items.Add(new Separator());
 
@@ -756,10 +974,11 @@ namespace ZoneHub {
                                 string json = reader.ReadToEnd();
                                 ParseMessagesResult(json);
                             }
+                            UpdateConnectionIndicator(true);
                         }
                     }
                 } catch {
-                    // Safe silent ignore if server temporarily restarting
+                    UpdateConnectionIndicator(false);
                 }
             });
         }

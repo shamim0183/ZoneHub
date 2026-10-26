@@ -12,6 +12,7 @@ messages.json
 file_metadata.json
 online_url.txt
 hub_config.json
+bubble_server.txt
 *.ini
 
 # User shared media (Heavy videos & large uploads)
@@ -27,6 +28,9 @@ Documents/*
 
 Chat_Media/*
 !Chat_Media/.gitkeep
+
+# Custom user upload folders
+Closet By Anaya/
 
 # IDE & OS temp files
 .vs/

@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.NetworkInformation;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Collections.Generic;
@@ -20,6 +22,7 @@ namespace ZoneHub
         public string audioUrl { get; set; }
         public int duration { get; set; }
         public string imageUrl { get; set; }
+        public List<string> mediaUrls { get; set; }
         public string timestamp { get; set; }
         public bool edited { get; set; }
         public bool deleted { get; set; }
@@ -52,9 +55,11 @@ namespace ZoneHub
         private static object MessagesLock = new object();
         private static object MetadataLock = new object();
         private static object ConfigLock = new object();
-        private static string PendingTargetTab = "";
+        private static Dictionary<string, string> TargetTabByIp = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static object TargetTabLock = new object();
         private static Dictionary<string, string> DeviceNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, string> DnsCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static object DnsCacheLock = new object();
 
         public static string GetCurrentLocalIp()
         {
@@ -67,6 +72,34 @@ namespace ZoneHub
                     if (endPoint != null && !IPAddress.IsLoopback(endPoint.Address))
                     {
                         return endPoint.Address.ToString();
+                    }
+                }
+            }
+            catch {}
+
+            try
+            {
+                foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.OperationalStatus == OperationalStatus.Up &&
+                        nic.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
+                        !nic.Description.ToLowerInvariant().Contains("virtual") &&
+                        !nic.Description.ToLowerInvariant().Contains("pseudo") &&
+                        !nic.Name.ToLowerInvariant().Contains("vethernet") &&
+                        !nic.Name.ToLowerInvariant().Contains("virtualbox") &&
+                        !nic.Name.ToLowerInvariant().Contains("vmware"))
+                    {
+                        var ipProps = nic.GetIPProperties();
+                        bool hasGateway = ipProps.GatewayAddresses.Any(g => g.Address != null && !IPAddress.IsLoopback(g.Address) && g.Address.ToString() != "0.0.0.0");
+                        foreach (var ip in ipProps.UnicastAddresses)
+                        {
+                            if (ip.Address.AddressFamily == AddressFamily.InterNetwork && 
+                                !IPAddress.IsLoopback(ip.Address) && 
+                                !ip.Address.ToString().StartsWith("169.254"))
+                            {
+                                if (hasGateway) return ip.Address.ToString();
+                            }
+                        }
                     }
                 }
             }
@@ -191,35 +224,85 @@ namespace ZoneHub
                 if (File.Exists(txtPath))
                 {
                     string url = File.ReadAllText(txtPath, Encoding.UTF8).Trim();
-                    if (url.StartsWith("https://") || url.StartsWith("http://")) return url;
+                    if (url.StartsWith("https://") || url.StartsWith("http://"))
+                    {
+                        if (url.Contains(".trycloudflare.com"))
+                        {
+                            bool cfRunning = false;
+                            try { cfRunning = Process.GetProcessesByName("cloudflared").Length > 0; } catch {}
+                            if (cfRunning) return url;
+                        }
+                        else
+                        {
+                            // Permanent custom domain (e.g. hub.company.com)
+                            return url;
+                        }
+                    }
                 }
 
-                string logPath = Path.Combine(RootDirectory, "cloudflared.log");
-                if (File.Exists(logPath))
+                bool isTunnelRunning = false;
+                try { isTunnelRunning = Process.GetProcessesByName("cloudflared").Length > 0; } catch {}
+
+                if (isTunnelRunning)
                 {
-                    using (FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    using (StreamReader reader = new StreamReader(fs, Encoding.UTF8))
+                    string logPath = Path.Combine(RootDirectory, "cloudflared.log");
+                    if (File.Exists(logPath))
                     {
-                        string line;
-                        string foundUrl = null;
-                        while ((line = reader.ReadLine()) != null)
+                        using (FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        using (StreamReader reader = new StreamReader(fs, Encoding.UTF8))
                         {
-                            int idx = line.IndexOf("https://");
-                            if (idx >= 0)
+                            string line;
+                            string foundUrl = null;
+                            while ((line = reader.ReadLine()) != null)
                             {
-                                int end = line.IndexOf(".trycloudflare.com", idx);
-                                if (end > idx)
+                                int idx = line.IndexOf("https://");
+                                if (idx >= 0)
                                 {
-                                    foundUrl = line.Substring(idx, (end + 18) - idx).Trim();
+                                    int end = line.IndexOf(".trycloudflare.com", idx);
+                                    if (end > idx)
+                                    {
+                                        foundUrl = line.Substring(idx, (end + 18) - idx).Trim();
+                                    }
                                 }
                             }
+                            if (!string.IsNullOrEmpty(foundUrl)) return foundUrl;
                         }
-                        if (!string.IsNullOrEmpty(foundUrl)) return foundUrl;
                     }
                 }
             }
             catch {}
             return null;
+        }
+
+        private static void StartDiscoveryResponder()
+        {
+            Thread t = new Thread(() =>
+            {
+                try
+                {
+                    using (UdpClient udp = new UdpClient(8089))
+                    {
+                        udp.EnableBroadcast = true;
+                        while (true)
+                        {
+                            IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+                            byte[] req = udp.Receive(ref ep);
+                            if (req == null || req.Length == 0) continue;
+                            string msg = Encoding.UTF8.GetString(req);
+                            if (msg.StartsWith("ZONEHUB_DISCOVERY", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string ip = GetCurrentLocalIp();
+                                string resp = "ZONEHUB_OFFER|http://" + ip + ":" + Port + "|" + GetHubName();
+                                byte[] respBytes = Encoding.UTF8.GetBytes(resp);
+                                udp.Send(respBytes, respBytes.Length, ep);
+                            }
+                        }
+                    }
+                }
+                catch {}
+            });
+            t.IsBackground = true;
+            t.Start();
         }
 
         static void Main(string[] args)
@@ -241,10 +324,21 @@ namespace ZoneHub
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("[ERROR] Could not start server on port " + Port + ": " + ex.Message);
                 Console.ResetColor();
-                Console.WriteLine("Press any key to exit...");
-                try { Console.ReadKey(); } catch {}
+                if (ex.Message.Contains("Only one usage of each socket address"))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("[INFO] ZoneHub server is ALREADY RUNNING on port " + Port + "!");
+                    Console.ResetColor();
+                }
+                if (Environment.UserInteractive && !Console.IsInputRedirected)
+                {
+                    Console.WriteLine("Press any key to exit...");
+                    try { Console.ReadKey(); } catch {}
+                }
                 return;
             }
+
+            StartDiscoveryResponder();
 
             string currentIp = GetCurrentLocalIp();
             string pcName = GetHostName();
@@ -650,19 +744,13 @@ namespace ZoneHub
 
                 if (string.IsNullOrEmpty(defaultName))
                 {
-                    try
+                    lock (DnsCacheLock)
                     {
-                        IPAddress ip;
-                        if (IPAddress.TryParse(req.ClientIp, out ip))
+                        if (DnsCache.ContainsKey(req.ClientIp))
                         {
-                            var entry = Dns.GetHostEntry(ip);
-                            if (entry != null && !string.IsNullOrEmpty(entry.HostName))
-                            {
-                                defaultName = entry.HostName.Split('.')[0];
-                            }
+                            defaultName = DnsCache[req.ClientIp];
                         }
                     }
-                    catch {}
                 }
 
                 if (string.IsNullOrEmpty(defaultName))
@@ -670,6 +758,29 @@ namespace ZoneHub
                     string ipTail = req.ClientIp.Replace(".", "_").Replace(":", "_");
                     string shortNum = (ipTail.Length > 3 ? ipTail.Substring(ipTail.Length - 3) : "PC");
                     defaultName = "Employee_" + shortNum;
+
+                    // Background DNS resolution without blocking HTTP client
+                    string resolveIp = req.ClientIp;
+                    ThreadPool.QueueUserWorkItem(state =>
+                    {
+                        try
+                        {
+                            IPAddress ip;
+                            if (IPAddress.TryParse(resolveIp, out ip))
+                            {
+                                var entry = Dns.GetHostEntry(ip);
+                                if (entry != null && !string.IsNullOrEmpty(entry.HostName))
+                                {
+                                    string hostNameOnly = entry.HostName.Split('.')[0];
+                                    lock (DnsCacheLock)
+                                    {
+                                        DnsCache[resolveIp] = hostNameOnly;
+                                    }
+                                }
+                            }
+                        }
+                        catch {}
+                    });
                 }
             }
             else
@@ -698,17 +809,35 @@ namespace ZoneHub
                 catch {}
             }
 
+            string clientKey = req.ClientIp;
+            if (string.IsNullOrEmpty(clientKey) || req.IsLocalhost) clientKey = "localhost";
+
             lock (TargetTabLock)
             {
                 if (!string.IsNullOrEmpty(setVal))
                 {
-                    PendingTargetTab = setVal;
-                    SendJsonResponse(stream, 200, "{\"success\":true,\"targetTab\":\"" + JsonEscape(PendingTargetTab) + "\"}");
+                    TargetTabByIp[clientKey] = setVal;
+                    if (clientKey == "localhost")
+                    {
+                        TargetTabByIp["127.0.0.1"] = setVal;
+                        TargetTabByIp["::1"] = setVal;
+                    }
+                    SendJsonResponse(stream, 200, "{\"success\":true,\"targetTab\":\"" + JsonEscape(setVal) + "\"}");
                     return;
                 }
 
-                string current = PendingTargetTab;
-                PendingTargetTab = "";
+                string current = "";
+                if (TargetTabByIp.ContainsKey(clientKey))
+                {
+                    current = TargetTabByIp[clientKey];
+                    TargetTabByIp.Remove(clientKey);
+                }
+                else if (req.IsLocalhost && TargetTabByIp.ContainsKey("localhost"))
+                {
+                    current = TargetTabByIp["localhost"];
+                    TargetTabByIp.Remove("localhost");
+                }
+
                 SendJsonResponse(stream, 200, "{\"targetTab\":\"" + JsonEscape(current) + "\"}");
             }
         }
@@ -769,7 +898,7 @@ namespace ZoneHub
             }
             catch {}
 
-            if (input == null || (string.IsNullOrWhiteSpace(input.text) && string.IsNullOrEmpty(input.audioUrl) && string.IsNullOrEmpty(input.imageUrl)))
+            if (input == null || (string.IsNullOrWhiteSpace(input.text) && string.IsNullOrEmpty(input.audioUrl) && string.IsNullOrEmpty(input.imageUrl) && (input.mediaUrls == null || input.mediaUrls.Count == 0)))
             {
                 SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Message text, audio, or image required\"}");
                 return;
@@ -784,14 +913,40 @@ namespace ZoneHub
             newMsg.audioUrl = input.audioUrl;
             newMsg.duration = input.duration;
             newMsg.imageUrl = input.imageUrl;
+
+            if (input.mediaUrls != null && input.mediaUrls.Count > 0)
+            {
+                newMsg.mediaUrls = input.mediaUrls;
+            }
+            else if (!string.IsNullOrEmpty(input.imageUrl))
+            {
+                newMsg.mediaUrls = new List<string>(input.imageUrl.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries));
+            }
+            else
+            {
+                newMsg.mediaUrls = new List<string>();
+            }
+
+            if (newMsg.mediaUrls.Count > 1)
+            {
+                newMsg.type = "media_group";
+                if (string.IsNullOrEmpty(newMsg.imageUrl))
+                {
+                    newMsg.imageUrl = string.Join("|", newMsg.mediaUrls.ToArray());
+                }
+            }
+
             newMsg.timestamp = DateTime.Now.ToString("hh:mm tt, MMM dd");
             newMsg.edited = false;
             newMsg.deleted = false;
             newMsg.reactions = new Dictionary<string, List<string>>();
 
-            var list = LoadMessages();
-            list.Add(newMsg);
-            SaveMessages(list);
+            lock (MessagesLock)
+            {
+                var list = LoadMessages();
+                list.Add(newMsg);
+                SaveMessages(list);
+            }
 
             Console.WriteLine("[CHAT] " + newMsg.user + ": " + (newMsg.type == "voice" ? "🎤 [Voice Message]" : (newMsg.type == "image" ? "📷 [Picture Sent]" : newMsg.text)));
             string resJson = "{\"success\":true,\"message\":" + js.Serialize(newMsg) + "}";
@@ -819,39 +974,42 @@ namespace ZoneHub
             string emoji = input["emoji"];
             string user = input["user"];
 
-            var list = LoadMessages();
-            var target = list.FirstOrDefault(m => m.id == msgId);
-            if (target != null && !target.deleted)
+            lock (MessagesLock)
             {
-                if (target.reactions == null)
+                var list = LoadMessages();
+                var target = list.FirstOrDefault(m => m.id == msgId);
+                if (target != null && !target.deleted)
                 {
-                    target.reactions = new Dictionary<string, List<string>>();
-                }
-
-                if (!target.reactions.ContainsKey(emoji))
-                {
-                    target.reactions[emoji] = new List<string>();
-                }
-
-                if (target.reactions[emoji].Contains(user))
-                {
-                    target.reactions[emoji].Remove(user);
-                    if (target.reactions[emoji].Count == 0)
+                    if (target.reactions == null)
                     {
-                        target.reactions.Remove(emoji);
+                        target.reactions = new Dictionary<string, List<string>>();
                     }
+
+                    if (!target.reactions.ContainsKey(emoji))
+                    {
+                        target.reactions[emoji] = new List<string>();
+                    }
+
+                    if (target.reactions[emoji].Contains(user))
+                    {
+                        target.reactions[emoji].Remove(user);
+                        if (target.reactions[emoji].Count == 0)
+                        {
+                            target.reactions.Remove(emoji);
+                        }
+                    }
+                    else
+                    {
+                        target.reactions[emoji].Add(user);
+                    }
+
+                    SaveMessages(list);
+                    SendJsonResponse(stream, 200, "{\"success\":true}");
                 }
                 else
                 {
-                    target.reactions[emoji].Add(user);
+                    SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found or deleted\"}");
                 }
-
-                SaveMessages(list);
-                SendJsonResponse(stream, 200, "{\"success\":true}");
-            }
-            else
-            {
-                SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found or deleted\"}");
             }
         }
 
@@ -872,25 +1030,28 @@ namespace ZoneHub
                 return;
             }
 
-            var list = LoadMessages();
-            var target = list.FirstOrDefault(m => m.id == input.id);
-            if (target != null)
+            lock (MessagesLock)
             {
-                if (!string.IsNullOrEmpty(target.userId) && !string.IsNullOrEmpty(input.userId) && target.userId != input.userId && !req.IsLocalhost)
+                var list = LoadMessages();
+                var target = list.FirstOrDefault(m => m.id == input.id);
+                if (target != null)
                 {
-                    SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"You can only edit your own message!\"}");
-                    return;
-                }
+                    if (!string.IsNullOrEmpty(target.userId) && !string.IsNullOrEmpty(input.userId) && target.userId != input.userId && !req.IsLocalhost)
+                    {
+                        SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"You can only edit your own message!\"}");
+                        return;
+                    }
 
-                target.text = input.text.Trim();
-                target.edited = true;
-                SaveMessages(list);
-                Console.WriteLine("[CHAT EDITED] " + target.user + ": " + target.text);
-                SendJsonResponse(stream, 200, "{\"success\":true}");
-            }
-            else
-            {
-                SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found\"}");
+                    target.text = input.text.Trim();
+                    target.edited = true;
+                    SaveMessages(list);
+                    Console.WriteLine("[CHAT EDITED] " + target.user + ": " + target.text);
+                    SendJsonResponse(stream, 200, "{\"success\":true}");
+                }
+                else
+                {
+                    SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found\"}");
+                }
             }
         }
 
@@ -919,30 +1080,34 @@ namespace ZoneHub
                 return;
             }
 
-            var list = LoadMessages();
-            var target = list.FirstOrDefault(m => m.id == msgId);
-            if (target != null)
+            lock (MessagesLock)
             {
-                if (!string.IsNullOrEmpty(target.userId) && !string.IsNullOrEmpty(userId) && target.userId != userId && !req.IsLocalhost)
+                var list = LoadMessages();
+                var target = list.FirstOrDefault(m => m.id == msgId);
+                if (target != null)
                 {
-                    SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"You can only delete your own message!\"}");
-                    return;
+                    if (!string.IsNullOrEmpty(target.userId) && !string.IsNullOrEmpty(userId) && target.userId != userId && !req.IsLocalhost)
+                    {
+                        SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"You can only delete your own message!\"}");
+                        return;
+                    }
+
+                    target.deleted = true;
+                    target.deletedBy = target.user;
+                    target.text = "🚫 এই মেসেজটি মুছে ফেলা হয়েছে (" + target.user + " deleted this message)";
+                    target.audioUrl = null;
+                    target.imageUrl = null;
+                    target.mediaUrls = new List<string>();
+                    target.reactions = new Dictionary<string, List<string>>();
+                    SaveMessages(list);
+
+                    Console.WriteLine("[CHAT DELETED] " + target.user + " deleted message " + msgId);
+                    SendJsonResponse(stream, 200, "{\"success\":true}");
                 }
-
-                target.deleted = true;
-                target.deletedBy = target.user;
-                target.text = "🚫 এই মেসেজটি মুছে ফেলা হয়েছে (" + target.user + " deleted this message)";
-                target.audioUrl = null;
-                target.imageUrl = null;
-                target.reactions = new Dictionary<string, List<string>>();
-                SaveMessages(list);
-
-                Console.WriteLine("[CHAT DELETED] " + target.user + " deleted message " + msgId);
-                SendJsonResponse(stream, 200, "{\"success\":true}");
-            }
-            else
-            {
-                SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found\"}");
+                else
+                {
+                    SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found\"}");
+                }
             }
         }
 
@@ -1211,29 +1376,49 @@ namespace ZoneHub
             }
             if (string.IsNullOrEmpty(uploader) || uploader.Equals("Employee", StringComparison.OrdinalIgnoreCase))
             {
-                if (req.IsLocalhost) uploader = Environment.UserName;
+                if (req.IsLocalhost)
+                {
+                    uploader = Environment.UserName;
+                }
                 else if (!string.IsNullOrEmpty(req.ClientIp))
                 {
-                    try
+                    lock (DeviceNameCache)
                     {
-                        var entry = Dns.GetHostEntry(IPAddress.Parse(req.ClientIp));
-                        if (entry != null && !string.IsNullOrEmpty(entry.HostName)) uploader = entry.HostName.Split('.')[0];
+                        if (DeviceNameCache.ContainsKey(req.ClientIp))
+                        {
+                            uploader = DeviceNameCache[req.ClientIp];
+                        }
                     }
-                    catch {}
+                    if (string.IsNullOrEmpty(uploader))
+                    {
+                        lock (DnsCacheLock)
+                        {
+                            if (DnsCache.ContainsKey(req.ClientIp))
+                            {
+                                uploader = DnsCache[req.ClientIp];
+                            }
+                        }
+                    }
                 }
             }
-            if (string.IsNullOrEmpty(uploader)) uploader = Environment.UserName;
+            if (string.IsNullOrEmpty(uploader))
+            {
+                uploader = req.IsLocalhost ? Environment.UserName : "Employee";
+            }
 
             string relPath = string.IsNullOrEmpty(targetSubFolder) ? safeName : (targetSubFolder + "/" + safeName);
 
-            var metaDict = LoadFileMetadata();
-            var metaItem = new FileMetaItem {
-                uploader = uploader,
-                uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt")
-            };
-            metaDict[safeName] = metaItem;
-            metaDict[relPath] = metaItem;
-            SaveFileMetadata(metaDict);
+            lock (MetadataLock)
+            {
+                var metaDict = LoadFileMetadata();
+                var metaItem = new FileMetaItem {
+                    uploader = uploader,
+                    uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt")
+                };
+                metaDict[safeName] = metaItem;
+                metaDict[relPath] = metaItem;
+                SaveFileMetadata(metaDict);
+            }
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("[UPLOAD COMPLETED] " + relPath + " (" + FormatBytes(totalWritten) + ") from " + uploader);

@@ -31,10 +31,13 @@ function initUserInfo() {
             if (roleLabel) {
                 roleLabel.innerText = isCurrentHost ? 'Host:' : 'You:';
             }
+            if (!isCurrentHost) {
+                document.querySelectorAll('.localhost-link-group').forEach(el => el.style.display = 'none');
+            }
 
             let stored = localStorage.getItem('zonehub_user_name');
             const isPlaceholder = !stored || stored.startsWith('Employee_') || stored === 'Employee';
-            if (stored && !isPlaceholder && (isCurrentHost || stored !== 'obak3')) {
+            if (stored && !isPlaceholder) {
                 currentUserName = stored;
             } else if (info.defaultName && !info.defaultName.startsWith('Employee_')) {
                 currentUserName = info.defaultName;
@@ -200,15 +203,16 @@ function copyLink(relUrl) {
 }
 
 function copyFullShareUrl() {
-    const shareEl = document.getElementById('networkShareLink');
-    let shareUrl = shareEl ? shareEl.href : window.location.origin;
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    let shareUrl = window.location.origin;
+    const isLocalAccess = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalAccess) {
+        const shareEl = document.getElementById('networkShareLink');
         if (shareEl && shareEl.href) {
             shareUrl = shareEl.href;
         }
     }
     navigator.clipboard.writeText(shareUrl).then(() => {
-        showToast('Mobile & Employees link copied: ' + shareUrl);
+        showToast('Share link copied: ' + shareUrl);
     });
 }
 
@@ -798,7 +802,20 @@ function getDeviceType() {
     const ua = navigator.userAgent || navigator.vendor || window.opera || '';
     if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
     if (/android/i.test(ua)) return 'android';
+    if (/Macintosh|Mac OS X/i.test(ua)) return 'mac';
     return 'desktop';
+}
+
+function handleDesktopBubbleClick(event) {
+    const dev = getDeviceType();
+    if (dev === 'mac') {
+        if (event) event.preventDefault();
+        openPwaGuideModal('mac');
+        showToast('🍎 Mac detected: Follow the quick guide to add to Mac Dock or Launchpad!');
+        return;
+    }
+
+    showToast('📥 ZoneHubBubble.exe downloaded! Run it -> if SmartScreen asks, click "More info" > "Run anyway". Look at the right edge of your screen!', 9000);
 }
 
 function initPwaInstallState() {
@@ -853,10 +870,10 @@ function triggerPwaInstall() {
     }
 }
 
-function openPwaGuideModal() {
+function openPwaGuideModal(forceTab) {
     const modal = document.getElementById('pwaGuideModal');
     if (!modal) return;
-    const dev = getDeviceType();
+    const dev = forceTab || getDeviceType();
     switchPwaTab(dev);
     modal.classList.add('active');
 }
@@ -868,7 +885,7 @@ function closePwaGuideModal(event) {
 }
 
 function switchPwaTab(tabName) {
-    const tabs = ['ios', 'android', 'desktop'];
+    const tabs = ['ios', 'android', 'mac', 'desktop'];
     tabs.forEach(t => {
         const btn = document.getElementById('pwaTab' + t.charAt(0).toUpperCase() + t.slice(1));
         const panel = document.getElementById('pwaPanel' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -926,7 +943,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof loadMessages === 'function') setInterval(loadMessages, 2000);
     if (typeof loadFileList === 'function') setInterval(loadFileList, 8000);
     if (typeof loadFoldersList === 'function') setInterval(loadFoldersList, 8000);
-    setInterval(checkTargetTabSignal, 400);
+    setInterval(() => {
+        if (!document.hidden) checkTargetTabSignal();
+    }, 1200);
 });
 
 // Auto-switch & scroll on window focus

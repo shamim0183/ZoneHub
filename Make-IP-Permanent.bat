@@ -10,26 +10,35 @@ if %errorlevel% neq 0 (
 title ZoneHub - Make IP Permanent (Static IP)
 color 0b
 echo ============================================================
-echo         ZoneHub - Permanent Wi-Fi IP Configuration
+echo         ZoneHub - Permanent Network IP Configuration
 echo ============================================================
 echo.
-echo Setting permanent IP for your Wi-Fi adapter:
-echo   - Fixed IP:    192.168.0.118
-echo   - Subnet Mask: 255.255.255.0
-echo   - Gateway:     192.168.0.1
-echo   - DNS:         8.8.8.8, 1.1.1.1
-echo.
 
-netsh interface ipv4 set address name="Wi-Fi" static 192.168.0.118 255.255.255.0 192.168.0.1 1
-netsh interface ipv4 set dns name="Wi-Fi" static 8.8.8.8
-netsh interface ipv4 add dns name="Wi-Fi" 1.1.1.1 index=2
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$cfg = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null } | Select-Object -First 1; " ^
+    "if (-not $cfg) { Write-Host '[ERROR] No active network connection with a default gateway found!' -ForegroundColor Red; exit 1 }; " ^
+    "$alias = $cfg.InterfaceAlias; " ^
+    "$ip = ($cfg.IPv4Address | Select-Object -First 1).IPAddress; " ^
+    "$gw = $cfg.IPv4DefaultGateway.NextHop; " ^
+    "$prefix = ($cfg.IPv4Address | Select-Object -First 1).PrefixLength; " ^
+    "$mask = switch ($prefix) { 24 {'255.255.255.0'} 16 {'255.255.0.0'} 8 {'255.0.0.0'} default {'255.255.255.0'} }; " ^
+    "Write-Host ('Detected Active Adapter: ' + $alias); " ^
+    "Write-Host ('  - Current IP:   ' + $ip); " ^
+    "Write-Host ('  - Subnet Mask:  ' + $mask); " ^
+    "Write-Host ('  - Gateway:      ' + $gw); " ^
+    "Write-Host ('  - DNS:          8.8.8.8, 1.1.1.1'); " ^
+    "Write-Host ''; " ^
+    "Write-Host 'Setting permanent static IP configuration...' -ForegroundColor Yellow; " ^
+    "netsh interface ipv4 set address name=`\"$alias`\" static $ip $mask $gw 1; " ^
+    "netsh interface ipv4 set dns name=`\"$alias`\" static 8.8.8.8; " ^
+    "netsh interface ipv4 add dns name=`\"$alias`\" 1.1.1.1 index=2; " ^
+    "Write-Host ''; " ^
+    "Write-Host ('[SUCCESS] Permanent Static IP configured for ' + $alias + '!') -ForegroundColor Green; " ^
+    "Write-Host 'Even after PC restart or router reboot, this IP will stay permanently.'; " ^
+    "Write-Host ''; " ^
+    "Write-Host 'All employees can connect 24/7 at:'; " ^
+    "Write-Host ('http://' + $ip + ':8080/') -ForegroundColor Cyan; "
 
-echo.
-echo [SUCCESS] Apnar PC-er Wi-Fi IP 192.168.0.118 permanent kora hoyeche!
-echo Ekhon PC shutdown/restart dileo IP r change hobe na.
-echo.
-echo Sob employee-ra erpor theke aie link-e 24 ghonta access korte parbe:
-echo http://192.168.0.118:8080/
 echo ============================================================
 echo.
 pause

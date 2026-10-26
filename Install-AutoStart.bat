@@ -2,7 +2,7 @@
 title Install Auto-Start on PC Boot - ZoneHub
 cd /d "%~dp0"
 
-powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut(\"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\ZoneHub-Service.lnk\"); $Shortcut.TargetPath = \"wscript.exe\"; $Shortcut.Arguments = \"`\"%~dp0Run-Background-Service.vbs`\"\"; $Shortcut.WorkingDirectory = \"%~dp0\"; $Shortcut.IconLocation = \"%~dp0ZoneHubBubble.exe,0\"; $Shortcut.Save()"
+powershell -Command "Remove-Item \"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\SkyCommerce-Server.lnk\" -ErrorAction SilentlyContinue; Remove-Item \"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\ZoneHub-Server.lnk\" -ErrorAction SilentlyContinue; $WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut(\"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\ZoneHub-Service.lnk\"); $Shortcut.TargetPath = \"wscript.exe\"; $Shortcut.Arguments = \"`\"%~dp0Run-Background-Service.vbs`\"\"; $Shortcut.WorkingDirectory = \"%~dp0\"; $Shortcut.IconLocation = \"%~dp0ZoneHubBubble.exe,0\"; $Shortcut.Save()"
 
 echo.
 echo =========================================================

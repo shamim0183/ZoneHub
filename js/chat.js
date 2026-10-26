@@ -138,17 +138,84 @@
                 let contentHtml = '';
                 if (isDeleted) {
                     contentHtml = '<div class="msg-text">' + escapeHtml(msg.text) + '</div>';
-                } else if (msg.type === 'image' && msg.imageUrl) {
+                } else if ((msg.type === 'image' || msg.type === 'media_group') && (msg.imageUrl || (msg.mediaUrls && msg.mediaUrls.length > 0))) {
+                    let mediaList = [];
+                    if (msg.mediaUrls && Array.isArray(msg.mediaUrls) && msg.mediaUrls.length > 0) {
+                        mediaList = msg.mediaUrls;
+                    } else if (msg.imageUrl) {
+                        mediaList = msg.imageUrl.split('|').map(s => s.trim()).filter(Boolean);
+                    }
+
                     const caption = msg.text ? '<div class="msg-text" style="margin-top:6px;">' + formatMessageText(msg.text) + '</div>' : '';
-                    contentHtml = 
-                        '<div class="chat-photo-wrapper">' +
-                            '<img src="' + msg.imageUrl + '" class="chat-inline-photo" loading="lazy" onclick="previewMedia(\'' + msg.imageUrl + '\', \'Picture from ' + escapeQuotes(msg.user) + '\', \'image\')" title="Click for Fullscreen View" onload="scrollChatToBottom()" />' +
-                            '<div class="chat-photo-overlay">' +
-                                '<button onclick="triggerDownloadTracked(\'' + msg.imageUrl + '\', \'chat_photo.jpg\')" class="chat-photo-dl-btn" title="Download to PC">' +
-                                    '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Download' +
-                                '</button>' +
-                            '</div>' +
-                        '</div>' + caption;
+
+                    if (mediaList.length === 1) {
+                        const singleUrl = mediaList[0];
+                        const isVid = /\.(mp4|webm|mov|mkv|avi)$/i.test(singleUrl.split('?')[0]);
+                        contentHtml = 
+                            '<div class="chat-photo-wrapper">' +
+                                (isVid 
+                                    ? '<video src="' + singleUrl + '" class="chat-inline-photo" controls style="max-height:240px;"></video>'
+                                    : '<img src="' + singleUrl + '" class="chat-inline-photo" loading="lazy" onclick="previewMedia(\'' + escapeQuotes(singleUrl) + '\', \'Picture from ' + escapeQuotes(msg.user) + '\', \'image\')" title="Click for Fullscreen View" onload="scrollChatToBottom()" />'
+                                ) +
+                                '<div class="chat-photo-overlay">' +
+                                    '<button onclick="triggerDownloadTracked(\'' + escapeQuotes(singleUrl) + '\', \'' + (isVid ? 'chat_video.mp4' : 'chat_photo.jpg') + '\')" class="chat-photo-dl-btn" title="Download to PC">' +
+                                        '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Download' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>' + caption;
+                    } else if (mediaList.length > 1) {
+                        // WhatsApp-Style Multi-Media Collage Grid
+                        window.__chatAlbums = window.__chatAlbums || {};
+                        window.__chatAlbums[msg.id] = mediaList;
+
+                        let gridClass = 'album-grid-4plus';
+                        let displayCount = 4;
+                        if (mediaList.length === 2) {
+                            gridClass = 'album-grid-2';
+                            displayCount = 2;
+                        } else if (mediaList.length === 3) {
+                            gridClass = 'album-grid-3';
+                            displayCount = 3;
+                        }
+
+                        let cellsHtml = '';
+                        const showMax = Math.min(displayCount, mediaList.length);
+
+                        for (let c = 0; c < showMax; c++) {
+                            const mUrl = mediaList[c];
+                            const isVid = /\.(mp4|webm|mov|mkv|avi)$/i.test(mUrl.split('?')[0]);
+                            const isLastSlot = (c === showMax - 1);
+                            const hasRemaining = (isLastSlot && mediaList.length > showMax);
+                            const remainingCount = mediaList.length - showMax;
+
+                            let mediaTag = isVid 
+                                ? '<video src="' + mUrl + '#t=0.1" preload="metadata"></video><div class="album-vid-badge"><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg></div>'
+                                : '<img src="' + mUrl + '" loading="lazy" alt="Media ' + (c + 1) + '" onload="scrollChatToBottom()" />';
+
+                            let moreOverlay = '';
+                            if (hasRemaining) {
+                                moreOverlay = '<div class="album-more-overlay"><span>+' + remainingCount + '</span></div>';
+                            }
+
+                            cellsHtml += 
+                                '<div class="album-cell" onclick="openAlbumById(\'' + msg.id + '\', ' + c + ')" title="View in Album">' +
+                                    mediaTag +
+                                    moreOverlay +
+                                '</div>';
+                        }
+
+                        contentHtml = 
+                            '<div class="chat-album-wrapper">' +
+                                '<div class="chat-album-grid ' + gridClass + '">' +
+                                    cellsHtml +
+                                '</div>' +
+                                '<div class="chat-album-overlay-tools">' +
+                                    '<button onclick="event.stopPropagation(); downloadAlbumById(\'' + msg.id + '\')" class="chat-photo-dl-btn" title="Download all ' + mediaList.length + ' files">' +
+                                        '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> ' + mediaList.length + ' Files' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>' + caption;
+                    }
                 } else if (msg.type === 'voice' && msg.audioUrl) {
                     const durFormatted = (msg.duration && msg.duration > 0) ? formatTimeSec(msg.duration) : 'Voice Note';
                     const durParam = msg.duration || 0;
@@ -254,59 +321,147 @@
             isFirstMessagesLoad = false;
         }
 
-        // Chat Photo Upload Handler
-        async function handleChatPhotoUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            e.target.value = '';
-            await sendChatImageFile(file);
+        // WhatsApp Album Lightbox Helpers
+        function openAlbumById(msgId, startIndex) {
+            const list = (window.__chatAlbums && window.__chatAlbums[msgId]) || [];
+            const msg = currentMessages.find(m => m.id === msgId);
+            openAlbumLightbox(list, startIndex, msg ? msg.user : '');
         }
 
-        // Paste Image Support from Clipboard (Ctrl+V)
+        function downloadAlbumById(msgId) {
+            const list = (window.__chatAlbums && window.__chatAlbums[msgId]) || [];
+            if (!list.length) return;
+            showToast('Downloading all ' + list.length + ' album files...');
+            list.forEach((url, idx) => {
+                setTimeout(() => {
+                    const cleanUrl = url.split('?')[0];
+                    const filename = cleanUrl.split('/').pop() || ('album_media_' + (idx + 1) + '.jpg');
+                    triggerDownloadTracked(url, filename);
+                }, idx * 400);
+            });
+        }
+
+        // Multi-Photo & Video Upload Handler
+        async function handleChatPhotoUpload(e) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            e.target.value = '';
+            await uploadChatMediaBatch(files);
+        }
+
+        // Paste Image & Video Support from Clipboard (Ctrl+V)
         document.getElementById('chatInput').addEventListener('paste', async (e) => {
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            const mediaFiles = [];
             for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
+                if (items[i].type.indexOf('image') !== -1 || items[i].type.indexOf('video') !== -1) {
                     const blob = items[i].getAsFile();
-                    e.preventDefault();
-                    await sendChatImageFile(blob);
-                    break;
+                    if (blob) mediaFiles.push(blob);
                 }
+            }
+            if (mediaFiles.length > 0) {
+                e.preventDefault();
+                await uploadChatMediaBatch(mediaFiles);
             }
         });
 
-        async function sendChatImageFile(file) {
-            const ext = file.name ? file.name.split('.').pop() : 'jpg';
-            const filename = 'chat_' + Date.now() + '.' + ext;
-            showToast('Uploading picture to chat...');
+        // Drag & Drop Multiple Media directly onto Chat Section
+        const chatWrapper = document.getElementById('chatSectionWrapper');
+        if (chatWrapper) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                chatWrapper.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    chatWrapper.classList.add('chat-drag-active');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                chatWrapper.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    chatWrapper.classList.remove('chat-drag-active');
+                }, false);
+            });
+
+            chatWrapper.addEventListener('drop', async (e) => {
+                const files = Array.from(e.dataTransfer.files || []).filter(f => {
+                    return (f.type && (f.type.startsWith('image/') || f.type.startsWith('video/'))) ||
+                           /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i.test(f.name);
+                });
+                if (files.length > 0) {
+                    await uploadChatMediaBatch(files);
+                }
+            });
+        }
+
+        async function uploadChatMediaBatch(files) {
+            if (!files || files.length === 0) return;
+
+            const caption = document.getElementById('chatInput').value.trim();
+            document.getElementById('chatInput').value = '';
+
+            const uploadedUrls = [];
+            const total = files.length;
+
+            showToast(total > 1 ? 'Uploading 1/' + total + ' media files...' : 'Uploading picture...');
+
+            for (let i = 0; i < total; i++) {
+                const file = files[i];
+                const ext = file.name ? file.name.split('.').pop() : 'jpg';
+                const isVid = file.type && file.type.startsWith('video');
+                const prefix = isVid ? 'chat_vid_' : 'chat_img_';
+                const filename = prefix + Date.now() + '_' + i + '.' + ext;
+
+                if (total > 1) {
+                    showToast('Uploading ' + (i + 1) + '/' + total + ' files...');
+                }
+
+                try {
+                    await new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/upload?filename=' + encodeURIComponent(filename), true);
+                        xhr.setRequestHeader('X-Filename', encodeURIComponent(filename));
+                        xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
+                        xhr.onload = () => {
+                            if (xhr.status === 200 || xhr.status === 204) {
+                                uploadedUrls.push('/' + encodeURIComponent(filename));
+                                resolve();
+                            } else {
+                                reject(new Error('Upload status ' + xhr.status));
+                            }
+                        };
+                        xhr.onerror = () => reject(new Error('Network error'));
+                        xhr.send(file);
+                    });
+                } catch (err) {
+                    console.error('Error uploading chat media:', file.name, err);
+                }
+            }
+
+            if (uploadedUrls.length === 0) {
+                showToast('Failed to upload media files');
+                return;
+            }
 
             try {
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/upload?filename=' + encodeURIComponent(filename), true);
-                xhr.setRequestHeader('X-Filename', encodeURIComponent(filename));
-                xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
-
-                xhr.onload = async function() {
-                    const caption = document.getElementById('chatInput').value.trim();
-                    document.getElementById('chatInput').value = '';
-
-                    await fetch('/api/messages', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            user: currentUserName,
-                            userId: myUserId,
-                            text: caption,
-                            type: 'image',
-                            imageUrl: '/' + encodeURIComponent(filename)
-                        })
-                    });
-                    await loadMessages();
-                    showToast('Picture sent!');
-                };
-                xhr.send(file);
+                await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user: currentUserName,
+                        userId: myUserId,
+                        text: caption,
+                        type: uploadedUrls.length > 1 ? 'media_group' : 'image',
+                        imageUrl: uploadedUrls.join('|'),
+                        mediaUrls: uploadedUrls
+                    })
+                });
+                await loadMessages();
+                showToast(total > 1 ? 'WhatsApp Album with ' + uploadedUrls.length + ' items sent!' : 'Media sent!');
+                scrollChatToBottom(true);
             } catch (err) {
-                showToast('Failed to upload picture');
+                showToast('Failed to post media album message');
             }
         }
 

@@ -15,14 +15,19 @@ echo ===================================================================
 schtasks /delete /tn "ZoneHub_Boot" /f >nul 2>&1
 schtasks /delete /tn "SkyCommerceMediaHub_Boot" /f >nul 2>&1
 
-echo Stopping any running server and tunnel processes...
+powershell -Command "Remove-Item \"$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\ZoneHubBubble.lnk\" -ErrorAction SilentlyContinue" >nul 2>&1
+
+echo Stopping any running server, tunnel, and bubble processes...
 taskkill /f /im server.exe >nul 2>&1
 taskkill /f /im cloudflared.exe >nul 2>&1
+taskkill /f /im ZoneHubBubble.exe >nul 2>&1
+
+del /f /q "%~dp0cloudflared.log" >nul 2>&1
 
 echo.
 echo ===================================================================
 echo   [SUCCESS] Boot Task removed! The server will no longer auto-start.
-echo   [SUCCESS] Current running server and tunnel have been stopped.
+echo   [SUCCESS] Current running server, bubble, and tunnel have been stopped.
 echo ===================================================================
 echo.
 pause
