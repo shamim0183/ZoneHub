@@ -1953,6 +1953,7 @@ namespace ZoneHub
                 {
                     html = html.Replace("{{ONLINE_URL}}", onlineUrl);
                     html = html.Replace("id=\"onlineLinkGroup\" style=\"display:none;", "id=\"onlineLinkGroup\" style=\"display:flex;");
+                    html = html.Replace("id=\"onlineSetupGroup\" style=\"display:flex;", "id=\"onlineSetupGroup\" style=\"display:none;");
                 }
             }
             else

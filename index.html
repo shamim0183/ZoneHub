@@ -101,8 +101,12 @@
                     <a href="http://{{LOCAL_IP}}:8080" id="networkShareLink" class="link-value" target="_blank" style="color:#38bdf8;font-weight:700;">http://{{LOCAL_IP}}:8080</a>
                 </div>
                 <div class="link-group online-link-group" id="onlineLinkGroup" style="display:none;background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.3);">
-                    <span class="link-label" style="color:#6ee7b7;font-weight:700;">🌐 Online Link:</span>
+                    <span class="link-label" style="color:#6ee7b7;font-weight:700;">🌐 Mobile &amp; Global:</span>
                     <a href="{{ONLINE_URL}}" id="onlineTunnelLink" class="link-value" target="_blank" style="color:#34d399;font-weight:700;">{{ONLINE_URL}}</a>
+                </div>
+                <div class="link-group online-setup-group" id="onlineSetupGroup" onclick="openNetworkStorageModal('mobile')" style="display:flex;cursor:pointer;background:rgba(147,51,234,0.12);border-color:rgba(147,51,234,0.3);" title="Click to see how to connect from Mobile Data (SIM) or outside Wi-Fi">
+                    <span class="link-label" style="color:#c084fc;font-weight:700;">🌐 Mobile / 4G Data:</span>
+                    <span class="link-value" style="color:#e9d5ff;font-size:11px;">Connect Outside Wi-Fi ℹ️</span>
                 </div>
                 <div class="link-group pcname-link-group">
                     <span class="link-label">💻 PC Name:</span>
@@ -145,6 +149,13 @@
                     </div>
                     <div class="upload-title">ফাইল, ছবি বা ভিডিও শেয়ার করতে এখানে ক্লিক করুন বা Drag &amp; Drop করুন</div>
                     <div class="upload-desc">ছবি, ভিডিও ও GIF প্রিভিউসহ যে কোনো পিসি/ম্যাক থেকে আপলোড করুন &bull; সাইজ লিমিট নেই</div>
+                    <div style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:11px;color:#a5b4fc;flex-wrap:wrap;" onclick="event.stopPropagation()">
+                        <span onclick="openNetworkStorageModal('storage')" style="cursor:pointer;text-decoration:underline;">💡 Host PC: Move files directly (0 duplicate memory)</span>
+                        <span>&bull;</span>
+                        <span onclick="openNetworkStorageModal('download')" style="cursor:pointer;text-decoration:underline;">📥 Choose Download Folder</span>
+                        <span>&bull;</span>
+                        <span onclick="openNetworkStorageModal('mobile')" style="cursor:pointer;text-decoration:underline;">🌐 Mobile Data Setup</span>
+                    </div>
                     
                     <!-- Upload Destination Selector -->
                     <div class="upload-dest-row" onclick="event.stopPropagation()">
@@ -578,6 +589,117 @@
             </div>
         </div>
     </div>
+
+    <!-- Network & Storage Guide Modal -->
+    <div id="networkStorageModal" class="pwa-modal-backdrop" style="display:none;" onclick="if(event.target===this)closeNetworkStorageModal()">
+        <div class="pwa-modal-box" style="border-color:rgba(147,51,234,0.4);box-shadow:0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(147,51,234,0.15);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <div style="font-size:17px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;">
+                    <span>⚡</span> ZoneHub Network &amp; Storage Guide
+                </div>
+                <button type="button" class="btn btn-icon" onclick="closeNetworkStorageModal()" style="font-size:18px;">&times;</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="pwa-step-tabs">
+                <button type="button" class="pwa-step-tab active" id="nsTabBtn_mobile" onclick="switchNetworkStorageTab('mobile')">
+                    🌐 Mobile / Remote
+                </button>
+                <button type="button" class="pwa-step-tab" id="nsTabBtn_storage" onclick="switchNetworkStorageTab('storage')">
+                    💾 Zero Redundancy
+                </button>
+                <button type="button" class="pwa-step-tab" id="nsTabBtn_download" onclick="switchNetworkStorageTab('download')">
+                    📥 Download Choice
+                </button>
+            </div>
+
+            <!-- Tab 1: Mobile Network / Outside Wi-Fi -->
+            <div class="pwa-step-panel" id="nsPanel_mobile" style="display:block;">
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">1</div>
+                    <div class="pwa-step-text"><strong>Mobile Data / SIM Network (4G/5G):</strong> অফিসের বাইরে বা মোবাইল ডেটা দিয়ে ZoneHub ব্যবহার করতে হোস্ট পিসিতে <strong>Start-Online-Tunnel.bat</strong> ফাইলটিতে ডাবল-ক্লিক করুন।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">2</div>
+                    <div class="pwa-step-text">Cloudflare সরাসরি একটি ফ্রি সিকিউর গ্লোবাল <strong>HTTPS লিংক</strong> তৈরি করবে যা যেকোনো মোবাইল ও কম্পিউটার থেকে পৃথিবীর যেকোনো স্থান থেকে চলবে।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">3</div>
+                    <div class="pwa-step-text">টানেল চালু হওয়ার সাথে সাথে ZoneHub ড্যাশবোর্ডের উপরে <strong>🌐 Online Link</strong> ফুটে উঠবে এবং সবাই সেটা দিয়ে ঢুকতে পারবে!</div>
+                </div>
+                <div class="pwa-tip-box" style="background:rgba(147,51,234,0.1);border-color:rgba(147,51,234,0.3);color:#e9d5ff;">
+                    <span>🚀</span>
+                    <span>Cloudflare Tunnel আপনার পিসিতে ইতিমধ্যে ইনস্টল আছে। শুধু Start-Online-Tunnel.bat রান করলেই হবে!</span>
+                </div>
+            </div>
+
+            <!-- Tab 2: Zero-Redundancy Storage (Host PC) -->
+            <div class="pwa-step-panel" id="nsPanel_storage" style="display:none;">
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">1</div>
+                    <div class="pwa-step-text"><strong>ডুপ্লিকেট মেমোরি ছাড়াই হোস্ট পিসির ফাইল শেয়ার:</strong> যেহেতু ZoneHub আপনার এই পিসিতেই চলছে, তাই ব্রাউজার দিয়ে বড় ভিডিও আপলোড করার কোনো প্রয়োজন নেই!</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">2</div>
+                    <div class="pwa-step-text"><strong>সরাসরি Move / Cut-Paste করুন:</strong> আপনার পিসির যেকোনো ভিডিও বা ফাইল সরাসরি Windows File Explorer দিয়ে <code>Videos\</code>, <code>Pictures\</code> বা যেকোনো ফোল্ডারে পেস্ট করে দিন। ZoneHub এক সেকেন্ডেই তা লাইভ ডিটেক্ট করবে—<strong>জিরো বাইট অতিরিক্ত মেমোরি নষ্ট হবে!</strong></div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">3</div>
+                    <div class="pwa-step-text"><strong>অন্য ড্রাইভের ফোল্ডার লিংক করা (mklink):</strong> D: বা E: ড্রাইভের বড় ফোল্ডার কোনো কপি ছাড়াই দেখাতে কমান্ড প্রম্পটে চালান: <code>mklink /J "...\Screen Recordings\MyFolder" "D:\MyFolder"</code>।</div>
+                </div>
+                <div class="pwa-tip-box" style="background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3);color:#bfdbfe;">
+                    <span>💡</span>
+                    <span>অন্যান্য কর্মচারীরা যখন আপলোড করে, তাদের ফাইলগুলো অবশ্যই আপনার সার্ভারে সেভ হবে যাতে পুরো টিম দেখতে পারে।</span>
+                </div>
+            </div>
+
+            <!-- Tab 3: Choose Download Destination -->
+            <div class="pwa-step-panel" id="nsPanel_download" style="display:none;">
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">1</div>
+                    <div class="pwa-step-text"><strong>ব্রাউজারে ফোল্ডার নির্বাচন সক্রিয় করুন:</strong> স্বয়ংক্রিয়ভাবে Downloads ফোল্ডারে না গিয়ে কোথায় সেভ হবে তা নিজে পছন্দ করতে চান?</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">2</div>
+                    <div class="pwa-step-text"><strong>Chrome / Edge-এ সেট করুন:</strong> ব্রাউজার সেটিংস &gt; <strong>Downloads</strong>-এ যান। সেখানে <strong>"Ask where to save each file before downloading"</strong> (বা প্রতিবার কোথায় সেভ হবে জানতে চাওয়া হোক) অন করে দিন।</div>
+                </div>
+                <div class="pwa-step-item">
+                    <div class="pwa-step-num">3</div>
+                    <div class="pwa-step-text">এখন যেকোনো ফাইল, ছবি, ফোল্ডার জিপ বা অ্যালবাম জিপ ডাউনলোড করলেই Windows আপনাকে ফোল্ডার (D: ড্রাইভ, ডেস্কটপ, পেনড্রাইভ ইত্যাদি) বেছে নেওয়ার অপশন দেবে!</div>
+                </div>
+                <div class="pwa-tip-box" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#a7f3d0;">
+                    <span>📥</span>
+                    <span>একবার এই সেটিং অন করলে যেকোনো ডাউনলোডের সময় Windows-এর চেনা "Save As" ডায়ালগ বক্স ওপেন হবে।</span>
+                </div>
+            </div>
+
+            <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                <button type="button" class="btn btn-primary" onclick="closeNetworkStorageModal()" style="padding:8px 20px;">
+                    বুঝেছি (Got It)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openNetworkStorageModal(tab) {
+            const modal = document.getElementById('networkStorageModal');
+            if (modal) modal.style.display = 'flex';
+            switchNetworkStorageTab(tab || 'mobile');
+        }
+        function closeNetworkStorageModal() {
+            const modal = document.getElementById('networkStorageModal');
+            if (modal) modal.style.display = 'none';
+        }
+        function switchNetworkStorageTab(tab) {
+            ['mobile', 'storage', 'download'].forEach(function(t) {
+                const btn = document.getElementById('nsTabBtn_' + t);
+                const panel = document.getElementById('nsPanel_' + t);
+                if (btn) btn.classList.toggle('active', t === tab);
+                if (panel) panel.style.display = (t === tab ? 'block' : 'none');
+            });
+        }
+    </script>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
     <script src="/js/app.js"></script>
