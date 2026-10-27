@@ -23,7 +23,7 @@ if not exist "%CSC%" (
 echo Using C# Compiler: %CSC%
 echo.
 echo [1/2] Compiling server.exe...
-"%CSC%" /target:exe /optimize+ /out:server.exe server.cs
+"%CSC%" /target:exe /optimize+ /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /out:server.exe server.cs
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to compile server.exe!
     pause

@@ -36,60 +36,132 @@
             e.target.value = '';
         }
 
-        async function uploadFilesQueue(fileList) {
-            for (let i = 0; i < fileList.length; i++) {
-                await uploadSingleFile(fileList[i]);
-            }
-            showToast('All files uploaded successfully!');
-            await loadFoldersList();
-            await loadFileList();
+        function formatBytes(bytes) {
+            if (!bytes || bytes <= 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
         }
 
-        function uploadSingleFile(file) {
-            return new Promise((resolve) => {
-                progressContainer.style.display = 'block';
-                progressFileName.innerText = 'Uploading: ' + file.name;
-                progressPercent.innerText = '0%';
-                progressBarFill.style.width = '0%';
+        async function uploadFilesQueue(fileList) {
+            if (!fileList || fileList.length === 0) return;
 
-                const folderSelectEl = document.getElementById('uploadFolderSelect');
-                let targetFolder = folderSelectEl ? folderSelectEl.value : 'auto';
-                if (targetFolder === 'auto' && selectedFolderId) {
-                    targetFolder = selectedFolderId;
+            const totalFiles = fileList.length;
+            let totalBatchBytes = 0;
+            for (let i = 0; i < totalFiles; i++) {
+                totalBatchBytes += (fileList[i].size || 0);
+            }
+
+            const folderSelectEl = document.getElementById('uploadFolderSelect');
+            let targetFolder = folderSelectEl ? folderSelectEl.value : 'auto';
+            if (targetFolder === 'auto' && selectedFolderId) {
+                targetFolder = selectedFolderId;
+            }
+
+            progressContainer.style.display = 'block';
+            progressBarFill.style.width = '0%';
+            progressPercent.innerText = '0%';
+            progressFileName.innerText = totalFiles > 1 
+                ? 'Uploading batch: ' + totalFiles + ' files (0 B / ' + formatBytes(totalBatchBytes) + ')'
+                : 'Uploading: ' + fileList[0].name;
+
+            const loadedBytesMap = {};
+            let completedCount = 0;
+
+            function updateBatchProgress() {
+                let currentLoaded = 0;
+                for (let k in loadedBytesMap) {
+                    currentLoaded += loadedBytesMap[k];
                 }
+                const pct = totalBatchBytes > 0 
+                    ? Math.min(99, Math.round((currentLoaded / totalBatchBytes) * 100)) 
+                    : Math.round((completedCount / totalFiles) * 100);
 
-                const xhr = new XMLHttpRequest();
-                const uploadUrl = '/upload?filename=' + encodeURIComponent(file.name) + '&folder=' + encodeURIComponent(targetFolder);
-                xhr.open('POST', uploadUrl, true);
-                xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
-                xhr.setRequestHeader('X-Folder', encodeURIComponent(targetFolder));
-                xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
+                progressBarFill.style.width = pct + '%';
+                progressPercent.innerText = pct + '%';
+                if (totalFiles > 1) {
+                    progressFileName.innerText = 'Uploading batch: ' + completedCount + '/' + totalFiles + ' files (' + formatBytes(currentLoaded) + ' / ' + formatBytes(totalBatchBytes) + ')';
+                }
+            }
 
-                xhr.upload.onprogress = function(e) {
-                    if (e.lengthComputable) {
-                        const pct = Math.round((e.loaded / e.total) * 100);
-                        progressPercent.innerText = pct + '%';
-                        progressBarFill.style.width = pct + '%';
-                    }
-                };
+            function uploadWorker(file, index) {
+                return new Promise((resolve) => {
+                    const xhr = new XMLHttpRequest();
+                    const isZip = file.name && file.name.toLowerCase().endsWith('.zip');
+                    let uploadUrl = '/upload?filename=' + encodeURIComponent(file.name) + '&folder=' + encodeURIComponent(targetFolder);
+                    if (isZip) uploadUrl += '&extract=true';
 
-                xhr.onload = function() {
-                    progressBarFill.style.width = '100%';
-                    progressPercent.innerText = '100%';
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        resolve();
-                    }, 500);
-                };
+                    xhr.open('POST', uploadUrl, true);
+                    xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+                    xhr.setRequestHeader('X-Folder', encodeURIComponent(targetFolder));
+                    xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
+                    if (isZip) xhr.setRequestHeader('X-Auto-Extract', 'true');
 
-                xhr.onerror = function() {
-                    showToast('Upload error: ' + file.name);
-                    progressContainer.style.display = 'none';
-                    resolve();
-                };
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            loadedBytesMap[index] = e.loaded;
+                            updateBatchProgress();
+                        }
+                    };
 
-                xhr.send(file);
-            });
+                    xhr.onload = function() {
+                        loadedBytesMap[index] = file.size || 0;
+                        completedCount++;
+                        updateBatchProgress();
+                        resolve({ success: xhr.status === 200 || xhr.status === 204, file: file });
+                    };
+
+                    xhr.onerror = function() {
+                        loadedBytesMap[index] = file.size || 0;
+                        completedCount++;
+                        updateBatchProgress();
+                        resolve({ success: false, file: file });
+                    };
+
+                    xhr.send(file);
+                });
+            }
+
+            // Concurrency pool (up to 3 concurrent parallel uploads)
+            const concurrency = Math.min(3, totalFiles);
+            let queueIndex = 0;
+            const workers = [];
+
+            async function runNext() {
+                while (queueIndex < totalFiles) {
+                    const idx = queueIndex++;
+                    await uploadWorker(fileList[idx], idx);
+                }
+            }
+
+            for (let c = 0; c < concurrency; c++) {
+                workers.push(runNext());
+            }
+
+            await Promise.all(workers);
+
+            // Final state when entire batch completes
+            progressBarFill.style.width = '100%';
+            progressPercent.innerText = '100%';
+            progressFileName.innerText = totalFiles > 1 
+                ? '✓ All ' + totalFiles + ' files uploaded successfully!' 
+                : '✓ ' + fileList[0].name + ' uploaded successfully!';
+
+            showToast(totalFiles > 1 
+                ? '✓ Batch upload complete: ' + totalFiles + ' files uploaded!' 
+                : '✓ Upload complete!');
+
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+            }, 1800);
+
+            // Refresh UI once for the entire batch
+            await loadFoldersList();
+            if (selectedFolderId) {
+                openFolder(selectedFolderId);
+            } else {
+                await loadFileList();
+            }
         }
 
         // Folder State & System
@@ -188,7 +260,7 @@
                     '<div class="folder-stats-footer">' +
                         '<span>📁 ' + escapeHtml(folder.name) + '</span>' +
                         (folder.fileCount > 0 
-                            ? '<button onclick="event.stopPropagation(); downloadFolderById(\'' + escapeQuotes(folder.id) + '\')" class="folder-dl-badge" title="Download all ' + folder.fileCount + ' files in this folder">📥 Download (' + folder.fileCount + ')</button>'
+                            ? '<button onclick="event.stopPropagation(); downloadFolderById(\'' + escapeQuotes(folder.id) + '\')" class="folder-dl-badge" title="Download all ' + folder.fileCount + ' files as 1 ZIP file">📦 Download ZIP (' + folder.fileCount + ')</button>'
                             : '<span style="font-weight:600;color:var(--text-main);">' + folder.sizeFormatted + '</span>'
                         ) +
                     '</div>';
@@ -480,12 +552,11 @@
         function downloadSelectedFiles() {
             if (selectedFilesMap.size === 0) return;
             const entries = Array.from(selectedFilesMap.entries());
-            showToast('Starting multi-download of ' + entries.length + ' files...');
-            entries.forEach(([url, name], idx) => {
-                setTimeout(() => {
-                    triggerDownloadTracked(url, name);
-                }, idx * 400);
-            });
+            const fileUrls = entries.map(([url]) => url);
+            const prefix = selectedFolderId ? selectedFolderId : 'ZoneHub';
+            const zipName = prefix + '_Selected_' + fileUrls.length + '_Files.zip';
+            showToast('Creating ZIP for ' + fileUrls.length + ' selected files...');
+            triggerDownloadTracked('/api/download-zip', zipName, { zipName: zipName, files: fileUrls });
             clearFileSelection();
         }
 
@@ -495,17 +566,16 @@
         }
 
         function downloadFolderById(folderId) {
+            if (!folderId) return;
             const folderFiles = allFiles.filter(f => f.folder && f.folder.toLowerCase() === folderId.toLowerCase());
             if (folderFiles.length === 0) {
                 showToast('No files in folder: ' + folderId);
                 return;
             }
-            showToast('Downloading all ' + folderFiles.length + ' files in ' + folderId + '...');
-            folderFiles.forEach((f, idx) => {
-                setTimeout(() => {
-                    triggerDownloadTracked(f.url, f.name);
-                }, idx * 400);
-            });
+            const zipName = folderId + '.zip';
+            const zipUrl = '/api/download-zip?folder=' + encodeURIComponent(folderId);
+            showToast('Starting 1-Click ZIP download for ' + folderId + ' (' + folderFiles.length + ' files)...');
+            triggerDownloadTracked(zipUrl, zipName);
         }
 
         function filterFiles() {
@@ -518,7 +588,7 @@
         }
 
         // Tracked Download Manager (Live Speed & Progress)
-        function triggerDownloadTracked(url, filename) {
+        function triggerDownloadTracked(url, filename, postData = null) {
             const widget = document.getElementById('downloadWidget');
             const nameEl = document.getElementById('dlFileName');
             const pctEl = document.getElementById('dlPercent');
@@ -530,7 +600,7 @@
             pctEl.innerText = '0%';
             fillEl.style.width = '0%';
             transEl.innerText = 'Starting...';
-            speedEl.innerText = 'Calculating...';
+            speedEl.innerText = postData ? 'Preparing ZIP...' : 'Calculating...';
             widget.style.display = 'block';
 
             let startTime = Date.now();
@@ -538,7 +608,10 @@
             let lastTime = startTime;
 
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', url, true);
+            xhr.open(postData ? 'POST' : 'GET', url, true);
+            if (postData) {
+                xhr.setRequestHeader('Content-Type', 'application/json');
+            }
             xhr.responseType = 'blob';
 
             xhr.onprogress = function(e) {
@@ -553,13 +626,16 @@
                     transEl.innerText = loadedMb + ' MB / ' + totalMb + ' MB';
 
                     const timeDiff = (now - lastTime) / 1000;
-                    if (timeDiff >= 0.5) {
+                    if (timeDiff >= 0.4) {
                         const bytesDiff = e.loaded - lastLoaded;
                         const speedMbps = ((bytesDiff / (1024 * 1024)) / timeDiff).toFixed(1);
                         speedEl.innerText = speedMbps + ' MB/s';
                         lastLoaded = e.loaded;
                         lastTime = now;
                     }
+                } else {
+                    transEl.innerText = formatBytes(e.loaded);
+                    speedEl.innerText = 'Downloading...';
                 }
             };
 
@@ -577,23 +653,28 @@
                     a.download = filename;
                     document.body.appendChild(a);
                     a.click();
-                    window.URL.revokeObjectURL(blobUrl);
-                    document.body.removeChild(a);
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(blobUrl);
+                        document.body.removeChild(a);
+                    }, 1000);
 
                     showToast('Downloaded to your PC: ' + filename);
                     setTimeout(() => {
                         widget.style.display = 'none';
-                    }, 3000);
+                    }, 2500);
+                } else {
+                    showToast('Download error (HTTP ' + xhr.status + ')');
+                    widget.style.display = 'none';
                 }
             };
 
             xhr.onerror = function() {
                 showToast('Download error. Falling back to direct link.');
-                window.location.href = url;
+                if (!postData) window.location.href = url;
                 widget.style.display = 'none';
             };
 
-            xhr.send();
+            xhr.send(postData ? JSON.stringify(postData) : null);
         }
 
         // Media Preview Modal & WhatsApp Album Lightbox
@@ -646,7 +727,7 @@
                 if (nextBtn) nextBtn.style.display = 'flex';
                 if (downloadAllBtn) {
                     downloadAllBtn.style.display = 'inline-flex';
-                    downloadAllBtn.innerText = '📥 Download All (' + currentAlbumList.length + ')';
+                    downloadAllBtn.innerText = '📦 Download ZIP (' + currentAlbumList.length + ')';
                 }
             } else {
                 if (counterBadge) counterBadge.style.display = 'none';
@@ -670,13 +751,9 @@
 
         function downloadCurrentAlbumAll() {
             if (!currentAlbumList || currentAlbumList.length === 0) return;
-            showToast('Downloading ' + currentAlbumList.length + ' album files...');
-            currentAlbumList.forEach((url, idx) => {
-                setTimeout(() => {
-                    const filename = url.split('/').pop().split('?')[0] || ('album_media_' + (idx + 1) + '.jpg');
-                    triggerDownloadTracked(url, filename);
-                }, idx * 400);
-            });
+            const zipName = 'Album_' + currentAlbumList.length + '_Photos.zip';
+            showToast('Downloading all ' + currentAlbumList.length + ' photos as 1 ZIP file...');
+            triggerDownloadTracked('/api/download-zip', zipName, { zipName: zipName, files: currentAlbumList });
         }
 
         function previewMedia(url, title, type) {

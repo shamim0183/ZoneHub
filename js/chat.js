@@ -210,8 +210,8 @@
                                     cellsHtml +
                                 '</div>' +
                                 '<div class="chat-album-overlay-tools">' +
-                                    '<button onclick="event.stopPropagation(); downloadAlbumById(\'' + msg.id + '\')" class="chat-photo-dl-btn" title="Download all ' + mediaList.length + ' files">' +
-                                        '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> ' + mediaList.length + ' Files' +
+                                    '<button onclick="event.stopPropagation(); downloadAlbumById(\'' + msg.id + '\')" class="chat-photo-dl-btn" title="Download all ' + mediaList.length + ' files as 1 ZIP file">' +
+                                        '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> 📦 ' + mediaList.length + ' ZIP' +
                                     '</button>' +
                                 '</div>' +
                             '</div>' + caption;
@@ -331,14 +331,9 @@
         function downloadAlbumById(msgId) {
             const list = (window.__chatAlbums && window.__chatAlbums[msgId]) || [];
             if (!list.length) return;
-            showToast('Downloading all ' + list.length + ' album files...');
-            list.forEach((url, idx) => {
-                setTimeout(() => {
-                    const cleanUrl = url.split('?')[0];
-                    const filename = cleanUrl.split('/').pop() || ('album_media_' + (idx + 1) + '.jpg');
-                    triggerDownloadTracked(url, filename);
-                }, idx * 400);
-            });
+            const zipName = 'Chat_Album_' + list.length + '_Media.zip';
+            showToast('Downloading all ' + list.length + ' album files as 1 ZIP file...');
+            triggerDownloadTracked('/api/download-zip', zipName, { zipName: zipName, files: list });
         }
 
         // Multi-Photo & Video Upload Handler
@@ -401,43 +396,34 @@
             const caption = document.getElementById('chatInput').value.trim();
             document.getElementById('chatInput').value = '';
 
-            const uploadedUrls = [];
             const total = files.length;
+            showToast(total > 1 ? 'Uploading batch of ' + total + ' media files...' : 'Uploading picture...');
 
-            showToast(total > 1 ? 'Uploading 1/' + total + ' media files...' : 'Uploading picture...');
+            const uploadPromises = files.map((file, i) => {
+                return new Promise((resolve) => {
+                    const ext = file.name ? file.name.split('.').pop() : 'jpg';
+                    const isVid = file.type && file.type.startsWith('video');
+                    const prefix = isVid ? 'chat_vid_' : 'chat_img_';
+                    const filename = prefix + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 4) + '.' + ext;
 
-            for (let i = 0; i < total; i++) {
-                const file = files[i];
-                const ext = file.name ? file.name.split('.').pop() : 'jpg';
-                const isVid = file.type && file.type.startsWith('video');
-                const prefix = isVid ? 'chat_vid_' : 'chat_img_';
-                const filename = prefix + Date.now() + '_' + i + '.' + ext;
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/upload?filename=' + encodeURIComponent(filename), true);
+                    xhr.setRequestHeader('X-Filename', encodeURIComponent(filename));
+                    xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
+                    xhr.onload = () => {
+                        if (xhr.status === 200 || xhr.status === 204) {
+                            resolve('/' + encodeURIComponent(filename));
+                        } else {
+                            resolve(null);
+                        }
+                    };
+                    xhr.onerror = () => resolve(null);
+                    xhr.send(file);
+                });
+            });
 
-                if (total > 1) {
-                    showToast('Uploading ' + (i + 1) + '/' + total + ' files...');
-                }
-
-                try {
-                    await new Promise((resolve, reject) => {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', '/upload?filename=' + encodeURIComponent(filename), true);
-                        xhr.setRequestHeader('X-Filename', encodeURIComponent(filename));
-                        xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
-                        xhr.onload = () => {
-                            if (xhr.status === 200 || xhr.status === 204) {
-                                uploadedUrls.push('/' + encodeURIComponent(filename));
-                                resolve();
-                            } else {
-                                reject(new Error('Upload status ' + xhr.status));
-                            }
-                        };
-                        xhr.onerror = () => reject(new Error('Network error'));
-                        xhr.send(file);
-                    });
-                } catch (err) {
-                    console.error('Error uploading chat media:', file.name, err);
-                }
-            }
+            const results = await Promise.all(uploadPromises);
+            const uploadedUrls = results.filter(url => url !== null);
 
             if (uploadedUrls.length === 0) {
                 showToast('Failed to upload media files');

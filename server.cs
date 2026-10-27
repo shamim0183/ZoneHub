@@ -9,6 +9,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Script.Serialization;
+using System.IO.Compression;
 
 namespace ZoneHub
 {
@@ -520,6 +521,13 @@ namespace ZoneHub
                 if (req.Method == "POST" && decodedPath.Equals("/upload", StringComparison.OrdinalIgnoreCase))
                 {
                     HandleUpload(stream, req);
+                    return;
+                }
+
+                // Handle ZIP download API (GET /api/download-zip?folder=... or POST /api/download-zip)
+                if (decodedPath.Equals("/api/download-zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleDownloadZip(stream, req);
                     return;
                 }
 
@@ -1406,6 +1414,49 @@ namespace ZoneHub
                 uploader = req.IsLocalhost ? Environment.UserName : "Employee";
             }
 
+            int extractedCount = 0;
+            bool autoExtract = safeName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && 
+                               (req.Headers.ContainsKey("x-auto-extract") || req.Url.IndexOf("extract=true", StringComparison.OrdinalIgnoreCase) >= 0);
+            if (autoExtract)
+            {
+                try
+                {
+                    using (ZipArchive zip = ZipFile.OpenRead(targetPath))
+                    {
+                        foreach (var entry in zip.Entries)
+                        {
+                            if (string.IsNullOrEmpty(entry.Name)) continue;
+                            string destFile = Path.Combine(targetDir, entry.Name);
+                            if (!Path.GetFullPath(destFile).StartsWith(targetDir, StringComparison.OrdinalIgnoreCase)) continue;
+                            entry.ExtractToFile(destFile, true);
+                            extractedCount++;
+
+                            try
+                            {
+                                lock (MetadataLock)
+                                {
+                                    var metaDict = LoadFileMetadata();
+                                    var metaItem = new FileMetaItem {
+                                        uploader = uploader,
+                                        uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt")
+                                    };
+                                    string destRel = string.IsNullOrEmpty(targetSubFolder) ? entry.Name : (targetSubFolder + "/" + entry.Name);
+                                    metaDict[entry.Name] = metaItem;
+                                    metaDict[destRel] = metaItem;
+                                    SaveFileMetadata(metaDict);
+                                }
+                            }
+                            catch {}
+                        }
+                    }
+                    Console.WriteLine("[ZIP AUTO-EXTRACT] Extracted " + extractedCount + " files to " + targetSubFolder);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[ZIP EXTRACT ERROR] " + ex.Message);
+                }
+            }
+
             string relPath = string.IsNullOrEmpty(targetSubFolder) ? safeName : (targetSubFolder + "/" + safeName);
 
             lock (MetadataLock)
@@ -1424,7 +1475,7 @@ namespace ZoneHub
             Console.WriteLine("[UPLOAD COMPLETED] " + relPath + " (" + FormatBytes(totalWritten) + ") from " + uploader);
             Console.ResetColor();
 
-            string json = "{\"success\":true,\"filename\":\"" + JsonEscape(safeName) + "\",\"relativePath\":\"" + JsonEscape(relPath) + "\",\"folder\":\"" + JsonEscape(targetSubFolder) + "\",\"size\":" + totalWritten + "}";
+            string json = "{\"success\":true,\"filename\":\"" + JsonEscape(safeName) + "\",\"relativePath\":\"" + JsonEscape(relPath) + "\",\"folder\":\"" + JsonEscape(targetSubFolder) + "\",\"size\":" + totalWritten + ",\"extractedCount\":" + extractedCount + "}";
             SendJsonResponse(stream, 200, json);
         }
 
@@ -1484,6 +1535,199 @@ namespace ZoneHub
             catch (Exception ex)
             {
                 SendJsonResponse(stream, 500, "{\"success\":false,\"error\":\"" + JsonEscape(ex.Message) + "\"}");
+            }
+        }
+
+        private static void HandleDownloadZip(NetworkStream stream, RequestContext req)
+        {
+            List<string> filePaths = new List<string>();
+            string zipName = "ZoneHub_Files.zip";
+
+            if (req.Method == "GET")
+            {
+                string folder = "";
+                int qIdx = req.Url.IndexOf("?folder=");
+                if (qIdx >= 0)
+                {
+                    folder = Uri.UnescapeDataString(req.Url.Substring(qIdx + 8));
+                    int amp = folder.IndexOf('&');
+                    if (amp >= 0) folder = folder.Substring(0, amp);
+                }
+
+                folder = folder != null ? folder.Trim() : "";
+                if (!string.IsNullOrEmpty(folder) && !folder.Equals("all", StringComparison.OrdinalIgnoreCase))
+                {
+                    string safeFolder = Path.GetFileName(folder);
+                    string targetDir = Path.Combine(RootDirectory, safeFolder);
+                    if (Directory.Exists(targetDir))
+                    {
+                        var di = new DirectoryInfo(targetDir);
+                        foreach (var fi in di.GetFiles("*", SearchOption.AllDirectories))
+                        {
+                            if (IsValidSharedFile(fi)) filePaths.Add(fi.FullName);
+                        }
+                        zipName = safeFolder + ".zip";
+                    }
+                }
+                else
+                {
+                    var rootDi = new DirectoryInfo(RootDirectory);
+                    foreach (var fi in rootDi.GetFiles())
+                    {
+                        if (IsValidSharedFile(fi)) filePaths.Add(fi.FullName);
+                    }
+                    foreach (var dir in rootDi.GetDirectories())
+                    {
+                        if (dir.Attributes.HasFlag(FileAttributes.Hidden) || 
+                            dir.Name.StartsWith(".") || 
+                            dir.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+                            dir.Name.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
+                            dir.Name.Equals("css", StringComparison.OrdinalIgnoreCase) ||
+                            dir.Name.Equals("js", StringComparison.OrdinalIgnoreCase)) continue;
+                        try
+                        {
+                            foreach (var fi in dir.GetFiles("*", SearchOption.AllDirectories))
+                            {
+                                if (IsValidSharedFile(fi)) filePaths.Add(fi.FullName);
+                            }
+                        }
+                        catch {}
+                    }
+                    zipName = GetHubName() + "_All_Files.zip";
+                }
+            }
+            else if (req.Method == "POST")
+            {
+                string body = ReadBodyString(stream, req);
+                try
+                {
+                    JavaScriptSerializer js = new JavaScriptSerializer();
+                    var dict = js.Deserialize<Dictionary<string, object>>(body);
+                    if (dict != null)
+                    {
+                        if (dict.ContainsKey("zipName") && dict["zipName"] != null)
+                        {
+                            zipName = dict["zipName"].ToString();
+                        }
+                        if (dict.ContainsKey("files") && dict["files"] is System.Collections.IEnumerable && !(dict["files"] is string))
+                        {
+                            var list = (System.Collections.IEnumerable)dict["files"];
+                            foreach (var item in list)
+                            {
+                                string rawItem = item != null ? item.ToString() : "";
+                                int q = rawItem.IndexOf('?');
+                                if (q >= 0) rawItem = rawItem.Substring(0, q);
+                                string rel = Uri.UnescapeDataString(rawItem).TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
+                                string full = Path.GetFullPath(Path.Combine(RootDirectory, rel));
+                                if (File.Exists(full) && full.StartsWith(RootDirectory, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    filePaths.Add(full);
+                                }
+                                else
+                                {
+                                    string fn = Path.GetFileName(rel);
+                                    string found = FindFileInSubfolders(RootDirectory, fn);
+                                    if (found != null && File.Exists(found)) filePaths.Add(found);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[ZIP PARSE ERROR] " + ex.Message);
+                }
+            }
+
+            if (filePaths.Count == 0)
+            {
+                SendError(stream, 404, "No downloadable files found");
+                return;
+            }
+
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                zipName = zipName.Replace(c, '_');
+            }
+            if (!zipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) zipName += ".zip";
+
+            string tempZipPath = Path.Combine(Path.GetTempPath(), "zh_" + Guid.NewGuid().ToString("N") + ".zip");
+            try
+            {
+                using (FileStream fs = new FileStream(tempZipPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                {
+                    using (ZipArchive archive = new ZipArchive(fs, ZipArchiveMode.Create))
+                    {
+                        HashSet<string> usedEntryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var fp in filePaths)
+                        {
+                            try
+                            {
+                                if (!File.Exists(fp)) continue;
+                                string entryName = Path.GetFileName(fp);
+                                if (usedEntryNames.Contains(entryName))
+                                {
+                                    entryName = Path.GetFileNameWithoutExtension(fp) + "_" + Guid.NewGuid().ToString("N").Substring(0, 4) + Path.GetExtension(fp);
+                                }
+                                usedEntryNames.Add(entryName);
+
+                                var entry = archive.CreateEntry(entryName, CompressionLevel.NoCompression);
+                                using (var entryStream = entry.Open())
+                                using (var fileStream = new FileStream(fp, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                                {
+                                    byte[] buf = new byte[64 * 1024];
+                                    int read;
+                                    while ((read = fileStream.Read(buf, 0, buf.Length)) > 0)
+                                    {
+                                        entryStream.Write(buf, 0, read);
+                                    }
+                                }
+                            }
+                            catch {}
+                        }
+                    }
+                }
+
+                FileInfo zipFi = new FileInfo(tempZipPath);
+                long zipLength = zipFi.Length;
+
+                StringBuilder header = new StringBuilder();
+                header.Append("HTTP/1.1 200 OK\r\n");
+                header.Append("Content-Type: application/zip\r\n");
+                header.Append("Content-Disposition: attachment; filename=\"" + zipName + "\"\r\n");
+                header.Append("Content-Length: " + zipLength + "\r\n");
+                header.Append("Access-Control-Allow-Origin: *\r\n");
+                header.Append("Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n");
+                header.Append("Access-Control-Allow-Headers: *\r\n");
+                header.Append("Cache-Control: no-cache, no-store, must-revalidate\r\n");
+                header.Append("Connection: close\r\n\r\n");
+
+                byte[] hBytes = Encoding.UTF8.GetBytes(header.ToString());
+                stream.Write(hBytes, 0, hBytes.Length);
+
+                using (FileStream rfs = new FileStream(tempZipPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    byte[] buf = new byte[64 * 1024];
+                    int r;
+                    while ((r = rfs.Read(buf, 0, buf.Length)) > 0)
+                    {
+                        stream.Write(buf, 0, r);
+                    }
+                }
+                stream.Flush();
+                Console.WriteLine("[ZIP DOWNLOAD] Streamed " + zipName + " (" + FormatBytes(zipLength) + ") with " + filePaths.Count + " files");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[ZIP ERROR] " + ex.Message);
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempZipPath)) File.Delete(tempZipPath);
+                }
+                catch {}
             }
         }
 
