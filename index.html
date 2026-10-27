@@ -97,16 +97,8 @@
                     <a href="http://localhost:8080" class="link-value" target="_blank">http://localhost:8080</a>
                 </div>
                 <div class="link-group highlight-link" style="background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);">
-                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">📱 Wi-Fi Link:</span>
+                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">📱 Office Wi-Fi (Phones &amp; PCs):</span>
                     <a href="http://{{LOCAL_IP}}:8080" id="networkShareLink" class="link-value" target="_blank" style="color:#38bdf8;font-weight:700;">http://{{LOCAL_IP}}:8080</a>
-                </div>
-                <div class="link-group online-link-group" id="onlineLinkGroup" style="display:none;background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.3);">
-                    <span class="link-label" style="color:#6ee7b7;font-weight:700;">🌐 Mobile &amp; Global:</span>
-                    <a href="{{ONLINE_URL}}" id="onlineTunnelLink" class="link-value" target="_blank" style="color:#34d399;font-weight:700;">{{ONLINE_URL}}</a>
-                </div>
-                <div class="link-group online-setup-group" id="onlineSetupGroup" onclick="openNetworkStorageModal('mobile')" style="display:flex;cursor:pointer;background:rgba(147,51,234,0.12);border-color:rgba(147,51,234,0.3);" title="Click to see how to connect from Mobile Data (SIM) or outside Wi-Fi">
-                    <span class="link-label" style="color:#c084fc;font-weight:700;">🌐 Mobile / 4G Data:</span>
-                    <span class="link-value" style="color:#e9d5ff;font-size:11px;">Connect Outside Wi-Fi ℹ️</span>
                 </div>
                 <div class="link-group pcname-link-group">
                     <span class="link-label">💻 PC Name:</span>
@@ -152,9 +144,7 @@
                     <div style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:11px;color:#a5b4fc;flex-wrap:wrap;" onclick="event.stopPropagation()">
                         <span onclick="openNetworkStorageModal('storage')" style="cursor:pointer;text-decoration:underline;">💡 Host PC: Move files directly (0 duplicate memory)</span>
                         <span>&bull;</span>
-                        <span onclick="openNetworkStorageModal('download')" style="cursor:pointer;text-decoration:underline;">📥 Choose Download Folder</span>
-                        <span>&bull;</span>
-                        <span onclick="openNetworkStorageModal('mobile')" style="cursor:pointer;text-decoration:underline;">🌐 Mobile Data Setup</span>
+                        <span onclick="openNetworkStorageModal('download')" style="cursor:pointer;text-decoration:underline;">📥 How to choose download folder</span>
                     </div>
                     
                     <!-- Upload Destination Selector -->
@@ -592,49 +582,26 @@
 
     <!-- Network & Storage Guide Modal -->
     <div id="networkStorageModal" class="pwa-modal-backdrop" style="display:none;" onclick="if(event.target===this)closeNetworkStorageModal()">
-        <div class="pwa-modal-box" style="border-color:rgba(147,51,234,0.4);box-shadow:0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(147,51,234,0.15);">
+        <div class="pwa-modal-box" style="border-color:rgba(99,102,241,0.4);box-shadow:0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(99,102,241,0.15);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                 <div style="font-size:17px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;">
-                    <span>⚡</span> ZoneHub Network &amp; Storage Guide
+                    <span>⚡</span> ZoneHub Storage &amp; Download Guide
                 </div>
                 <button type="button" class="btn btn-icon" onclick="closeNetworkStorageModal()" style="font-size:18px;">&times;</button>
             </div>
 
             <!-- Tabs -->
             <div class="pwa-step-tabs">
-                <button type="button" class="pwa-step-tab active" id="nsTabBtn_mobile" onclick="switchNetworkStorageTab('mobile')">
-                    🌐 Mobile / Remote
-                </button>
-                <button type="button" class="pwa-step-tab" id="nsTabBtn_storage" onclick="switchNetworkStorageTab('storage')">
-                    💾 Zero Redundancy
+                <button type="button" class="pwa-step-tab active" id="nsTabBtn_storage" onclick="switchNetworkStorageTab('storage')">
+                    💾 Zero Redundancy (Host PC)
                 </button>
                 <button type="button" class="pwa-step-tab" id="nsTabBtn_download" onclick="switchNetworkStorageTab('download')">
                     📥 Download Choice
                 </button>
             </div>
 
-            <!-- Tab 1: Mobile Network / Outside Wi-Fi -->
-            <div class="pwa-step-panel" id="nsPanel_mobile" style="display:block;">
-                <div class="pwa-step-item">
-                    <div class="pwa-step-num">1</div>
-                    <div class="pwa-step-text"><strong>Mobile Data / SIM Network (4G/5G):</strong> অফিসের বাইরে বা মোবাইল ডেটা দিয়ে ZoneHub ব্যবহার করতে হোস্ট পিসিতে <strong>Start-Online-Tunnel.bat</strong> ফাইলটিতে ডাবল-ক্লিক করুন।</div>
-                </div>
-                <div class="pwa-step-item">
-                    <div class="pwa-step-num">2</div>
-                    <div class="pwa-step-text">Cloudflare সরাসরি একটি ফ্রি সিকিউর গ্লোবাল <strong>HTTPS লিংক</strong> তৈরি করবে যা যেকোনো মোবাইল ও কম্পিউটার থেকে পৃথিবীর যেকোনো স্থান থেকে চলবে।</div>
-                </div>
-                <div class="pwa-step-item">
-                    <div class="pwa-step-num">3</div>
-                    <div class="pwa-step-text">টানেল চালু হওয়ার সাথে সাথে ZoneHub ড্যাশবোর্ডের উপরে <strong>🌐 Online Link</strong> ফুটে উঠবে এবং সবাই সেটা দিয়ে ঢুকতে পারবে!</div>
-                </div>
-                <div class="pwa-tip-box" style="background:rgba(147,51,234,0.1);border-color:rgba(147,51,234,0.3);color:#e9d5ff;">
-                    <span>🚀</span>
-                    <span>Cloudflare Tunnel আপনার পিসিতে ইতিমধ্যে ইনস্টল আছে। শুধু Start-Online-Tunnel.bat রান করলেই হবে!</span>
-                </div>
-            </div>
-
-            <!-- Tab 2: Zero-Redundancy Storage (Host PC) -->
-            <div class="pwa-step-panel" id="nsPanel_storage" style="display:none;">
+            <!-- Tab 1: Zero-Redundancy Storage (Host PC) -->
+            <div class="pwa-step-panel" id="nsPanel_storage" style="display:block;">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
                     <div class="pwa-step-text"><strong>ডুপ্লিকেট মেমোরি ছাড়াই হোস্ট পিসির ফাইল শেয়ার:</strong> যেহেতু ZoneHub আপনার এই পিসিতেই চলছে, তাই ব্রাউজার দিয়ে বড় ভিডিও আপলোড করার কোনো প্রয়োজন নেই!</div>
@@ -653,7 +620,7 @@
                 </div>
             </div>
 
-            <!-- Tab 3: Choose Download Destination -->
+            <!-- Tab 2: Choose Download Destination -->
             <div class="pwa-step-panel" id="nsPanel_download" style="display:none;">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
@@ -685,14 +652,14 @@
         function openNetworkStorageModal(tab) {
             const modal = document.getElementById('networkStorageModal');
             if (modal) modal.style.display = 'flex';
-            switchNetworkStorageTab(tab || 'mobile');
+            switchNetworkStorageTab(tab || 'storage');
         }
         function closeNetworkStorageModal() {
             const modal = document.getElementById('networkStorageModal');
             if (modal) modal.style.display = 'none';
         }
         function switchNetworkStorageTab(tab) {
-            ['mobile', 'storage', 'download'].forEach(function(t) {
+            ['storage', 'download'].forEach(function(t) {
                 const btn = document.getElementById('nsTabBtn_' + t);
                 const panel = document.getElementById('nsPanel_' + t);
                 if (btn) btn.classList.toggle('active', t === tab);

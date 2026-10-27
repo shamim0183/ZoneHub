@@ -1945,16 +1945,9 @@ namespace ZoneHub
             if (File.Exists(htmlPath))
             {
                 html = File.ReadAllText(htmlPath, Encoding.UTF8);
-                string onlineUrl = GetCurrentOnlineTunnelUrl();
                 html = html.Replace("{{HUB_NAME}}", hubName)
                            .Replace("{{LOCAL_IP}}", currentIp)
                            .Replace("{{HOSTNAME}}", machineName);
-                if (!string.IsNullOrEmpty(onlineUrl))
-                {
-                    html = html.Replace("{{ONLINE_URL}}", onlineUrl);
-                    html = html.Replace("id=\"onlineLinkGroup\" style=\"display:none;", "id=\"onlineLinkGroup\" style=\"display:flex;");
-                    html = html.Replace("id=\"onlineSetupGroup\" style=\"display:flex;", "id=\"onlineSetupGroup\" style=\"display:none;");
-                }
             }
             else
             {
