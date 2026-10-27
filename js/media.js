@@ -248,10 +248,17 @@
                 card.className = 'folder-card color-' + (folder.color || 'indigo');
                 card.onclick = () => openFolder(folder.id);
 
+                const deleteBtnHtml = (!folder.isSystem && isAdmin)
+                    ? '<button onclick="event.stopPropagation(); deleteFolderPrompt(\'' + escapeQuotes(folder.id) + '\', ' + folder.fileCount + ')" class="folder-del-btn" title="Delete Folder">🗑️</button>'
+                    : '';
+
                 card.innerHTML = 
                     '<div class="folder-card-top">' +
                         '<div class="folder-icon-circle">' + folder.icon + '</div>' +
-                        '<span class="folder-count-pill">' + folder.fileCount + ' ' + (folder.fileCount === 1 ? 'file' : 'files') + '</span>' +
+                        '<div style="display:flex;align-items:center;gap:6px;">' +
+                            deleteBtnHtml +
+                            '<span class="folder-count-pill">' + folder.fileCount + ' ' + (folder.fileCount === 1 ? 'file' : 'files') + '</span>' +
+                        '</div>' +
                     '</div>' +
                     '<div>' +
                         '<div class="folder-title-text">' + escapeHtml(folder.displayName) + '</div>' +
@@ -288,6 +295,51 @@
                     '<span style="color:#818cf8;font-weight:600;">Click to Add</span>' +
                 '</div>';
             container.appendChild(newFolderCard);
+        }
+
+        async function deleteFolderPrompt(folderId, fileCount) {
+            if (!isAdmin) {
+                if (typeof openAdminModal === 'function') openAdminModal();
+                showToast('Admin permission required to delete folder.');
+                return;
+            }
+
+            const count = fileCount || 0;
+            const msg = `⚠️ Delete Folder "${folderId}"?\n\n` +
+                `This will permanently delete this folder and ALL ${count} file(s) inside it from your computer storage.\n\n` +
+                `Click OK to confirm deletion.`;
+            if (!confirm(msg)) return;
+
+            try {
+                const adminToken = (typeof getAdminToken === 'function') ? getAdminToken() : (localStorage.getItem('zonehub_admin_pin') || '');
+                const res = await fetch('/api/folders/delete?name=' + encodeURIComponent(folderId), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': adminToken
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('🗑️ Folder deleted: ' + folderId);
+                    if (selectedFolderId && selectedFolderId.toLowerCase() === folderId.toLowerCase()) {
+                        backToAllFolders();
+                    }
+                    await loadFoldersList();
+                    await loadFileList();
+                } else {
+                    showToast(data.error || 'Failed to delete folder');
+                }
+            } catch (e) {
+                showToast('Error deleting folder: ' + e.message);
+            }
+        }
+
+        function deleteActiveFolderPrompt() {
+            if (!selectedFolderId) return;
+            const folderObj = allFolders.find(f => f.id.toLowerCase() === selectedFolderId.toLowerCase());
+            const count = folderObj ? folderObj.fileCount : 0;
+            deleteFolderPrompt(selectedFolderId, count);
         }
 
         function openFolder(folderId) {
@@ -379,6 +431,8 @@
                     foldersViewSection.style.display = 'block';
                     folderActiveBanner.style.display = 'none';
                     filesListSection.style.display = 'none';
+                    const delActiveBtn = document.getElementById('deleteActiveFolderBtn');
+                    if (delActiveBtn) delActiveBtn.style.display = 'none';
                 } else {
                     foldersViewSection.style.display = 'none';
                     folderActiveBanner.style.display = 'flex';
@@ -387,6 +441,10 @@
                     const folderObj = allFolders.find(f => f.id.toLowerCase() === selectedFolderId.toLowerCase());
                     const folderName = folderObj ? folderObj.displayName : selectedFolderId;
                     const folderFiles = allFiles.filter(f => f.folder.toLowerCase() === selectedFolderId.toLowerCase());
+                    const isCustom = folderObj ? !folderObj.isSystem : true;
+
+                    const delActiveBtn = document.getElementById('deleteActiveFolderBtn');
+                    if (delActiveBtn) delActiveBtn.style.display = (isAdmin && isCustom) ? 'inline-flex' : 'none';
 
                     document.getElementById('activeFolderNameText').innerHTML = (folderObj ? folderObj.icon + ' ' : '📁 ') + escapeHtml(folderName);
                     document.getElementById('activeFolderStatsText').innerText = folderFiles.length + ' ' + (folderFiles.length === 1 ? 'file' : 'files') + ' • ' + (folderObj ? folderObj.sizeFormatted : '');
@@ -399,6 +457,8 @@
                 viewModeAllBtn.classList.add('active');
                 foldersViewSection.style.display = 'none';
                 folderActiveBanner.style.display = 'none';
+                const delActiveBtn = document.getElementById('deleteActiveFolderBtn');
+                if (delActiveBtn) delActiveBtn.style.display = 'none';
                 allFilesFilterBar.style.display = 'flex';
                 filesListSection.style.display = 'block';
                 filesListTitle.innerText = 'All Shared Media Files';
@@ -466,6 +526,11 @@
                 const isChecked = selectedFilesMap.has(fileUrl);
                 const checkboxHtml = '<input type="checkbox" class="file-select-checkbox" ' + (isChecked ? 'checked' : '') + ' onchange="onFileCheckboxChanged(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', this)" onclick="event.stopPropagation()" title="Select to batch download" />';
 
+                const canDeleteFile = isAdmin || (file.uploader && file.uploader.toLowerCase() === (currentUserName || '').toLowerCase());
+                const deleteFileBtnHtml = canDeleteFile
+                    ? '<button onclick="deleteFilePrompt(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" class="btn btn-icon delete-file-btn" title="Delete File">🗑️</button>'
+                    : '';
+
                 card.innerHTML = 
                     '<div class="file-info">' +
                         checkboxHtml +
@@ -488,6 +553,7 @@
                         '<button onclick="copyLink(\'' + escapeQuotes(fileUrl) + '\')" class="btn btn-icon" title="Copy Link">' +
                             '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>' +
                         '</button>' +
+                        deleteFileBtnHtml +
                     '</div>';
 
                 listEl.appendChild(card);
@@ -495,6 +561,31 @@
 
             filterFiles();
             updateMultiSelectBar();
+        }
+
+        async function deleteFilePrompt(fileUrl, fileName) {
+            if (!confirm(`Delete file "${fileName}" from ZoneHub?`)) return;
+            try {
+                const adminToken = (typeof getAdminToken === 'function') ? getAdminToken() : (localStorage.getItem('zonehub_admin_pin') || '');
+                const res = await fetch('/api/files/delete?path=' + encodeURIComponent(fileUrl), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': adminToken,
+                        'X-Uploader': encodeURIComponent(currentUserName || '')
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('🗑️ File deleted: ' + fileName);
+                    await loadFileList();
+                    await loadFoldersList();
+                } else {
+                    showToast(data.error || 'Failed to delete file');
+                }
+            } catch (e) {
+                showToast('Error deleting file: ' + e.message);
+            }
         }
 
         // Multi-Select & Batch Download System

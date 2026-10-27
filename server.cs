@@ -199,6 +199,80 @@ namespace ZoneHub
             }
         }
 
+        public static string GetAdminPin()
+        {
+            lock (ConfigLock)
+            {
+                try
+                {
+                    string configPath = GetConfigFilePath();
+                    if (File.Exists(configPath))
+                    {
+                        string json = File.ReadAllText(configPath, Encoding.UTF8);
+                        JavaScriptSerializer js = new JavaScriptSerializer();
+                        var dict = js.Deserialize<Dictionary<string, object>>(json);
+                        if (dict != null && dict.ContainsKey("adminPin") && dict["adminPin"] != null)
+                        {
+                            string pin = dict["adminPin"].ToString().Trim();
+                            if (!string.IsNullOrEmpty(pin)) return pin;
+                        }
+                    }
+                }
+                catch {}
+                return "1234";
+            }
+        }
+
+        public static void SetAdminPin(string newPin)
+        {
+            lock (ConfigLock)
+            {
+                try
+                {
+                    string configPath = GetConfigFilePath();
+                    JavaScriptSerializer js = new JavaScriptSerializer();
+                    Dictionary<string, object> dict = new Dictionary<string, object>();
+                    if (File.Exists(configPath))
+                    {
+                        try
+                        {
+                            string json = File.ReadAllText(configPath, Encoding.UTF8);
+                            dict = js.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+                        }
+                        catch {}
+                    }
+                    dict["adminPin"] = newPin.Trim();
+                    dict["updatedAt"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    File.WriteAllText(configPath, js.Serialize(dict), Encoding.UTF8);
+                }
+                catch {}
+            }
+        }
+
+        public static bool IsAdmin(RequestContext req)
+        {
+            if (req.IsLocalhost) return true;
+
+            string pin = "";
+            if (req.Headers.ContainsKey("x-admin-token")) pin = req.Headers["x-admin-token"].Trim();
+            else if (req.Headers.ContainsKey("x-admin-pin")) pin = req.Headers["x-admin-pin"].Trim();
+
+            if (string.IsNullOrEmpty(pin) && req.Url.IndexOf("pin=", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                int pIdx = req.Url.IndexOf("pin=", StringComparison.OrdinalIgnoreCase);
+                string pSub = req.Url.Substring(pIdx + 4);
+                int amp = pSub.IndexOf('&');
+                if (amp >= 0) pSub = pSub.Substring(0, amp);
+                pin = Uri.UnescapeDataString(pSub).Trim();
+            }
+
+            if (!string.IsNullOrEmpty(pin))
+            {
+                return string.Equals(pin, GetAdminPin(), StringComparison.Ordinal);
+            }
+            return false;
+        }
+
         public static void SetHubName(string newName)
         {
             lock (ConfigLock)
@@ -207,7 +281,16 @@ namespace ZoneHub
                 {
                     string configPath = GetConfigFilePath();
                     JavaScriptSerializer js = new JavaScriptSerializer();
-                    var dict = new Dictionary<string, object>();
+                    Dictionary<string, object> dict = new Dictionary<string, object>();
+                    if (File.Exists(configPath))
+                    {
+                        try
+                        {
+                            string json = File.ReadAllText(configPath, Encoding.UTF8);
+                            dict = js.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+                        }
+                        catch {}
+                    }
                     dict["hubName"] = newName.Trim();
                     dict["machineName"] = GetHostName();
                     dict["updatedAt"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -469,6 +552,26 @@ namespace ZoneHub
                     return;
                 }
 
+                // Admin Status & Login Endpoints
+                if (decodedPath.Equals("/api/admin/status", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool isAdm = IsAdmin(req);
+                    SendJsonResponse(stream, 200, "{\"success\":true,\"isAdmin\":" + (isAdm ? "true" : "false") + ",\"isHost\":" + (req.IsLocalhost ? "true" : "false") + "}");
+                    return;
+                }
+
+                if (req.Method == "POST" && decodedPath.Equals("/api/admin/login", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleAdminLogin(stream, req);
+                    return;
+                }
+
+                if (req.Method == "POST" && decodedPath.Equals("/api/admin/change-pin", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleAdminChangePin(stream, req);
+                    return;
+                }
+
                 // Handle GET / POST config (Dynamic Hub Name)
                 if (decodedPath.Equals("/api/config", StringComparison.OrdinalIgnoreCase))
                 {
@@ -514,6 +617,20 @@ namespace ZoneHub
                 if (req.Method == "POST" && decodedPath.Equals("/api/folders/create", StringComparison.OrdinalIgnoreCase))
                 {
                     HandleCreateFolder(stream, req);
+                    return;
+                }
+
+                // Handle POST delete folder API
+                if (req.Method == "POST" && decodedPath.Equals("/api/folders/delete", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleDeleteFolder(stream, req);
+                    return;
+                }
+
+                // Handle POST delete file API
+                if (req.Method == "POST" && decodedPath.Equals("/api/files/delete", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleDeleteFile(stream, req);
                     return;
                 }
 
@@ -801,6 +918,7 @@ namespace ZoneHub
             dict["defaultName"] = defaultName;
             dict["clientIp"] = req.ClientIp;
             dict["isHost"] = isHost;
+            dict["isAdmin"] = IsAdmin(req);
 
             SendJsonResponse(stream, 200, js.Serialize(dict));
         }
@@ -1538,6 +1656,199 @@ namespace ZoneHub
             }
         }
 
+        private static void HandleDeleteFolder(NetworkStream stream, RequestContext req)
+        {
+            if (!IsAdmin(req))
+            {
+                SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Admin permission required to delete folders.\"}");
+                return;
+            }
+
+            string folderName = "";
+            int qIndex = req.Url.IndexOf("?name=");
+            if (qIndex >= 0)
+            {
+                folderName = Uri.UnescapeDataString(req.Url.Substring(qIndex + 6));
+                int amp = folderName.IndexOf('&');
+                if (amp >= 0) folderName = folderName.Substring(0, amp);
+            }
+
+            if (string.IsNullOrEmpty(folderName))
+            {
+                string body = ReadBodyString(stream, req);
+                if (!string.IsNullOrEmpty(body))
+                {
+                    try
+                    {
+                        JavaScriptSerializer js = new JavaScriptSerializer();
+                        var dict = js.Deserialize<Dictionary<string, object>>(body);
+                        if (dict != null && dict.ContainsKey("name") && dict["name"] != null)
+                        {
+                            folderName = dict["name"].ToString();
+                        }
+                    }
+                    catch {}
+                }
+            }
+
+            folderName = folderName != null ? folderName.Trim() : "";
+            if (string.IsNullOrEmpty(folderName))
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Folder name is required\"}");
+                return;
+            }
+
+            string safeFolderName = Path.GetFileName(folderName);
+            string[] protectedFolders = new string[] { "Videos", "Pictures", "Chat_Media", "Documents", "bin", "obj", "css", "js", ".git" };
+            foreach (var p in protectedFolders)
+            {
+                if (safeFolderName.Equals(p, StringComparison.OrdinalIgnoreCase))
+                {
+                    SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"System folder '" + p + "' cannot be deleted.\"}");
+                    return;
+                }
+            }
+
+            string targetDir = Path.Combine(RootDirectory, safeFolderName);
+            if (!Directory.Exists(targetDir))
+            {
+                SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Folder '" + JsonEscape(safeFolderName) + "' not found.\"}");
+                return;
+            }
+
+            try
+            {
+                Directory.Delete(targetDir, true);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("[FOLDER DELETED] " + safeFolderName + " by Admin");
+                Console.ResetColor();
+
+                try
+                {
+                    var meta = LoadFileMetadata();
+                    var keysToRemove = new List<string>();
+                    foreach (var kvp in meta)
+                    {
+                        if (kvp.Key.StartsWith(safeFolderName + "/", StringComparison.OrdinalIgnoreCase) ||
+                            kvp.Key.StartsWith(safeFolderName + "\\", StringComparison.OrdinalIgnoreCase))
+                        {
+                            keysToRemove.Add(kvp.Key);
+                        }
+                    }
+                    if (keysToRemove.Count > 0)
+                    {
+                        foreach (var k in keysToRemove) meta.Remove(k);
+                        SaveFileMetadata(meta);
+                    }
+                }
+                catch {}
+
+                SendJsonResponse(stream, 200, "{\"success\":true,\"name\":\"" + JsonEscape(safeFolderName) + "\"}");
+            }
+            catch (Exception ex)
+            {
+                SendJsonResponse(stream, 500, "{\"success\":false,\"error\":\"" + JsonEscape(ex.Message) + "\"}");
+            }
+        }
+
+        private static void HandleDeleteFile(NetworkStream stream, RequestContext req)
+        {
+            string targetPath = "";
+            int qIndex = req.Url.IndexOf("?path=");
+            if (qIndex >= 0)
+            {
+                targetPath = Uri.UnescapeDataString(req.Url.Substring(qIndex + 6));
+                int amp = targetPath.IndexOf('&');
+                if (amp >= 0) targetPath = targetPath.Substring(0, amp);
+            }
+
+            string userName = "";
+            if (req.Headers.ContainsKey("x-uploader"))
+            {
+                userName = Uri.UnescapeDataString(req.Headers["x-uploader"]).Trim();
+            }
+
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                string body = ReadBodyString(stream, req);
+                if (!string.IsNullOrEmpty(body))
+                {
+                    try
+                    {
+                        JavaScriptSerializer js = new JavaScriptSerializer();
+                        var dict = js.Deserialize<Dictionary<string, object>>(body);
+                        if (dict != null)
+                        {
+                            if (dict.ContainsKey("path") && dict["path"] != null) targetPath = dict["path"].ToString();
+                            if (dict.ContainsKey("user") && dict["user"] != null && string.IsNullOrEmpty(userName)) userName = dict["user"].ToString();
+                        }
+                    }
+                    catch {}
+                }
+            }
+
+            targetPath = (targetPath ?? "").Trim().TrimStart('/', '\\');
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"File path is required\"}");
+                return;
+            }
+
+            if (targetPath.Contains(".."))
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Invalid file path\"}");
+                return;
+            }
+
+            string fullPath = Path.Combine(RootDirectory, targetPath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(fullPath))
+            {
+                SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"File not found\"}");
+                return;
+            }
+
+            bool isAdmin = IsAdmin(req);
+            if (!isAdmin)
+            {
+                var meta = LoadFileMetadata();
+                string uploader = "";
+                string normKey = targetPath.Replace('\\', '/');
+                if (meta.ContainsKey(normKey)) uploader = meta[normKey].uploader ?? "";
+                else if (meta.ContainsKey(Path.GetFileName(targetPath))) uploader = meta[Path.GetFileName(targetPath)].uploader ?? "";
+
+                if (string.IsNullOrEmpty(uploader) || !string.Equals(uploader, userName, StringComparison.OrdinalIgnoreCase))
+                {
+                    SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Only Admin or the original uploader can delete this file.\"}");
+                    return;
+                }
+            }
+
+            try
+            {
+                File.Delete(fullPath);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("[FILE DELETED] " + targetPath + (isAdmin ? " by Admin" : " by " + userName));
+                Console.ResetColor();
+
+                try
+                {
+                    var meta = LoadFileMetadata();
+                    string normKey = targetPath.Replace('\\', '/');
+                    string fileNameOnly = Path.GetFileName(targetPath);
+                    if (meta.ContainsKey(normKey)) meta.Remove(normKey);
+                    if (meta.ContainsKey(fileNameOnly)) meta.Remove(fileNameOnly);
+                    SaveFileMetadata(meta);
+                }
+                catch {}
+
+                SendJsonResponse(stream, 200, "{\"success\":true,\"path\":\"" + JsonEscape(targetPath) + "\"}");
+            }
+            catch (Exception ex)
+            {
+                SendJsonResponse(stream, 500, "{\"success\":false,\"error\":\"" + JsonEscape(ex.Message) + "\"}");
+            }
+        }
+
         private static void HandleDownloadZip(NetworkStream stream, RequestContext req)
         {
             List<string> filePaths = new List<string>();
@@ -1798,10 +2109,16 @@ namespace ZoneHub
                     color = "amber";
                 }
 
+                bool isSystem = d.Name.Equals("Videos", StringComparison.OrdinalIgnoreCase) ||
+                                d.Name.Equals("Pictures", StringComparison.OrdinalIgnoreCase) ||
+                                d.Name.Equals("Chat_Media", StringComparison.OrdinalIgnoreCase) ||
+                                d.Name.Equals("Documents", StringComparison.OrdinalIgnoreCase);
+
                 sb.Append("{");
                 sb.Append("\"id\":\"" + JsonEscape(d.Name) + "\",");
                 sb.Append("\"name\":\"" + JsonEscape(d.Name) + "\",");
                 sb.Append("\"displayName\":\"" + JsonEscape(displayName) + "\",");
+                sb.Append("\"isSystem\":" + (isSystem ? "true" : "false") + ",");
                 sb.Append("\"icon\":\"" + JsonEscape(icon) + "\",");
                 sb.Append("\"color\":\"" + JsonEscape(color) + "\",");
                 sb.Append("\"fileCount\":" + fileCount + ",");
@@ -1910,8 +2227,88 @@ namespace ZoneHub
             return text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n");
         }
 
+        private static void HandleAdminLogin(NetworkStream stream, RequestContext req)
+        {
+            string pin = "";
+            int qIdx = req.Url.IndexOf("?pin=");
+            if (qIdx >= 0)
+            {
+                pin = Uri.UnescapeDataString(req.Url.Substring(qIdx + 5));
+                int amp = pin.IndexOf('&');
+                if (amp >= 0) pin = pin.Substring(0, amp);
+            }
+
+            if (string.IsNullOrEmpty(pin))
+            {
+                string body = ReadBodyString(stream, req);
+                try
+                {
+                    JavaScriptSerializer js = new JavaScriptSerializer();
+                    var d = js.Deserialize<Dictionary<string, object>>(body);
+                    if (d != null && d.ContainsKey("pin") && d["pin"] != null) pin = d["pin"].ToString().Trim();
+                }
+                catch {}
+                if (string.IsNullOrEmpty(pin) && !string.IsNullOrEmpty(body))
+                {
+                    pin = body.Trim().Trim('"', '\'');
+                }
+            }
+
+            if (!string.IsNullOrEmpty(pin) && string.Equals(pin, GetAdminPin(), StringComparison.Ordinal))
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("[ADMIN LOGIN] Admin authenticated from " + req.ClientIp);
+                Console.ResetColor();
+                SendJsonResponse(stream, 200, "{\"success\":true,\"isAdmin\":true,\"token\":\"" + JsonEscape(pin) + "\"}");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("[ADMIN FAILED] Invalid PIN attempt from " + req.ClientIp);
+                Console.ResetColor();
+                SendJsonResponse(stream, 401, "{\"success\":false,\"error\":\"Invalid Admin PIN. Please check and try again.\"}");
+            }
+        }
+
+        private static void HandleAdminChangePin(NetworkStream stream, RequestContext req)
+        {
+            if (!IsAdmin(req))
+            {
+                SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Admin permission required to change PIN.\"}");
+                return;
+            }
+
+            string body = ReadBodyString(stream, req);
+            string newPin = "";
+            try
+            {
+                JavaScriptSerializer js = new JavaScriptSerializer();
+                var d = js.Deserialize<Dictionary<string, object>>(body);
+                if (d != null && d.ContainsKey("newPin") && d["newPin"] != null) newPin = d["newPin"].ToString().Trim();
+            }
+            catch {}
+
+            if (string.IsNullOrEmpty(newPin) || newPin.Length < 4)
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"PIN must be at least 4 digits/characters.\"}");
+                return;
+            }
+
+            SetAdminPin(newPin);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("[ADMIN PIN UPDATED] Admin PIN was changed.");
+            Console.ResetColor();
+            SendJsonResponse(stream, 200, "{\"success\":true,\"token\":\"" + JsonEscape(newPin) + "\"}");
+        }
+
         private static void HandleSaveConfig(NetworkStream stream, RequestContext req)
         {
+            if (!IsAdmin(req))
+            {
+                SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Admin permission required to rename Hub. Please enter Admin PIN.\"}");
+                return;
+            }
+
             string body = ReadBodyString(stream, req);
             JavaScriptSerializer js = new JavaScriptSerializer();
             Dictionary<string, string> input = null;

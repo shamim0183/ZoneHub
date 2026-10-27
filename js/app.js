@@ -9,9 +9,55 @@ if (!myUserId) {
     localStorage.setItem('zonehub_user_id', myUserId);
 }
 
-// User Name State
+// User Name & Role State
 let isCurrentHost = false;
+let isAdmin = false;
 let currentUserName = localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '';
+
+function getAdminToken() {
+    return localStorage.getItem('zonehub_admin_pin') || '';
+}
+
+function updateAdminUI() {
+    const adminLoginBtn = document.getElementById('adminLoginBtn');
+    const adminBtnIcon = document.getElementById('adminBtnIcon');
+    const adminBtnLabel = document.getElementById('adminBtnLabel');
+    const hubRenameBtn = document.getElementById('hubRenameBtn');
+
+    if (adminLoginBtn) {
+        if (isAdmin) {
+            adminLoginBtn.classList.add('is-admin-active');
+            if (adminBtnIcon) adminBtnIcon.innerText = '👑';
+            if (adminBtnLabel) adminBtnLabel.innerText = isCurrentHost ? 'Admin (Host)' : 'Admin';
+            adminLoginBtn.title = 'Admin Mode Active - Click to manage or change PIN';
+        } else {
+            adminLoginBtn.classList.remove('is-admin-active');
+            if (adminBtnIcon) adminBtnIcon.innerText = '🔒';
+            if (adminBtnLabel) adminBtnLabel.innerText = 'Admin';
+            adminLoginBtn.title = 'Click to Enter Admin PIN';
+        }
+    }
+
+    if (hubRenameBtn) {
+        hubRenameBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+
+    // Trigger re-render of folders grid if loaded
+    if (typeof allFolders !== 'undefined' && Array.isArray(allFolders) && typeof renderFoldersGrid === 'function') {
+        renderFoldersGrid(allFolders);
+    }
+    if (typeof updateViewDisplay === 'function') {
+        updateViewDisplay();
+    }
+}
+
+function handleHubTitleClick() {
+    if (isAdmin) {
+        openHubRenameModal();
+    } else {
+        openAdminModal();
+    }
+}
 
 function initUserInfo() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -23,10 +69,17 @@ function initUserInfo() {
         return;
     }
 
-    fetch('/api/my-info')
+    const adminToken = getAdminToken();
+    const reqHeaders = {};
+    if (adminToken) reqHeaders['X-Admin-Token'] = adminToken;
+
+    fetch('/api/my-info', { headers: reqHeaders })
         .then(r => r.json())
         .then(info => {
             isCurrentHost = !!info.isHost;
+            isAdmin = !!info.isAdmin || isCurrentHost;
+            updateAdminUI();
+
             const roleLabel = document.getElementById('userBadgeRoleLabel');
             if (roleLabel) {
                 roleLabel.innerText = isCurrentHost ? 'Host:' : 'You:';
@@ -55,6 +108,18 @@ function initUserInfo() {
             if (!currentUserName) currentUserName = 'Employee';
             updateUserDisplay();
         });
+
+    if (!isAdmin && adminToken) {
+        fetch('/api/admin/status', { headers: { 'X-Admin-Token': adminToken } })
+            .then(r => r.json())
+            .then(st => {
+                if (st && st.isAdmin) {
+                    isAdmin = true;
+                    updateAdminUI();
+                }
+            })
+            .catch(() => {});
+    }
 }
 
 function updateUserDisplay() {
@@ -115,6 +180,11 @@ async function fetchHubConfig() {
 }
 
 function openHubRenameModal() {
+    if (!isAdmin) {
+        openAdminModal();
+        showToast('Admin access required to rename ZoneHub.');
+        return;
+    }
     fetchHubConfig();
     const currentTitleEl = document.getElementById('hubTitleText');
     const input = document.getElementById('customHubNameInput');
@@ -148,9 +218,13 @@ async function saveCustomHubName() {
         return;
     }
     try {
+        const adminToken = getAdminToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (adminToken) headers['X-Admin-Token'] = adminToken;
+
         const res = await fetch('/api/config', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ hubName: newName })
         });
         const data = await res.json();
@@ -167,6 +241,127 @@ async function saveCustomHubName() {
     } catch (err) {
         showToast('Error saving hub name: ' + err.message);
     }
+}
+
+// Admin Security Modal Handlers
+function openAdminModal() {
+    const modal = document.getElementById('adminAuthModal');
+    const lockedView = document.getElementById('adminLockedView');
+    const unlockedView = document.getElementById('adminUnlockedView');
+    const pinInput = document.getElementById('adminPinInput');
+    const errDiv = document.getElementById('adminLoginError');
+    const deviceLabel = document.getElementById('adminDeviceTypeLabel');
+    const logoutBtn = document.getElementById('adminLogoutBtn');
+
+    if (errDiv) { errDiv.style.display = 'none'; errDiv.innerText = ''; }
+
+    if (isAdmin) {
+        if (lockedView) lockedView.style.display = 'none';
+        if (unlockedView) unlockedView.style.display = 'block';
+        if (deviceLabel) {
+            deviceLabel.innerText = isCurrentHost 
+                ? '💻 You are accessing from the Host PC (Full Admin Access).' 
+                : '📱 Remote device authenticated with Admin PIN.';
+        }
+        if (logoutBtn) {
+            logoutBtn.style.display = isCurrentHost ? 'none' : 'inline-block';
+        }
+    } else {
+        if (lockedView) lockedView.style.display = 'block';
+        if (unlockedView) unlockedView.style.display = 'none';
+        if (pinInput) {
+            pinInput.value = '';
+            setTimeout(() => pinInput.focus(), 150);
+        }
+    }
+
+    if (modal) modal.classList.add('active');
+}
+
+function closeAdminModal(e) {
+    if (!e || e.target.id === 'adminAuthModal' || (e.target.classList && e.target.classList.contains('modal-close-btn'))) {
+        const modal = document.getElementById('adminAuthModal');
+        if (modal) modal.classList.remove('active');
+    }
+}
+
+async function submitAdminLogin() {
+    const pinInput = document.getElementById('adminPinInput');
+    const errDiv = document.getElementById('adminLoginError');
+    const pin = pinInput ? pinInput.value.trim() : '';
+    if (!pin) {
+        if (errDiv) { errDiv.innerText = 'Please enter PIN'; errDiv.style.display = 'block'; }
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/admin/login?pin=' + encodeURIComponent(pin), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success && data.isAdmin) {
+            isAdmin = true;
+            localStorage.setItem('zonehub_admin_pin', data.token || pin);
+            updateAdminUI();
+            closeAdminModal();
+            showToast('👑 Admin Mode Unlocked!');
+            if (typeof loadFoldersList === 'function') loadFoldersList();
+            if (typeof loadFileList === 'function') loadFileList();
+        } else {
+            if (errDiv) {
+                errDiv.innerText = data.error || 'Invalid Admin PIN';
+                errDiv.style.display = 'block';
+            }
+        }
+    } catch (e) {
+        if (errDiv) { errDiv.innerText = 'Server error during login'; errDiv.style.display = 'block'; }
+    }
+}
+
+async function changeAdminPin() {
+    const input = document.getElementById('newAdminPinInput');
+    const msgDiv = document.getElementById('adminPinChangeMsg');
+    const newPin = input ? input.value.trim() : '';
+    if (!newPin || newPin.length < 4) {
+        if (msgDiv) { msgDiv.style.color = '#f87171'; msgDiv.innerText = 'PIN must be at least 4 digits'; msgDiv.style.display = 'block'; }
+        return;
+    }
+
+    try {
+        const adminToken = getAdminToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (adminToken) headers['X-Admin-Token'] = adminToken;
+
+        const res = await fetch('/api/admin/change-pin', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ newPin: newPin })
+        });
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('zonehub_admin_pin', newPin);
+            if (input) input.value = '';
+            if (msgDiv) { msgDiv.style.color = '#34d399'; msgDiv.innerText = '✅ PIN updated successfully!'; msgDiv.style.display = 'block'; }
+            showToast('Admin PIN updated!');
+        } else {
+            if (msgDiv) { msgDiv.style.color = '#f87171'; msgDiv.innerText = data.error || 'Failed to update PIN'; msgDiv.style.display = 'block'; }
+        }
+    } catch (e) {
+        if (msgDiv) { msgDiv.style.color = '#f87171'; msgDiv.innerText = 'Error updating PIN'; msgDiv.style.display = 'block'; }
+    }
+}
+
+function logoutAdmin() {
+    if (isCurrentHost) {
+        showToast('Host PC cannot be locked out of Admin.');
+        return;
+    }
+    localStorage.removeItem('zonehub_admin_pin');
+    isAdmin = false;
+    updateAdminUI();
+    closeAdminModal();
+    showToast('Admin mode locked.');
 }
 
 // Common UI Utility Helpers

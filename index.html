@@ -45,8 +45,8 @@
                 </div>
                 <div>
                     <div class="brand-title-wrap">
-                        <h1 class="brand-title" id="hubTitleText" onclick="openHubRenameModal()" title="Click to Rename Hub for this PC">{{HUB_NAME}}</h1>
-                        <button type="button" onclick="openHubRenameModal()" class="hub-rename-pill-btn" title="Rename Project / Media Hub for this PC">
+                        <h1 class="brand-title" id="hubTitleText" onclick="handleHubTitleClick()" title="ZoneHub Name">{{HUB_NAME}}</h1>
+                        <button type="button" id="hubRenameBtn" onclick="openHubRenameModal()" class="hub-rename-pill-btn" style="display:none;" title="Rename Media Hub (Admin Only)">
                             <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             <span>Rename Hub</span>
                         </button>
@@ -56,6 +56,12 @@
             </div>
             <div class="header-actions">
                 <button id="pwaInstallBtn" onclick="triggerPwaInstall()" class="pwa-install-btn" style="display:none;" title="Install Hub App to your PC or Phone">📲 Install App</button>
+                <div class="admin-status-wrap">
+                    <button id="adminLoginBtn" onclick="openAdminModal()" class="btn btn-secondary admin-toggle-btn" title="Admin Security &amp; Access">
+                        <span id="adminBtnIcon">🔒</span>
+                        <span id="adminBtnLabel">Admin</span>
+                    </button>
+                </div>
                 <div class="user-badge">
                     <div class="user-avatar-circle" id="currentUserAvatar">?</div>
                     <div>
@@ -249,6 +255,9 @@
                         <span id="activeFolderStatsText" class="folder-count-pill">0 files</span>
                         <button id="downloadActiveFolderBtn" onclick="downloadActiveFolderAll()" class="btn btn-primary" style="font-size:12px;padding:5px 12px;gap:6px;" title="Download all files in this folder as 1 ZIP file">
                             📦 Download Folder ZIP
+                        </button>
+                        <button id="deleteActiveFolderBtn" onclick="deleteActiveFolderPrompt()" class="btn btn-danger" style="display:none;font-size:12px;padding:5px 12px;gap:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;" title="Delete this custom folder and all files inside">
+                            🗑️ Delete Folder
                         </button>
                         <button onclick="backToAllFolders()" class="btn btn-secondary" style="font-size:12px;padding:5px 12px;">
                             &larr; Back to Folders
@@ -472,6 +481,68 @@
                 <button type="button" onclick="saveCustomHubName()" class="btn btn-primary" style="padding:0 16px;white-space:nowrap;">
                     Save
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Authentication & PIN Management Modal -->
+    <div id="adminAuthModal" class="modal-overlay" onclick="closeAdminModal(event)">
+        <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:440px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
+                    <span id="adminModalIcon">👑</span> <span id="adminModalTitle">Admin Security Control</span>
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closeAdminModal()">✕</button>
+            </div>
+            
+            <div id="adminLockedView">
+                <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px;">
+                    Enter Admin PIN to unlock management permissions (Rename Hub, Delete Custom Folders, Manage Files).
+                </p>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">
+                    Admin PIN (Default: 1234):
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                    <input type="password" id="adminPinInput" class="chat-input" style="height:42px;flex:1;letter-spacing:2px;font-size:16px;" placeholder="••••" maxlength="16" onkeyup="if(event.key==='Enter')submitAdminLogin()" />
+                    <button type="button" onclick="submitAdminLogin()" class="btn btn-primary" style="padding:0 16px;white-space:nowrap;font-weight:700;">
+                        Unlock
+                    </button>
+                </div>
+                <div id="adminLoginError" style="display:none;color:#f87171;font-size:12px;margin-bottom:8px;"></div>
+                <p style="font-size:11px;color:var(--text-muted);line-height:1.4;">
+                    💡 <em>Host PC is automatically Admin. Remote phones and laptops can unlock Admin mode using this PIN.</em>
+                </p>
+            </div>
+
+            <div id="adminUnlockedView" style="display:none;">
+                <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px;margin-bottom:16px;">
+                    <div style="color:#34d399;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;">
+                        <span>✅</span> Admin Mode Active
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:3px;" id="adminDeviceTypeLabel">
+                        You have full administrative privileges to rename Hub and delete folders.
+                    </div>
+                </div>
+
+                <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">
+                    🔑 Change Admin PIN:
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                    <input type="password" id="newAdminPinInput" class="chat-input" style="height:40px;flex:1;font-size:14px;" placeholder="New PIN (min 4 digits)..." maxlength="16" />
+                    <button type="button" onclick="changeAdminPin()" class="btn btn-secondary" style="padding:0 14px;white-space:nowrap;font-weight:700;">
+                        Update PIN
+                    </button>
+                </div>
+                <div id="adminPinChangeMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;">
+                    <button type="button" onclick="openHubRenameModal(); closeAdminModal();" class="btn btn-secondary" style="font-size:12px;gap:5px;">
+                        🏷️ Rename Hub
+                    </button>
+                    <button type="button" id="adminLogoutBtn" onclick="logoutAdmin()" class="btn btn-secondary" style="font-size:12px;color:#f87171;border-color:rgba(239,68,68,0.3);">
+                        🔒 Lock Admin
+                    </button>
+                </div>
             </div>
         </div>
     </div>
