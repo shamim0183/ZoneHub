@@ -2220,45 +2220,81 @@
             }
             .header-actions {
                 width: 100%;
-                display: flex;
-                flex-wrap: wrap;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
                 align-items: center;
-                gap: 8px;
+                box-sizing: border-box !important;
             }
             .pwa-install-btn {
-                width: 100%;
+                grid-column: 1 / -1 !important;
+                width: 100% !important;
                 justify-content: center;
                 padding: 8px 14px;
                 font-size: 12px;
-                order: -1;
+                box-sizing: border-box !important;
             }
             .user-badge {
-                flex: 1 1 0;
-                min-width: 0;
-                padding: 6px 10px;
+                grid-column: 1 / -1 !important;
+                width: 100% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                padding: 8px 12px !important;
                 font-size: 12px;
-                gap: 8px;
+                gap: 10px !important;
+                box-sizing: border-box !important;
+                background: rgba(255, 255, 255, 0.05) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                border-radius: 12px !important;
             }
             .user-avatar-circle {
-                width: 28px;
-                height: 28px;
-                font-size: 11px;
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 12px !important;
                 flex-shrink: 0;
             }
+            .user-badge > div:nth-child(2) {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                margin: 0 4px !important;
+            }
             .user-name-text {
-                max-width: 105px;
+                max-width: 100% !important;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 display: block;
-                font-size: 12px;
+                font-size: 13px !important;
                 font-weight: 700;
             }
+            .user-badge .btn-icon {
+                padding: 5px 10px !important;
+                font-size: 12px !important;
+                background: rgba(255, 255, 255, 0.08) !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                border-radius: 8px !important;
+                flex-shrink: 0 !important;
+            }
+            .admin-status-wrap {
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .admin-status-wrap .admin-toggle-btn {
+                width: 100% !important;
+                justify-content: center !important;
+                padding: 8px 10px !important;
+                font-size: 12px !important;
+                box-sizing: border-box !important;
+                border-radius: 10px !important;
+            }
             .header-actions .btn-primary {
-                flex-shrink: 0;
-                padding: 7px 12px;
-                font-size: 12px;
-                white-space: nowrap;
+                width: 100% !important;
+                justify-content: center !important;
+                padding: 8px 10px !important;
+                font-size: 12px !important;
+                box-sizing: border-box !important;
+                border-radius: 10px !important;
             }
 
             /* Upload Dropzone on Mobile */
