@@ -43,3 +43,8 @@ Thumbs.db
 desktop.ini
 [Dd]esktop.ini
 $RECYCLE.BIN/
+
+# Chat & P2P transfers cache
+.chat_transfers/
+scratch/
+test_zip.ps1

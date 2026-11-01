@@ -29,12 +29,37 @@ namespace ZoneHub
         public bool deleted { get; set; }
         public string deletedBy { get; set; }
         public Dictionary<string, List<string>> reactions { get; set; }
+        public bool isPrivate { get; set; }
+        public string recipientId { get; set; }
+        public string recipientUser { get; set; }
     }
 
     public class FileMetaItem
     {
         public string uploader { get; set; }
         public string uploadedAt { get; set; }
+    }
+
+    public class PeerInfo
+    {
+        public string userId { get; set; }
+        public string userName { get; set; }
+        public string clientIp { get; set; }
+        public long lastSeenUnix { get; set; }
+        public bool isHost { get; set; }
+        public bool isOnline { get; set; }
+        public int lastSeenSecAgo { get; set; }
+    }
+
+    public class P2PSignalItem
+    {
+        public string id { get; set; }
+        public string fromId { get; set; }
+        public string fromName { get; set; }
+        public string toId { get; set; }
+        public string type { get; set; } // "offer", "answer", "candidate", "file-offer", "file-response"
+        public string data { get; set; }
+        public long timestamp { get; set; }
     }
 
     class RequestContext
@@ -61,6 +86,12 @@ namespace ZoneHub
         private static Dictionary<string, string> DeviceNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, string> DnsCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static object DnsCacheLock = new object();
+
+        // WebRTC P2P & Real-time Peer Discovery
+        private static Dictionary<string, PeerInfo> ActivePeers = new Dictionary<string, PeerInfo>(StringComparer.OrdinalIgnoreCase);
+        private static object PeersLock = new object();
+        private static List<P2PSignalItem> P2PSignals = new List<P2PSignalItem>();
+        private static object SignalsLock = new object();
 
         public static string GetCurrentLocalIp()
         {
@@ -398,28 +429,36 @@ namespace ZoneHub
             }
 
             TcpListener listener = null;
-            try
+            int bindAttempts = 0;
+            const int maxBindAttempts = 10;
+            while (bindAttempts < maxBindAttempts)
             {
-                listener = new TcpListener(IPAddress.Any, Port);
-                listener.Start();
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("[ERROR] Could not start server on port " + Port + ": " + ex.Message);
-                Console.ResetColor();
-                if (ex.Message.Contains("Only one usage of each socket address"))
+                try
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("[INFO] ZoneHub server is ALREADY RUNNING on port " + Port + "!");
-                    Console.ResetColor();
+                    bindAttempts++;
+                    listener = new TcpListener(IPAddress.Any, Port);
+                    listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    listener.Start();
+                    break;
                 }
-                if (Environment.UserInteractive && !Console.IsInputRedirected)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("Press any key to exit...");
-                    try { Console.ReadKey(); } catch {}
+                    if (bindAttempts >= maxBindAttempts)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("[ERROR] Could not start server on port " + Port + " after " + maxBindAttempts + " attempts: " + ex.Message);
+                        Console.ResetColor();
+                        if (ex.Message.Contains("Only one usage of each socket address"))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("[INFO] ZoneHub server is ALREADY RUNNING on port " + Port + "!");
+                            Console.ResetColor();
+                        }
+                        return;
+                    }
+                    Console.WriteLine("[INFO] Port " + Port + " in use or releasing, retrying in 1s (attempt " + bindAttempts + "/" + maxBindAttempts + ")...");
+                    Thread.Sleep(1000);
                 }
-                return;
             }
 
             StartDiscoveryResponder();
@@ -463,7 +502,8 @@ namespace ZoneHub
                 }
                 catch (Exception)
                 {
-                    break;
+                    Thread.Sleep(50);
+                    continue;
                 }
             }
         }
@@ -648,12 +688,37 @@ namespace ZoneHub
                     return;
                 }
 
+                // WebRTC P2P Signaling & Peers Endpoints
+                if (decodedPath.Equals("/api/p2p/heartbeat", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleP2PHeartbeat(stream, req);
+                    return;
+                }
+                if (req.Method == "GET" && decodedPath.Equals("/api/p2p/peers", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleP2PGetPeers(stream, req);
+                    return;
+                }
+                if (decodedPath.Equals("/api/p2p/signal", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (req.Method == "POST")
+                    {
+                        HandleP2PPostSignal(stream, req);
+                        return;
+                    }
+                    if (req.Method == "GET")
+                    {
+                        HandleP2PGetSignals(stream, req);
+                        return;
+                    }
+                }
+
                 // Chat API Endpoints
                 if (decodedPath.Equals("/api/messages", StringComparison.OrdinalIgnoreCase))
                 {
                     if (req.Method == "GET")
                     {
-                        ServeMessagesJson(stream);
+                        ServeMessagesJson(stream, req);
                         return;
                     }
                     if (req.Method == "POST")
@@ -913,6 +978,22 @@ namespace ZoneHub
                 defaultName = "Employee";
             }
 
+            if (!string.IsNullOrEmpty(defaultName) && !string.IsNullOrEmpty(req.ClientIp))
+            {
+                lock (PeersLock)
+                {
+                    string pId = "ip_" + req.ClientIp.Replace(".", "_").Replace(":", "_");
+                    ActivePeers[pId] = new PeerInfo
+                    {
+                        userId = pId,
+                        userName = defaultName,
+                        clientIp = req.ClientIp,
+                        lastSeenUnix = DateTime.UtcNow.Ticks,
+                        isHost = isHost
+                    };
+                }
+            }
+
             JavaScriptSerializer js = new JavaScriptSerializer();
             var dict = new Dictionary<string, object>();
             dict["defaultName"] = defaultName;
@@ -975,6 +1056,21 @@ namespace ZoneHub
             return Path.Combine(RootDirectory, "messages.json");
         }
 
+        private static string GetChatStorageDir()
+        {
+            string dir = Path.Combine(RootDirectory, ".chat_transfers");
+            if (!Directory.Exists(dir))
+            {
+                try
+                {
+                    DirectoryInfo di = Directory.CreateDirectory(dir);
+                    di.Attributes = FileAttributes.Directory | FileAttributes.Hidden;
+                }
+                catch {}
+            }
+            return dir;
+        }
+
         private static List<ChatMessage> LoadMessages()
         {
             lock (MessagesLock)
@@ -1005,11 +1101,71 @@ namespace ZoneHub
             }
         }
 
-        private static void ServeMessagesJson(NetworkStream stream)
+        private static void ServeMessagesJson(NetworkStream stream, RequestContext req)
         {
-            var list = LoadMessages();
+            string reqUserId = "";
+            string reqUser = "";
+            int q = req.Url.IndexOf('?');
+            if (q >= 0)
+            {
+                string query = req.Url.Substring(q + 1);
+                foreach (var p in query.Split('&'))
+                {
+                    if (p.StartsWith("userId=", StringComparison.OrdinalIgnoreCase))
+                        reqUserId = Uri.UnescapeDataString(p.Substring(7)).Trim();
+                    else if (p.StartsWith("user=", StringComparison.OrdinalIgnoreCase))
+                        reqUser = Uri.UnescapeDataString(p.Substring(5)).Trim();
+                }
+            }
+            if (string.IsNullOrEmpty(reqUserId) && req.Headers.ContainsKey("x-user-id"))
+                reqUserId = Uri.UnescapeDataString(req.Headers["x-user-id"]).Trim();
+            if (string.IsNullOrEmpty(reqUser) && req.Headers.ContainsKey("x-user"))
+                reqUser = Uri.UnescapeDataString(req.Headers["x-user"]).Trim();
+
+            if (!string.IsNullOrEmpty(reqUserId) && !string.IsNullOrEmpty(reqUser))
+            {
+                lock (PeersLock)
+                {
+                    ActivePeers[reqUserId] = new PeerInfo
+                    {
+                        userId = reqUserId,
+                        userName = reqUser,
+                        clientIp = req.ClientIp,
+                        lastSeenUnix = DateTime.UtcNow.Ticks,
+                        isHost = req.IsLocalhost
+                    };
+                }
+            }
+
+            var all = LoadMessages();
+            List<ChatMessage> visible = new List<ChatMessage>();
+            foreach (var m in all)
+            {
+                if (!m.isPrivate && (string.IsNullOrEmpty(m.recipientId) || m.recipientId.Equals("all", StringComparison.OrdinalIgnoreCase)))
+                {
+                    visible.Add(m);
+                }
+                else if (m.isPrivate)
+                {
+                    // Match by userName first (persistent across sessions), userId as secondary
+                    bool isSender =
+                        (!string.IsNullOrEmpty(reqUser) && string.Equals(m.user, reqUser, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrEmpty(reqUserId) && string.Equals(m.userId, reqUserId, StringComparison.OrdinalIgnoreCase));
+
+                    bool isRecipient =
+                        (!string.IsNullOrEmpty(reqUser) && string.Equals(m.recipientUser, reqUser, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrEmpty(reqUser) && string.Equals(m.recipientId, reqUser, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrEmpty(reqUserId) && string.Equals(m.recipientId, reqUserId, StringComparison.OrdinalIgnoreCase));
+
+                    if (isSender || isRecipient)
+                    {
+                        visible.Add(m);
+                    }
+                }
+            }
+
             JavaScriptSerializer js = new JavaScriptSerializer();
-            string json = js.Serialize(list);
+            string json = js.Serialize(visible);
             SendJsonResponse(stream, 200, json);
         }
 
@@ -1039,6 +1195,9 @@ namespace ZoneHub
             newMsg.audioUrl = input.audioUrl;
             newMsg.duration = input.duration;
             newMsg.imageUrl = input.imageUrl;
+            newMsg.isPrivate = input.isPrivate;
+            newMsg.recipientId = input.recipientId != null ? input.recipientId.Trim() : "";
+            newMsg.recipientUser = input.recipientUser != null ? input.recipientUser.Trim() : "";
 
             if (input.mediaUrls != null && input.mediaUrls.Count > 0)
             {
@@ -1301,9 +1460,25 @@ namespace ZoneHub
         private static bool IsValidSharedFile(FileInfo f)
         {
             if (f.Attributes.HasFlag(FileAttributes.Hidden)) return false;
-            string ext = f.Extension.ToLowerInvariant();
-            if (ext == ".exe" || ext == ".cs" || ext == ".bat" || ext == ".cmd" || ext == ".ps1" || ext == ".vbs" || ext == ".pdb" || ext == ".log") return false;
             string name = f.Name;
+            if (name.StartsWith(".") || name.StartsWith("~")) return false;
+            if (name.StartsWith("chat_", StringComparison.OrdinalIgnoreCase) || 
+                name.StartsWith("voice_", StringComparison.OrdinalIgnoreCase) || 
+                name.StartsWith("uploaded_", StringComparison.OrdinalIgnoreCase)) return false;
+
+            if (f.FullName.IndexOf(".chat_transfers", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                f.FullName.IndexOf("Chat_Media", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                f.FullName.IndexOf("Chat_Folder_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                f.FullName.IndexOf(Path.DirectorySeparatorChar + "scratch" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                f.FullName.IndexOf(Path.DirectorySeparatorChar + "uploads" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                f.FullName.IndexOf(Path.DirectorySeparatorChar + "css" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                f.FullName.IndexOf(Path.DirectorySeparatorChar + "js" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+
+            string ext = f.Extension.ToLowerInvariant();
+            if (ext == ".exe" || ext == ".cs" || ext == ".bat" || ext == ".cmd" || ext == ".ps1" || ext == ".vbs" || ext == ".pdb" || ext == ".log" || ext == ".ini") return false;
             if (name.Equals("index.html", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("manifest.json", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("sw.js", StringComparison.OrdinalIgnoreCase) ||
@@ -1315,12 +1490,9 @@ namespace ZoneHub
                 name.Equals("favicon.svg", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("favicon.png", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("favicon.ico", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("bubble_pos.ini", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("bubble_server.txt", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals("server.pdb", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-            if (f.FullName.IndexOf(Path.DirectorySeparatorChar + "css" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                f.FullName.IndexOf(Path.DirectorySeparatorChar + "js" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return false;
             }
@@ -1408,11 +1580,19 @@ namespace ZoneHub
             string targetSubFolder = "";
             if (!string.IsNullOrEmpty(requestedFolder) && !requestedFolder.Equals("auto", StringComparison.OrdinalIgnoreCase))
             {
-                targetSubFolder = Path.GetFileName(requestedFolder);
-                foreach (char c in Path.GetInvalidFileNameChars())
+                string[] segs = requestedFolder.Replace('\\', '/').Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                List<string> cleanSegs = new List<string>();
+                foreach (var seg in segs)
                 {
-                    targetSubFolder = targetSubFolder.Replace(c, '_');
+                    if (seg == ".." || seg == ".") continue;
+                    string s = seg.Trim();
+                    foreach (char c in Path.GetInvalidFileNameChars())
+                    {
+                        s = s.Replace(c, '_');
+                    }
+                    if (!string.IsNullOrEmpty(s)) cleanSegs.Add(s);
                 }
+                targetSubFolder = string.Join(Path.DirectorySeparatorChar.ToString(), cleanSegs.ToArray());
             }
             else
             {
@@ -1438,21 +1618,32 @@ namespace ZoneHub
                 }
             }
 
-            string targetDir = string.IsNullOrEmpty(targetSubFolder) ? RootDirectory : Path.Combine(RootDirectory, targetSubFolder);
+            bool isChatUpload = (!string.IsNullOrEmpty(targetSubFolder) && (targetSubFolder.StartsWith("Chat_", StringComparison.OrdinalIgnoreCase) || targetSubFolder.StartsWith(".chat", StringComparison.OrdinalIgnoreCase))) ||
+                                safeName.StartsWith("chat_", StringComparison.OrdinalIgnoreCase) ||
+                                safeName.StartsWith("voice_", StringComparison.OrdinalIgnoreCase);
+
+            string targetDir;
+            if (isChatUpload)
+            {
+                string chatBase = GetChatStorageDir();
+                targetDir = !string.IsNullOrEmpty(targetSubFolder) ? Path.Combine(chatBase, targetSubFolder) : Path.Combine(chatBase, "Chat_Media");
+            }
+            else
+            {
+                targetDir = string.IsNullOrEmpty(targetSubFolder) ? RootDirectory : Path.Combine(RootDirectory, targetSubFolder);
+            }
+
             if (!Directory.Exists(targetDir))
             {
                 try { Directory.CreateDirectory(targetDir); } catch {}
             }
 
             string targetPath = Path.Combine(targetDir, safeName);
-            int duplicateCount = 1;
-            string nameWithoutExt = Path.GetFileNameWithoutExtension(safeName);
-            string extension = Path.GetExtension(safeName);
-            while (File.Exists(targetPath))
+
+            // Eliminate duplication: Overwrite existing file instead of generating redundant _1, _2 files
+            if (File.Exists(targetPath))
             {
-                safeName = nameWithoutExt + "_" + duplicateCount + extension;
-                targetPath = Path.Combine(targetDir, safeName);
-                duplicateCount++;
+                try { File.SetAttributes(targetPath, FileAttributes.Normal); } catch {}
             }
 
             long contentLength = 0;
@@ -1577,16 +1768,19 @@ namespace ZoneHub
 
             string relPath = string.IsNullOrEmpty(targetSubFolder) ? safeName : (targetSubFolder + "/" + safeName);
 
-            lock (MetadataLock)
+            if (!isChatUpload)
             {
-                var metaDict = LoadFileMetadata();
-                var metaItem = new FileMetaItem {
-                    uploader = uploader,
-                    uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt")
-                };
-                metaDict[safeName] = metaItem;
-                metaDict[relPath] = metaItem;
-                SaveFileMetadata(metaDict);
+                lock (MetadataLock)
+                {
+                    var metaDict = LoadFileMetadata();
+                    var metaItem = new FileMetaItem {
+                        uploader = uploader,
+                        uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt")
+                    };
+                    metaDict[safeName] = metaItem;
+                    metaDict[relPath] = metaItem;
+                    SaveFileMetadata(metaDict);
+                }
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
@@ -1853,11 +2047,13 @@ namespace ZoneHub
         {
             List<string> filePaths = new List<string>();
             string zipName = "ZoneHub_Files.zip";
+            string baseRelativeDir = "";
 
             if (req.Method == "GET")
             {
                 string folder = "";
                 int qIdx = req.Url.IndexOf("?folder=");
+                if (qIdx < 0) qIdx = req.Url.IndexOf("&folder=");
                 if (qIdx >= 0)
                 {
                     folder = Uri.UnescapeDataString(req.Url.Substring(qIdx + 8));
@@ -1865,11 +2061,30 @@ namespace ZoneHub
                     if (amp >= 0) folder = folder.Substring(0, amp);
                 }
 
+                int znIdx = req.Url.IndexOf("zipName=");
+                if (znIdx >= 0)
+                {
+                    string zn = Uri.UnescapeDataString(req.Url.Substring(znIdx + 8));
+                    int amp = zn.IndexOf('&');
+                    if (amp >= 0) zn = zn.Substring(0, amp);
+                    if (!string.IsNullOrEmpty(zn)) zipName = zn.Trim();
+                }
+
                 folder = folder != null ? folder.Trim() : "";
                 if (!string.IsNullOrEmpty(folder) && !folder.Equals("all", StringComparison.OrdinalIgnoreCase))
                 {
-                    string safeFolder = Path.GetFileName(folder);
-                    string targetDir = Path.Combine(RootDirectory, safeFolder);
+                    string safeFolder = folder.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+                    string targetDir = Path.GetFullPath(Path.Combine(RootDirectory, safeFolder));
+                    if (!Directory.Exists(targetDir) || !targetDir.StartsWith(RootDirectory, StringComparison.OrdinalIgnoreCase))
+                    {
+                        string chatBase = GetChatStorageDir();
+                        string chatTarget = Path.GetFullPath(Path.Combine(chatBase, safeFolder));
+                        if (Directory.Exists(chatTarget) && chatTarget.StartsWith(chatBase, StringComparison.OrdinalIgnoreCase))
+                        {
+                            targetDir = chatTarget;
+                        }
+                    }
+
                     if (Directory.Exists(targetDir))
                     {
                         var di = new DirectoryInfo(targetDir);
@@ -1877,7 +2092,11 @@ namespace ZoneHub
                         {
                             if (IsValidSharedFile(fi)) filePaths.Add(fi.FullName);
                         }
-                        zipName = safeFolder + ".zip";
+                        if (string.IsNullOrEmpty(zipName) || zipName == "ZoneHub_Files.zip")
+                        {
+                            zipName = Path.GetFileName(targetDir) + ".zip";
+                        }
+                        baseRelativeDir = targetDir;
                     }
                 }
                 else
@@ -1976,7 +2195,11 @@ namespace ZoneHub
                             {
                                 if (!File.Exists(fp)) continue;
                                 string entryName = Path.GetFileName(fp);
-                                if (usedEntryNames.Contains(entryName))
+                                if (!string.IsNullOrEmpty(baseRelativeDir) && fp.StartsWith(baseRelativeDir, StringComparison.OrdinalIgnoreCase) && fp.Length > baseRelativeDir.Length)
+                                {
+                                    entryName = fp.Substring(baseRelativeDir.Length).TrimStart(Path.DirectorySeparatorChar, '/').Replace('\\', '/');
+                                }
+                                else if (usedEntryNames.Contains(entryName))
                                 {
                                     entryName = Path.GetFileNameWithoutExtension(fp) + "_" + Guid.NewGuid().ToString("N").Substring(0, 4) + Path.GetExtension(fp);
                                 }
@@ -2044,7 +2267,7 @@ namespace ZoneHub
 
         private static void ServeFoldersJson(NetworkStream stream)
         {
-            var standardFolders = new string[] { "Videos", "Pictures", "Chat_Media", "Documents" };
+            var standardFolders = new string[] { "Videos", "Pictures", "Documents" };
             foreach (var sf in standardFolders)
             {
                 string p = Path.Combine(RootDirectory, sf);
@@ -2058,9 +2281,13 @@ namespace ZoneHub
             var allDirs = rootDi.GetDirectories()
                 .Where(d => !d.Attributes.HasFlag(FileAttributes.Hidden) &&
                             !d.Name.StartsWith(".") &&
+                            !d.Name.StartsWith("_") &&
+                            !d.Name.StartsWith("Chat_", StringComparison.OrdinalIgnoreCase) &&
                             !d.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) &&
                             !d.Name.Equals("obj", StringComparison.OrdinalIgnoreCase) &&
                             !d.Name.Equals("css", StringComparison.OrdinalIgnoreCase) &&
+                            !d.Name.Equals("scratch", StringComparison.OrdinalIgnoreCase) &&
+                            !d.Name.Equals("uploads", StringComparison.OrdinalIgnoreCase) &&
                             !d.Name.Equals("js", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(d => d.Name)
                 .ToList();
@@ -2096,12 +2323,6 @@ namespace ZoneHub
                     displayName = "Pictures (ছবি)";
                     color = "rose";
                 }
-                else if (d.Name.Equals("Chat_Media", StringComparison.OrdinalIgnoreCase))
-                {
-                    icon = "💬";
-                    displayName = "Chat Media (চ্যাট মিডিয়া)";
-                    color = "emerald";
-                }
                 else if (d.Name.Equals("Documents", StringComparison.OrdinalIgnoreCase))
                 {
                     icon = "📄";
@@ -2111,7 +2332,6 @@ namespace ZoneHub
 
                 bool isSystem = d.Name.Equals("Videos", StringComparison.OrdinalIgnoreCase) ||
                                 d.Name.Equals("Pictures", StringComparison.OrdinalIgnoreCase) ||
-                                d.Name.Equals("Chat_Media", StringComparison.OrdinalIgnoreCase) ||
                                 d.Name.Equals("Documents", StringComparison.OrdinalIgnoreCase);
 
                 sb.Append("{");
@@ -2147,9 +2367,13 @@ namespace ZoneHub
                 {
                     if (dir.Attributes.HasFlag(FileAttributes.Hidden) || 
                         dir.Name.StartsWith(".") || 
+                        dir.Name.StartsWith("_") || 
+                        dir.Name.StartsWith("Chat_", StringComparison.OrdinalIgnoreCase) || 
                         dir.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
                         dir.Name.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
                         dir.Name.Equals("css", StringComparison.OrdinalIgnoreCase) ||
+                        dir.Name.Equals("scratch", StringComparison.OrdinalIgnoreCase) ||
+                        dir.Name.Equals("uploads", StringComparison.OrdinalIgnoreCase) ||
                         dir.Name.Equals("js", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
@@ -2413,17 +2637,28 @@ namespace ZoneHub
 
             if (!fullPath.StartsWith(RootDirectory, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
             {
-                // Fallback: Check if file exists in any subfolder!
-                string fileName = Path.GetFileName(cleanRel);
-                string found = FindFileInSubfolders(RootDirectory, fileName);
-                if (found != null && File.Exists(found))
+                // Check inside .chat_transfers
+                string chatBase = GetChatStorageDir();
+                string chatCandidate = Path.GetFullPath(Path.Combine(chatBase, cleanRel));
+                if (chatCandidate.StartsWith(chatBase, StringComparison.OrdinalIgnoreCase) && File.Exists(chatCandidate))
                 {
-                    fullPath = found;
+                    fullPath = chatCandidate;
                 }
                 else
                 {
-                    SendError(stream, 404, "File Not Found");
-                    return;
+                    // Fallback: Check if file exists in any subfolder of RootDirectory or chatBase
+                    string fileName = Path.GetFileName(cleanRel);
+                    string found = FindFileInSubfolders(RootDirectory, fileName);
+                    if (found == null) found = FindFileInSubfolders(chatBase, fileName);
+                    if (found != null && File.Exists(found))
+                    {
+                        fullPath = found;
+                    }
+                    else
+                    {
+                        SendError(stream, 404, "File Not Found");
+                        return;
+                    }
                 }
             }
 
@@ -2532,6 +2767,212 @@ namespace ZoneHub
             }
             stream.Flush();
         }
+
+        #region WebRTC P2P Methods
+        private static void HandleP2PHeartbeat(NetworkStream stream, RequestContext req)
+        {
+            string body = ReadBodyString(stream, req);
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            try
+            {
+                var dict = js.Deserialize<Dictionary<string, object>>(body);
+                if (dict != null)
+                {
+                    string uid = dict.ContainsKey("userId") && dict["userId"] != null ? dict["userId"].ToString().Trim() : "";
+                    string uname = dict.ContainsKey("userName") && dict["userName"] != null ? dict["userName"].ToString().Trim() : "Colleague";
+                    if (!string.IsNullOrEmpty(uid))
+                    {
+                        lock (PeersLock)
+                        {
+                            // Deduplicate by userName: remove any stale entry with same name but different userId
+                            List<string> oldKeys = new List<string>();
+                            foreach (var kvp in ActivePeers)
+                            {
+                                if (kvp.Key != uid && string.Equals(kvp.Value.userName.Trim(), uname.Trim(), StringComparison.OrdinalIgnoreCase))
+                                    oldKeys.Add(kvp.Key);
+                            }
+                            foreach (var k in oldKeys) ActivePeers.Remove(k);
+
+                            ActivePeers[uid] = new PeerInfo
+                            {
+                                userId = uid,
+                                userName = uname,
+                                clientIp = req.ClientIp,
+                                lastSeenUnix = DateTime.UtcNow.Ticks,
+                                isHost = req.IsLocalhost
+                            };
+
+                            long now = DateTime.UtcNow.Ticks;
+                            List<string> stale = new List<string>();
+                            foreach (var kvp in ActivePeers)
+                            {
+                                if ((now - kvp.Value.lastSeenUnix) > TimeSpan.FromMinutes(2).Ticks)
+                                {
+                                    stale.Add(kvp.Key);
+                                }
+                            }
+                            foreach (var k in stale) ActivePeers.Remove(k);
+                        }
+                    }
+                }
+            }
+            catch {}
+            SendJsonResponse(stream, 200, "{\"success\":true}");
+        }
+
+        private static void HandleP2PGetPeers(NetworkStream stream, RequestContext req)
+        {
+            List<PeerInfo> list = new List<PeerInfo>();
+            string excludeId = "";
+            string excludeUser = "";
+            int q = req.Url.IndexOf('?');
+            if (q >= 0)
+            {
+                string query = req.Url.Substring(q + 1);
+                foreach (var param in query.Split('&'))
+                {
+                    if (param.StartsWith("userId=", StringComparison.OrdinalIgnoreCase))
+                        excludeId = Uri.UnescapeDataString(param.Substring(7)).Trim();
+                    else if (param.StartsWith("user=", StringComparison.OrdinalIgnoreCase))
+                        excludeUser = Uri.UnescapeDataString(param.Substring(5)).Trim();
+                }
+            }
+            long now = DateTime.UtcNow.Ticks;
+
+            lock (PeersLock)
+            {
+                if (!string.IsNullOrEmpty(excludeId) && !string.IsNullOrEmpty(excludeUser))
+                {
+                    ActivePeers[excludeId] = new PeerInfo
+                    {
+                        userId = excludeId,
+                        userName = excludeUser,
+                        clientIp = req.ClientIp,
+                        lastSeenUnix = now,
+                        lastSeenSecAgo = 0,
+                        isOnline = true,
+                        isHost = req.IsLocalhost
+                    };
+                }
+
+                // Remove peers older than 20 minutes
+                List<string> stale = new List<string>();
+                foreach (var kvp in ActivePeers)
+                {
+                    if ((now - kvp.Value.lastSeenUnix) > TimeSpan.FromMinutes(20).Ticks)
+                    {
+                        stale.Add(kvp.Key);
+                    }
+                }
+                foreach (var k in stale) ActivePeers.Remove(k);
+
+                // Deduplicate by userName (keep the most recently seen entry)
+                Dictionary<string, PeerInfo> uniqueUsers = new Dictionary<string, PeerInfo>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kvp in ActivePeers)
+                {
+                    var p = kvp.Value;
+                    int secAgo = (int)((now - p.lastSeenUnix) / TimeSpan.TicksPerSecond);
+                    p.lastSeenSecAgo = secAgo;
+                    p.isOnline = (secAgo <= 60); // Online if seen within 60 seconds
+
+                    string uNameKey = !string.IsNullOrEmpty(p.userName) ? p.userName.Trim() : p.userId;
+                    if (!uniqueUsers.ContainsKey(uNameKey) || uniqueUsers[uNameKey].lastSeenUnix < p.lastSeenUnix)
+                    {
+                        uniqueUsers[uNameKey] = p;
+                    }
+                }
+
+                // NOTE: Do NOT merge DeviceNameCache here — it creates ghost offline entries
+                // causing duplicate/offline users in the DM list. Only real heartbeat peers are returned.
+
+                foreach (var kvp in uniqueUsers)
+                {
+                    var p = kvp.Value;
+                    if (!string.IsNullOrEmpty(excludeId) && string.Equals(p.userId, excludeId, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (!string.IsNullOrEmpty(excludeUser) && string.Equals(p.userName, excludeUser, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    list.Add(p);
+                }
+            }
+
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            var resObj = new Dictionary<string, object>();
+            resObj["success"] = true;
+            resObj["peers"] = list;
+            SendJsonResponse(stream, 200, js.Serialize(resObj));
+        }
+
+        private static void HandleP2PPostSignal(NetworkStream stream, RequestContext req)
+        {
+            string body = ReadBodyString(stream, req);
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            try
+            {
+                var item = js.Deserialize<P2PSignalItem>(body);
+                if (item != null && !string.IsNullOrEmpty(item.toId) && !string.IsNullOrEmpty(item.fromId))
+                {
+                    item.id = Guid.NewGuid().ToString("N");
+                    item.timestamp = DateTime.UtcNow.Ticks;
+                    lock (SignalsLock)
+                    {
+                        P2PSignals.Add(item);
+                        if (P2PSignals.Count > 500)
+                        {
+                            P2PSignals.RemoveRange(0, 100);
+                        }
+                    }
+                    SendJsonResponse(stream, 200, "{\"success\":true,\"id\":\"" + item.id + "\"}");
+                    return;
+                }
+            }
+            catch {}
+            SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Invalid signal\"}");
+        }
+
+        private static void HandleP2PGetSignals(NetworkStream stream, RequestContext req)
+        {
+            string uid = "";
+            int q = req.Url.IndexOf("?userId=");
+            if (q >= 0)
+            {
+                uid = Uri.UnescapeDataString(req.Url.Substring(q + 8));
+                int amp = uid.IndexOf('&');
+                if (amp >= 0) uid = uid.Substring(0, amp);
+            }
+            uid = uid.Trim();
+
+            List<P2PSignalItem> mySignals = new List<P2PSignalItem>();
+            if (!string.IsNullOrEmpty(uid))
+            {
+                lock (SignalsLock)
+                {
+                    for (int i = P2PSignals.Count - 1; i >= 0; i--)
+                    {
+                        var s = P2PSignals[i];
+                        if (string.Equals(s.toId, uid, StringComparison.OrdinalIgnoreCase) || s.toId == "all")
+                        {
+                            mySignals.Insert(0, s);
+                            if (s.toId != "all")
+                            {
+                                P2PSignals.RemoveAt(i);
+                            }
+                        }
+                        else if ((DateTime.UtcNow.Ticks - s.timestamp) > TimeSpan.FromMinutes(2).Ticks)
+                        {
+                            P2PSignals.RemoveAt(i);
+                        }
+                    }
+                }
+            }
+
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            var resObj = new Dictionary<string, object>();
+            resObj["success"] = true;
+            resObj["signals"] = mySignals;
+            SendJsonResponse(stream, 200, js.Serialize(resObj));
+        }
+        #endregion
 
         private static void SendError(NetworkStream stream, int statusCode, string statusMsg)
         {

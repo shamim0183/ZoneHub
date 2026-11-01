@@ -1,4 +1,4 @@
-        // Drag & Drop Upload Logic
+        // Drag & Drop Upload Logic (Files & Folders)
         const dropZone = document.getElementById('dropZone');
         const progressContainer = document.getElementById('progressContainer');
         const progressFileName = document.getElementById('progressFileName');
@@ -21,7 +21,57 @@
             }, false);
         });
 
-        dropZone.addEventListener('drop', (e) => {
+        async function scanFileEntry(item, pathSoFar, outList) {
+            pathSoFar = pathSoFar || '';
+            if (item.isFile) {
+                await new Promise((resolve) => {
+                    item.file((file) => {
+                        file.customRelativePath = pathSoFar + file.name;
+                        outList.push(file);
+                        resolve();
+                    }, () => resolve());
+                });
+            } else if (item.isDirectory) {
+                const dirReader = item.createReader();
+                const readBatch = async () => {
+                    return new Promise((resolve) => {
+                        dirReader.readEntries(async (entries) => {
+                            if (!entries || entries.length === 0) {
+                                resolve();
+                            } else {
+                                for (let i = 0; i < entries.length; i++) {
+                                    await scanFileEntry(entries[i], pathSoFar + item.name + '/', outList);
+                                }
+                                await readBatch();
+                                resolve();
+                            }
+                        }, () => resolve());
+                    });
+                };
+                await readBatch();
+            }
+        }
+
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+
+            const items = e.dataTransfer.items;
+            if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+                const collected = [];
+                for (let i = 0; i < items.length; i++) {
+                    const entry = items[i].webkitGetAsEntry();
+                    if (entry) {
+                        await scanFileEntry(entry, '', collected);
+                    }
+                }
+                if (collected.length > 0) {
+                    uploadFilesQueue(collected);
+                    return;
+                }
+            }
+
             const files = e.dataTransfer.files;
             if (files && files.length > 0) {
                 uploadFilesQueue(Array.from(files));
@@ -32,6 +82,15 @@
             const files = e.target.files;
             if (files && files.length > 0) {
                 uploadFilesQueue(Array.from(files));
+            }
+            e.target.value = '';
+        }
+
+        function handleFolderSelect(e) {
+            const files = Array.from(e.target.files || []);
+            if (files.length > 0) {
+                showToast('📁 Uploading folder with ' + files.length + ' files...');
+                uploadFilesQueue(files);
             }
             e.target.value = '';
         }
@@ -88,12 +147,19 @@
                 return new Promise((resolve) => {
                     const xhr = new XMLHttpRequest();
                     const isZip = file.name && file.name.toLowerCase().endsWith('.zip');
-                    let uploadUrl = '/upload?filename=' + encodeURIComponent(file.name) + '&folder=' + encodeURIComponent(targetFolder);
+                    let relPath = file.webkitRelativePath || file.customRelativePath || '';
+                    let fileTargetFolder = targetFolder;
+                    if (relPath && relPath.includes('/')) {
+                        const lastSlash = relPath.lastIndexOf('/');
+                        const folderPart = relPath.substring(0, lastSlash);
+                        fileTargetFolder = (targetFolder === 'auto' || !targetFolder) ? folderPart : (targetFolder + '/' + folderPart);
+                    }
+                    let uploadUrl = '/upload?filename=' + encodeURIComponent(file.name) + '&folder=' + encodeURIComponent(fileTargetFolder);
                     if (isZip) uploadUrl += '&extract=true';
 
                     xhr.open('POST', uploadUrl, true);
                     xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
-                    xhr.setRequestHeader('X-Folder', encodeURIComponent(targetFolder));
+                    xhr.setRequestHeader('X-Folder', encodeURIComponent(fileTargetFolder));
                     xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
                     if (isZip) xhr.setRequestHeader('X-Auto-Extract', 'true');
 

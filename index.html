@@ -13,8 +13,11 @@
     <meta name="theme-color" content="#0b0f19">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/style.css?v=20261031">
 </head>
 <body>
     <div class="container">
@@ -124,7 +127,7 @@
                 Files &amp; Media
                 <span class="badge-counter" id="fileCountBadge">0</span>
             </button>
-            <button class="tab-btn" id="tabChatOnlyBtn" onclick="switchView('chat')">
+            <button class="tab-btn" id="tabChatOnlyBtn" onclick="switchView('chat'); if(typeof switchChatChannel==='function') switchChatChannel('public');">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                 Team Chat
                 <span class="badge-counter" id="chatCountBadge">0</span>
@@ -142,11 +145,12 @@
                 <!-- Upload Zone -->
                 <div class="upload-section" id="dropZone" onclick="document.getElementById('fileInput').click()">
                     <input type="file" id="fileInput" class="file-input-hidden" multiple onchange="handleFileSelect(event)" />
+                    <input type="file" id="folderInput" class="file-input-hidden" webkitdirectory directory multiple onchange="handleFolderSelect(event)" />
                     <div class="upload-icon">
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                     </div>
-                    <div class="upload-title">ফাইল, ছবি বা ভিডিও শেয়ার করতে এখানে ক্লিক করুন বা Drag &amp; Drop করুন</div>
-                    <div class="upload-desc">ছবি, ভিডিও ও GIF প্রিভিউসহ যে কোনো পিসি/ম্যাক থেকে আপলোড করুন &bull; সাইজ লিমিট নেই</div>
+                    <div class="upload-title">ফাইল, ছবি, ভিডিও বা ফোল্ডার এখানে ড্রপ করুন অথবা সিলেক্ট করুন</div>
+                    <div class="upload-desc">যে কোনো পিসি/ম্যাক/ফোন থেকে ফাইল বা সম্পূর্ণ ফোল্ডার আপলোড করুন &bull; সাইজ লিমিট নেই</div>
                     <div style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:11px;color:#a5b4fc;flex-wrap:wrap;" onclick="event.stopPropagation()">
                         <span onclick="openNetworkStorageModal('storage')" style="cursor:pointer;text-decoration:underline;">💡 Host PC: Move files directly (0 duplicate memory)</span>
                         <span>&bull;</span>
@@ -168,10 +172,14 @@
                         </div>
                     </div>
 
-                    <div>
-                        <button type="button" class="btn btn-secondary" style="pointer-events:none;">
+                    <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;flex-wrap:wrap;" onclick="event.stopPropagation()">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                            Select Files to Upload
+                            Select Files
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="document.getElementById('folderInput').click()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 12px rgba(99,102,241,0.35);">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                            📁 Upload Entire Folder
                         </button>
                     </div>
 
@@ -309,13 +317,58 @@
                         </div>
                     </div>
 
+                    <!-- Direct Message / Team Channel Switcher Tabs -->
+                    <div class="chat-channels-bar">
+                        <button class="channel-pill active" id="channelPublicBtn" onclick="switchChatChannel('public')">
+                            📢 #Team Chat
+                        </button>
+                        
+                        <!-- Open Colleague DM Tabs -->
+                        <div id="activeDmTabsContainer" class="active-dm-tabs-container"></div>
+
+                        <div class="channel-dm-wrapper">
+                            <button class="channel-pill btn-dm-add" id="channelDmsToggleBtn" onclick="toggleDmMenu(event)" title="Direct Message a Colleague">
+                                <span>💬</span> Direct Message <span id="dmUnreadTotalBadge" class="badge-counter" style="display:none;background:var(--accent-rose);color:#fff;margin-left:4px;">0</span> ▾
+                            </button>
+                            <div id="dmUserMenu" class="dm-users-popup" style="display:none;">
+                                <div class="dm-popup-header">
+                                    <span>Colleagues Online</span>
+                                    <span id="dmOnlineCount" class="dm-header-count">0 online</span>
+                                </div>
+                                <div id="dmUsersList" class="dm-users-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active DM Notice Banner -->
+                    <div id="activeDmBanner" class="active-dm-banner" style="display:none;">
+                        <div class="active-dm-banner-left">
+                            <span class="active-dm-banner-dot online"></span>
+                            <span id="activeDmBannerText">🔒 Private Chat with Colleague</span>
+                        </div>
+                        <button type="button" onclick="switchChatChannel('public')" class="btn-dm-back" title="Back to Team Chat">✕ Back to #Team Chat</button>
+                    </div>
+
+                    <!-- Drag & Drop Visual Overlay for Chat -->
+                    <div id="chatDropOverlay" class="chat-drop-overlay" style="display:none;">
+                        <div class="chat-drop-card">
+                            <div class="chat-drop-icon">📥</div>
+                            <div class="chat-drop-title">Drop Files or Folders Here</div>
+                            <div class="chat-drop-subtitle" id="chatDropTargetDesc">Send directly to #Team Chat</div>
+                        </div>
+                    </div>
+
                     <div class="chat-messages" id="chatMessages">
                         <!-- Chat messages loaded dynamically -->
                     </div>
 
                     <div class="chat-input-bar">
-                        <!-- Hidden File Input for Picture & Video Upload in Chat (Multi-Select Supported) -->
+                        <!-- Hidden Inputs for Pictures, Files, and Folders -->
                         <input type="file" id="chatPhotoInput" accept="image/*,video/*" multiple style="display:none;" onchange="handleChatPhotoUpload(event)" />
+                        <input type="file" id="chatGenericFileInput" multiple style="display:none;" onchange="handleChatGenericFileUpload(event)" />
+                        <input type="file" id="chatFolderInput" webkitdirectory directory multiple style="display:none;" onchange="handleChatFolderUpload(event)" />
 
                         <!-- Recording Banner with Live Audio Visualizer -->
                         <div id="recordingBanner" class="recording-banner">
@@ -345,15 +398,25 @@
                             </div>
                         </div>
 
-                        <textarea id="chatInput" class="chat-input" placeholder="Type a message, paste images (Ctrl+V), or drag &amp; drop files..." rows="1" onkeydown="handleChatKeyDown(event)"></textarea>
+                        <textarea id="chatInput" class="chat-input" placeholder="Type a message, paste images (Ctrl+V), or drag &amp; drop files/folders..." rows="1" onkeydown="handleChatKeyDown(event)"></textarea>
 
                         <!-- Send Picture / Video Album Button -->
-                        <button onclick="document.getElementById('chatPhotoInput').click()" class="action-tool-btn" title="Send Picture or Video Album (Multi-Select)">
+                        <button type="button" onclick="document.getElementById('chatPhotoInput').click()" class="action-tool-btn" title="Send Picture or Video (Multi-Select)">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         </button>
 
+                        <!-- Direct Attach Any File Button (No broken popup!) -->
+                        <button type="button" onclick="document.getElementById('chatGenericFileInput').click()" class="action-tool-btn" id="chatAttachBtn" title="Send Any File (PDF, DOCX, ZIP, etc.)">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                        </button>
+
+                        <!-- Direct Attach Entire Folder Button -->
+                        <button type="button" onclick="document.getElementById('chatFolderInput').click()" class="action-tool-btn" id="chatFolderBtn" title="Send Entire Folder (Uploads &amp; downloads intact as ZIP)">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                        </button>
+
                         <!-- Voice Message Button -->
-                        <button id="voiceRecBtn" onclick="toggleVoiceRecording()" class="action-tool-btn" title="Record Voice Message">
+                        <button type="button" id="voiceRecBtn" onclick="toggleVoiceRecording()" class="action-tool-btn" title="Record Voice Message">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                         </button>
 
@@ -364,6 +427,23 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Hidden P2P Transfer Progress & Pickers (Floating Bottom Card) -->
+            <div id="p2pTransferCard" class="p2p-transfer-card" style="display:none;position:fixed;bottom:24px;right:24px;z-index:99999;width:320px;background:rgba(15,23,42,0.95);box-shadow:0 12px 30px rgba(0,0,0,0.8);border:1px solid rgba(56,189,248,0.4);border-radius:12px;padding:14px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:700;font-size:13px;color:#fff;" id="p2pTransferTitle">Transferring...</div>
+                    <div style="font-weight:700;color:#38bdf8;font-size:13px;" id="p2pTransferPercent">0%</div>
+                </div>
+                <div class="progress-bar-bg" style="margin-top:8px;height:6px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
+                    <div id="p2pTransferBarFill" class="progress-bar-fill" style="width:0%;height:100%;background:linear-gradient(90deg,#38bdf8,#818cf8);transition:width 0.2s;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-muted);">
+                    <span id="p2pTransferStats">0 MB / 0 MB</span>
+                    <span id="p2pTransferSpeed">0 MB/s</span>
+                </div>
+            </div>
+            <input type="file" id="p2pFilePicker" style="display:none;" onchange="handleP2PFileSelected(event)" />
+            <input type="file" id="p2pFolderPicker" webkitdirectory directory multiple style="display:none;" onchange="handleP2PFolderSelected(event)" />
         </div>
     </div>
 
@@ -740,8 +820,9 @@
     </script>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/app.js"></script>
-    <script src="/js/media.js"></script>
-    <script src="/js/chat.js"></script>
+    <script src="/js/app.js?v=20261031c"></script>
+    <script src="/js/media.js?v=20261031c"></script>
+    <script src="/js/chat.js?v=20261031c"></script>
+    <script src="/js/p2p.js?v=20261031c"></script>
 </body>
 </html>

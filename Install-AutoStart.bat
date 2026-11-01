@@ -2,7 +2,7 @@
 title Install Auto-Start on PC Boot - ZoneHub
 cd /d "%~dp0"
 
-powershell -Command "Remove-Item \"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\SkyCommerce-Server.lnk\" -ErrorAction SilentlyContinue; Remove-Item \"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\ZoneHub-Server.lnk\" -ErrorAction SilentlyContinue; $WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut(\"$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\ZoneHub-Service.lnk\"); $Shortcut.TargetPath = \"wscript.exe\"; $Shortcut.Arguments = \"`\"%~dp0Run-Background-Service.vbs`\"\"; $Shortcut.WorkingDirectory = \"%~dp0\"; $Shortcut.IconLocation = \"%~dp0ZoneHubBubble.exe,0\"; $Shortcut.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$dir = '%~dp0'.TrimEnd('\'); $wsPath = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\ZoneHub-Service.lnk'; Remove-Item (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\SkyCommerce-Server.lnk') -ErrorAction SilentlyContinue; Remove-Item (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\ZoneHub-Server.lnk') -ErrorAction SilentlyContinue; $WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut($wsPath); $Shortcut.TargetPath = 'wscript.exe'; $Shortcut.Arguments = '\"' + (Join-Path $dir 'Run-Background-Service.vbs') + '\"'; $Shortcut.WorkingDirectory = $dir; if (Test-Path (Join-Path $dir 'ZoneHubBubble.exe')) { $Shortcut.IconLocation = (Join-Path $dir 'ZoneHubBubble.exe') + ',0' }; $Shortcut.Save()"
 
 echo.
 echo =========================================================
@@ -14,4 +14,4 @@ echo     2. Online Tunnel activates automatically.
 echo     3. Floating Desktop Bubble appears on your screen!
 echo =========================================================
 echo.
-pause
+timeout /t 3 >nul

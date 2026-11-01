@@ -1,10 +1,32 @@
-        // Real-time Team Chat Logic
+        // Real-time Team Chat & Private Direct Messages Logic
         let currentMessages = [];
         let isFirstMessagesLoad = true;
+        let currentChatChannel = 'public'; // 'public' or userId
+        let currentDmUser = null; // { userId, userName }
+        let openDmTabs = []; // list of active DM tabs: [{ userId, userName }]
+        let dmUnreadMap = {}; // { [userId]: count }
+        let knownChatUsers = new Map(); // normalizedName -> { userId, userName }
+
+        function getMsgChannelPayload() {
+            if (currentChatChannel !== 'public' && currentDmUser) {
+                return {
+                    isPrivate: true,
+                    recipientId: currentDmUser.userId,
+                    recipientUser: currentDmUser.userName
+                };
+            }
+            return {
+                isPrivate: false,
+                recipientId: 'all',
+                recipientUser: ''
+            };
+        }
 
         async function loadMessages() {
             try {
-                const res = await fetch('/api/messages?t=' + Date.now());
+                const myId = (typeof myUserId !== 'undefined' ? myUserId : localStorage.getItem('zonehub_user_id')) || '';
+                const myName = (typeof currentUserName !== 'undefined' ? currentUserName : (localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '')) || '';
+                const res = await fetch('/api/messages?userId=' + encodeURIComponent(myId) + '&user=' + encodeURIComponent(myName) + '&t=' + Date.now());
                 const messages = await res.json();
                 renderMessages(messages);
             } catch (err) {
@@ -81,24 +103,70 @@
             setTimeout(() => { if (container) container.scrollTop = container.scrollHeight; }, 400);
         }
 
-        function renderMessages(messages) {
-            const container = document.getElementById('chatMessages');
-            document.getElementById('chatCountBadge').innerText = messages.length;
+        let lastRenderedState = '';
 
-            const oldJson = JSON.stringify(currentMessages);
-            const newJson = JSON.stringify(messages);
-            if (oldJson === newJson) return;
+        function renderMessages(messages, forceRender = false) {
+            const container = document.getElementById('chatMessages');
+            const myId = (typeof myUserId !== 'undefined' ? myUserId : localStorage.getItem('zonehub_user_id')) || '';
+            const myName = (typeof currentUserName !== 'undefined' ? currentUserName : (localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '')) || '';
+            const myNameNorm = myName.trim().toLowerCase();
+
+            function indexColleague(uid, uname) {
+                if (!uname || !uname.trim()) return;
+                const cleanName = uname.trim();
+                const norm = cleanName.toLowerCase();
+                if (norm === myNameNorm || (uid && uid === myId)) return; // Exclude myself!
+                if (!knownChatUsers.has(norm) || (uid && !knownChatUsers.get(norm).userId)) {
+                    knownChatUsers.set(norm, { userId: uid || ('usr_' + norm), userName: cleanName });
+                }
+            }
+
+            // Index users for Direct Messaging (deduplicated by name, excluding current user)
+            if (Array.isArray(messages)) {
+                messages.forEach(m => {
+                    if (m.user) indexColleague(m.userId, m.user);
+                    if (m.recipientUser && m.recipientId !== 'all') indexColleague(m.recipientId, m.recipientUser);
+                });
+            }
+            updateDmUsersMenu();
+
+            const currentState = JSON.stringify({
+                ch: currentChatChannel,
+                dm: currentDmUser ? currentDmUser.userId : null,
+                len: messages ? messages.length : 0,
+                last: (messages && messages.length > 0) ? messages[messages.length - 1].id : 0
+            });
+            if (!forceRender && lastRenderedState === currentState) return;
+            lastRenderedState = currentState;
 
             // Trigger Professional Sound and Corner Notification on new incoming messages
             if (!isFirstMessagesLoad && messages.length > currentMessages.length) {
                 const existingIds = new Set(currentMessages.map(m => m.id));
                 const newArrivals = messages.filter(m => !existingIds.has(m.id) && !m.deleted);
                 const incomingFromOthers = newArrivals.filter(m => {
-                    const isOwn = (m.userId && m.userId === myUserId) || (m.user === currentUserName);
+                    const isOwn = (m.userId && m.userId === myId) || (m.user && m.user.toLowerCase() === myNameNorm);
                     return !isOwn;
                 });
 
                 if (incomingFromOthers.length > 0) {
+                    incomingFromOthers.forEach(m => {
+                        if (m.isPrivate) {
+                            const senderName = (m.user || '').trim();
+                            const senderId = m.userId || ('usr_' + senderName.toLowerCase());
+                            const isCurrentlyLookingAtThisDm = currentDmUser && (currentDmUser.userId === m.userId || currentDmUser.userName.toLowerCase() === senderName.toLowerCase());
+                            if (!isCurrentlyLookingAtThisDm) {
+                                dmUnreadMap[senderId] = (dmUnreadMap[senderId] || 0) + 1;
+                                dmUnreadMap[senderName.toLowerCase()] = (dmUnreadMap[senderName.toLowerCase()] || 0) + 1;
+                                // Auto-open tab for incoming private message if not already open
+                                if (!openDmTabs.some(t => t.userName.toLowerCase() === senderName.toLowerCase())) {
+                                    openDmTabs.push({ userId: senderId, userName: senderName });
+                                }
+                            }
+                        }
+                    });
+                    updateDmUsersMenu();
+                    renderDmTabs();
+
                     const latestMsg = incomingFromOthers[incomingFromOthers.length - 1];
                     if (alertsEnabled) {
                         playProfessionalChime();
@@ -118,14 +186,56 @@
                 }
             }
 
+            currentMessages = messages;
+
+            let visibleMessages = [];
+            if (currentChatChannel === 'public') {
+                visibleMessages = messages.filter(m => !m.isPrivate && (!m.recipientId || m.recipientId === 'all'));
+            } else if (currentDmUser) {
+                const myNameL = (myName || '').trim().toLowerCase();
+                const dmNameL = (currentDmUser.userName || '').trim().toLowerCase();
+                const dmId    = (currentDmUser.userId || '').trim();
+
+                visibleMessages = messages.filter(m => {
+                    if (!m.isPrivate) return false;
+
+                    // Sender name/id
+                    const senderNameL = (m.user || '').trim().toLowerCase();
+                    const senderId    = (m.userId || '').trim();
+
+                    // Recipient name/id
+                    const recipNameL  = (m.recipientUser || '').trim().toLowerCase();
+                    const recipId     = (m.recipientId || '').trim();
+
+                    // I am the sender, the other person is the recipient
+                    const iSentToDm =
+                        (senderNameL === myNameL || (myId && senderId === myId)) &&
+                        (recipNameL  === dmNameL  || (dmId && recipId === dmId) || recipId === dmNameL);
+
+                    // The other person sent to me
+                    const dmSentToMe =
+                        (senderNameL === dmNameL || (dmId && senderId === dmId)) &&
+                        (recipNameL  === myNameL  || (myId && recipId === myId) || recipId === myNameL);
+
+                    return iSentToDm || dmSentToMe;
+                });
+            }
+
+            const chatBadge = document.getElementById('chatCountBadge');
+            if (chatBadge) chatBadge.innerText = visibleMessages.length;
+
             const isScrolledToBottom = isFirstMessagesLoad || (container.scrollHeight - container.clientHeight <= container.scrollTop + 80);
 
             container.innerHTML = '';
-            if (messages.length === 0) {
-                container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">No messages yet. Send a message or photo to start chatting!</div>';
+            if (visibleMessages.length === 0) {
+                if (currentChatChannel === 'public') {
+                    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">No messages yet. Send a message or photo to start chatting!</div>';
+                } else {
+                    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:24px;margin-bottom:8px;">🔒</div><strong>Private 1-on-1 Chat with ' + escapeHtml(currentDmUser.userName) + '</strong><br><span style="font-size:12px;">Only you two can see messages and files sent here. No other computer will receive notifications.</span></div>';
+                }
             }
 
-            messages.forEach(msg => {
+            visibleMessages.forEach(msg => {
                 const bubble = document.createElement('div');
                 const isDeleted = msg.deleted;
                 bubble.className = 'chat-message-bubble' + (isDeleted ? ' is-deleted' : '');
@@ -241,6 +351,25 @@
                                 '</div>' +
                             '</div>' +
                         '</div>';
+                } else if (msg.type === 'file' || msg.type === 'folder' || msg.type === 'p2p_file') {
+                    const isFolder = msg.type === 'folder';
+                    const isP2P = msg.type === 'p2p_file';
+                    const icon = isFolder ? '📁' : '📄';
+                    const fName = msg.text || (isFolder ? 'Shared Folder' : 'Shared File');
+                    const fUrl = msg.imageUrl || msg.audioUrl || '#';
+                    const fSize = msg.duration > 0 ? formatBytes(msg.duration) : '';
+                    contentHtml = 
+                        '<div class="chat-file-attachment-card">' +
+                            '<div class="chat-file-icon">' + icon + '</div>' +
+                            '<div class="chat-file-info">' +
+                                '<div class="chat-file-name">' + escapeHtml(fName) + '</div>' +
+                                '<div class="chat-file-meta">' + (isP2P ? '⚡ P2P Direct &bull; ' : '') + (isFolder ? 'Folder' : (fSize || 'Document')) + '</div>' +
+                            '</div>' +
+                            (fUrl && fUrl !== '#' ? 
+                                '<button type="button" onclick="triggerDownloadTracked(\'' + escapeQuotes(fUrl) + '\', \'' + escapeQuotes(fName + (isFolder && !fName.endsWith('.zip') ? '.zip' : '')) + '\')" class="chat-file-dl-btn">' +
+                                    '📥 Download' +
+                                '</button>' : '') +
+                        '</div>';
                 } else {
                     contentHtml = '<div class="msg-text">' + formatMessageText(msg.text) + '</div>';
                 }
@@ -321,6 +450,220 @@
             isFirstMessagesLoad = false;
         }
 
+        function checkUserIsOnline(userName, userId) {
+            if (!window.__p2pOnlinePeers || !Array.isArray(window.__p2pOnlinePeers)) return false;
+            const uNorm = (userName || '').trim().toLowerCase();
+            return window.__p2pOnlinePeers.some(p => {
+                const pNorm = (p.userName || '').trim().toLowerCase();
+                const match = (uNorm && pNorm === uNorm) || (userId && p.userId === userId);
+                return match && (p.isOnline !== false);
+            });
+        }
+
+        function switchChatChannel(channel, dmUser) {
+            currentChatChannel = channel;
+            if (channel === 'public') {
+                currentDmUser = null;
+            } else {
+                currentDmUser = dmUser || null;
+            }
+            const teamBtn = document.getElementById('channelPublicBtn');
+            const banner = document.getElementById('activeDmBanner');
+            const bannerText = document.getElementById('activeDmBannerText');
+            const chatInput = document.getElementById('chatInput');
+            const menu = document.getElementById('dmUserMenu');
+            if (menu) menu.style.display = 'none';
+
+            if (channel === 'public') {
+                if (teamBtn) teamBtn.classList.add('active');
+                if (banner) banner.style.display = 'none';
+                if (chatInput) chatInput.placeholder = 'Type a message, paste images (Ctrl+V), or drag & drop files/folders...';
+            } else if (currentDmUser) {
+                if (teamBtn) teamBtn.classList.remove('active');
+                // Ensure DM tab exists in openDmTabs
+                const uNorm = (currentDmUser.userName || '').toLowerCase();
+                if (!openDmTabs.some(t => t.userName.toLowerCase() === uNorm)) {
+                    openDmTabs.push({ userId: currentDmUser.userId, userName: currentDmUser.userName });
+                }
+                if (banner) {
+                    banner.style.display = 'flex';
+                    if (bannerText) bannerText.innerHTML = '🔒 Private Chat with <strong>' + escapeHtml(currentDmUser.userName) + '</strong> <span style="opacity:0.8;font-size:10px;margin-left:4px;">(Only visible to you two)</span>';
+                }
+                if (chatInput) chatInput.placeholder = '🔒 Private message to ' + currentDmUser.userName + ', or drop files/folders here...';
+                dmUnreadMap[currentDmUser.userId] = 0;
+                dmUnreadMap[uNorm] = 0;
+            }
+            renderDmTabs();
+            updateDmUsersMenu();
+            renderMessages(currentMessages, true);
+            scrollChatToBottom(true);
+        }
+        window.switchChatChannel = switchChatChannel;
+
+        function renderDmTabs() {
+            const container = document.getElementById('activeDmTabsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            openDmTabs.forEach(tab => {
+                const isActive = currentDmUser && (currentDmUser.userId === tab.userId || currentDmUser.userName.toLowerCase() === tab.userName.toLowerCase());
+                const isOnline = checkUserIsOnline(tab.userName, tab.userId);
+                const unread = dmUnreadMap[tab.userId] || dmUnreadMap[tab.userName.toLowerCase()] || 0;
+
+                const tabBtn = document.createElement('button');
+                tabBtn.type = 'button';
+                tabBtn.className = 'channel-pill dm-channel-tab' + (isActive ? ' active' : '');
+                tabBtn.onclick = () => switchChatChannel(tab.userId, tab);
+                tabBtn.innerHTML = 
+                    '<span class="dm-tab-status-dot ' + (isOnline ? 'online' : 'offline') + '"></span>' +
+                    '<span class="dm-tab-title">🔒 ' + escapeHtml(tab.userName) + '</span>' +
+                    (unread > 0 ? '<span class="dm-unread-badge">' + unread + '</span>' : '') +
+                    '<span class="dm-tab-close" onclick="closeDmTab(event, \'' + escapeQuotes(tab.userId) + '\', \'' + escapeQuotes(tab.userName) + '\')" title="Close conversation">✕</span>';
+                container.appendChild(tabBtn);
+            });
+        }
+
+        function closeDmTab(e, userId, userName) {
+            if (e) e.stopPropagation();
+            const uNorm = (userName || '').toLowerCase();
+            openDmTabs = openDmTabs.filter(t => t.userId !== userId && t.userName.toLowerCase() !== uNorm);
+            if (currentDmUser && (currentDmUser.userId === userId || currentDmUser.userName.toLowerCase() === uNorm)) {
+                switchChatChannel('public');
+            } else {
+                renderDmTabs();
+            }
+        }
+
+        function toggleDmMenu(e) {
+            if (e) e.stopPropagation();
+            const menu = document.getElementById('dmUserMenu');
+            if (!menu) return;
+            menu.style.display = (menu.style.display === 'block' ? 'none' : 'block');
+            updateDmUsersMenu();
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('dmUserMenu');
+            const btn = document.getElementById('channelDmsToggleBtn');
+            if (menu && menu.style.display === 'block') {
+                if (!menu.contains(e.target) && e.target !== btn && (!btn || !btn.contains(e.target))) {
+                    menu.style.display = 'none';
+                }
+            }
+        });
+
+        function updateDmUsersMenu() {
+            const listEl = document.getElementById('dmUsersList');
+            const countEl = document.getElementById('dmOnlineCount');
+            const totalBadge = document.getElementById('dmUnreadTotalBadge');
+            if (!listEl) return;
+
+            const myId = (typeof myUserId !== 'undefined' ? myUserId : localStorage.getItem('zonehub_user_id')) || '';
+            const myName = (typeof currentUserName !== 'undefined' ? currentUserName : (localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '')) || '';
+            const myNameNorm = myName.trim().toLowerCase();
+
+            // Consolidate unique colleagues keyed by normalized name
+            const consolidated = new Map();
+
+            // 1. Add peers from P2P/Active presence
+            if (window.__p2pOnlinePeers && Array.isArray(window.__p2pOnlinePeers)) {
+                window.__p2pOnlinePeers.forEach(p => {
+                    const norm = (p.userName || '').trim().toLowerCase();
+                    if (!norm || norm === myNameNorm || p.userId === myId) return; // Never include self!
+                    consolidated.set(norm, {
+                        userId: p.userId,
+                        userName: p.userName,
+                        isOnline: p.isOnline !== undefined ? p.isOnline : true,
+                        isHost: p.isHost
+                    });
+                });
+            }
+
+            // 2. Add colleagues from chat history
+            knownChatUsers.forEach((uObj, norm) => {
+                if (!norm || norm === myNameNorm) return;
+                if (!consolidated.has(norm)) {
+                    consolidated.set(norm, {
+                        userId: uObj.userId,
+                        userName: uObj.userName,
+                        isOnline: checkUserIsOnline(uObj.userName, uObj.userId),
+                        isHost: false
+                    });
+                } else {
+                    const existing = consolidated.get(norm);
+                    if (uObj.userId && !existing.userId) existing.userId = uObj.userId;
+                    existing.isOnline = checkUserIsOnline(existing.userName, existing.userId);
+                }
+            });
+
+            // Count online colleagues
+            let onlineCount = 0;
+            consolidated.forEach(u => {
+                if (u.isOnline) onlineCount++;
+            });
+
+            if (countEl) {
+                if (onlineCount > 0) {
+                    countEl.innerHTML = '<span class="dm-header-count has-online">🟢 ' + onlineCount + ' Online</span>';
+                } else {
+                    countEl.innerHTML = '<span class="dm-header-count">0 online</span>';
+                }
+            }
+
+            let totalUnread = 0;
+            for (let k in dmUnreadMap) {
+                totalUnread += (dmUnreadMap[k] || 0);
+            }
+            if (totalBadge) {
+                if (totalUnread > 0) {
+                    totalBadge.innerText = totalUnread;
+                    totalBadge.style.display = 'inline-block';
+                } else {
+                    totalBadge.style.display = 'none';
+                }
+            }
+
+            listEl.innerHTML = '';
+            if (consolidated.size === 0) {
+                listEl.innerHTML = '<div style="padding:15px;text-align:center;font-size:12px;color:var(--text-muted);">No colleagues detected yet.<br>Colleagues appear when connected to ZoneHub.</div>';
+                return;
+            }
+
+            // Sort: Online colleagues first, then alphabetically
+            const userList = Array.from(consolidated.values()).sort((a, b) => {
+                if (a.isOnline && !b.isOnline) return -1;
+                if (!a.isOnline && b.isOnline) return 1;
+                return (a.userName || '').localeCompare(b.userName || '');
+            });
+
+            userList.forEach(u => {
+                const unread = dmUnreadMap[u.userId] || dmUnreadMap[u.userName.toLowerCase()] || 0;
+                const initials = (u.userName || 'CO').substring(0, 2).toUpperCase();
+                const isCurrentActive = currentDmUser && (currentDmUser.userId === u.userId || currentDmUser.userName.toLowerCase() === u.userName.toLowerCase());
+
+                const row = document.createElement('div');
+                row.className = 'dm-user-item' + (isCurrentActive ? ' active' : '') + (u.isOnline ? ' is-online' : '');
+                row.onclick = () => switchChatChannel(u.userId, u);
+                row.innerHTML = 
+                    '<div class="dm-user-left">' +
+                        '<div class="dm-avatar-wrap">' +
+                            '<div class="dm-user-avatar">' + escapeHtml(initials) + '</div>' +
+                            '<span class="dm-status-dot ' + (u.isOnline ? 'online' : 'offline') + '"></span>' +
+                        '</div>' +
+                        '<div class="dm-user-name">' + escapeHtml(u.userName) + (u.isHost ? ' <span class="p2p-host-badge" style="font-size:9px;padding:1px 4px;">Host</span>' : '') + '</div>' +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                        (unread > 0 
+                            ? '<span class="dm-unread-badge">' + unread + '</span>' 
+                            : '<span class="dm-status-pill ' + (u.isOnline ? 'online' : 'offline') + '">' + (u.isOnline ? '🟢 Online' : 'Offline') + '</span>'
+                        ) +
+                    '</div>';
+                listEl.appendChild(row);
+            });
+
+            renderDmTabs();
+        }
+
         // WhatsApp Album Lightbox Helpers
         function openAlbumById(msgId, startIndex) {
             const list = (window.__chatAlbums && window.__chatAlbums[msgId]) || [];
@@ -336,12 +679,140 @@
             triggerDownloadTracked('/api/download-zip', zipName, { zipName: zipName, files: list });
         }
 
+        window.onP2PTransferCompleted = async function(file) {
+            if (currentDmUser) {
+                try {
+                    await fetch('/api/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(Object.assign({
+                            user: currentUserName,
+                            userId: myUserId,
+                            text: file.name + ' (' + formatBytes(file.size) + ')',
+                            type: 'p2p_file',
+                            duration: file.size
+                        }, getMsgChannelPayload()))
+                    });
+                    loadMessages();
+                } catch(e) {}
+            }
+        };
+
         // Multi-Photo & Video Upload Handler
         async function handleChatPhotoUpload(e) {
             const files = Array.from(e.target.files || []);
             if (!files.length) return;
             e.target.value = '';
             await uploadChatMediaBatch(files);
+        }
+
+        // 1-Click File Attachment Handler (Any File Type: ZIP, PDF, DOCX, Video, etc.)
+        async function handleChatGenericFileUpload(e) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            e.target.value = '';
+
+            // If in Direct Message with an online colleague, prioritize 100% WebRTC P2P (0 host storage used, 0 duplication!)
+            if (currentDmUser && typeof window.findOnlinePeer === 'function') {
+                const onlinePeer = window.findOnlinePeer(currentDmUser.userName, currentDmUser.userId);
+                if (onlinePeer) {
+                    for (const f of files) {
+                        window.sendP2PFileDirectly(onlinePeer.userId, onlinePeer.userName, f);
+                    }
+                    return;
+                } else {
+                    const proceed = confirm(
+                        '⚡ Direct P2P Transfer (0 Host Storage):\n\n' +
+                        currentDmUser.userName + ' is currently offline.\n' +
+                        'P2P streams directly between computers with 0 bytes saved on the host PC.\n\n' +
+                        'Click OK to store on the server so they can download when online, or Cancel to wait until they connect.'
+                    );
+                    if (!proceed) return;
+                }
+            }
+
+            const allMedia = files.every(f => 
+                (f.type && (f.type.startsWith('image/') || f.type.startsWith('video/'))) ||
+                /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i.test(f.name)
+            );
+            if (allMedia) {
+                await uploadChatMediaBatch(files);
+            } else {
+                await uploadChatFilesBatch(files, 'file');
+            }
+        }
+
+        // 1-Click Entire Folder Attachment Handler (Recursive)
+        async function handleChatFolderUpload(e) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            e.target.value = '';
+
+            if (currentDmUser && typeof window.findOnlinePeer === 'function') {
+                const onlinePeer = window.findOnlinePeer(currentDmUser.userName, currentDmUser.userId);
+                if (onlinePeer) {
+                    for (const f of files) {
+                        window.sendP2PFileDirectly(onlinePeer.userId, onlinePeer.userName, f);
+                    }
+                    return;
+                }
+            }
+
+            await uploadChatFilesBatch(files, 'folder');
+        }
+
+        async function uploadChatFilesBatch(files, mode) {
+            if (!files || files.length === 0) return;
+
+            const isFolder = mode === 'folder';
+            const targetFolder = isFolder ? ('Chat_Folder_' + Date.now()) : 'Chat_Media';
+            showToast(isFolder ? ('📁 Uploading folder with ' + files.length + ' files...') : ('📄 Uploading ' + files.length + ' file(s)...'));
+
+            let totalBytes = 0;
+            files.forEach(f => totalBytes += (f.size || 0));
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const relPath = file.webkitRelativePath || file.customRelativePath || file.name;
+                let subFolder = targetFolder;
+                if (isFolder && relPath && relPath.includes('/')) {
+                    const lastSlash = relPath.lastIndexOf('/');
+                    subFolder = targetFolder + '/' + relPath.substring(0, lastSlash);
+                }
+
+                await new Promise((resolve) => {
+                    const xhr = new XMLHttpRequest();
+                    const url = '/upload?filename=' + encodeURIComponent(file.name) + '&folder=' + encodeURIComponent(subFolder);
+                    xhr.open('POST', url, true);
+                    xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+                    xhr.setRequestHeader('X-Folder', encodeURIComponent(subFolder));
+                    xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
+                    xhr.onload = () => resolve();
+                    xhr.onerror = () => resolve();
+                    xhr.send(file);
+                });
+            }
+
+            const rootFolderName = isFolder && files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : (isFolder && files[0].customRelativePath ? files[0].customRelativePath.split('/')[0] : 'Folder');
+            const cleanZipName = rootFolderName.endsWith('.zip') ? rootFolderName : (rootFolderName + '.zip');
+            const msgItem = Object.assign({
+                user: currentUserName,
+                userId: myUserId,
+                text: isFolder ? rootFolderName : (files.length === 1 ? files[0].name : (files.length + ' Shared Files')),
+                type: isFolder ? 'folder' : 'file',
+                imageUrl: isFolder ? ('/api/download-zip?folder=' + encodeURIComponent(targetFolder) + '&zipName=' + encodeURIComponent(cleanZipName)) : ('/' + encodeURIComponent(targetFolder + '/' + files[0].name)),
+                duration: totalBytes
+            }, getMsgChannelPayload());
+
+            await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(msgItem)
+            });
+
+            await loadMessages();
+            showToast(isFolder ? '📁 Folder sent!' : '📄 File(s) sent!');
+            scrollChatToBottom(true);
         }
 
         // Paste Image & Video Support from Clipboard (Ctrl+V)
@@ -360,32 +831,135 @@
             }
         });
 
-        // Drag & Drop Multiple Media directly onto Chat Section
-        const chatWrapper = document.getElementById('chatSectionWrapper');
-        if (chatWrapper) {
-            ['dragenter', 'dragover'].forEach(eventName => {
-                chatWrapper.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    chatWrapper.classList.add('chat-drag-active');
-                }, false);
+        // Universal Drag & Drop System for Chat (Any Files & Folders)
+        const chatSectionEl = document.getElementById('chatSectionWrapper');
+        const chatDropOverlayEl = document.getElementById('chatDropOverlay');
+        let chatDragDepth = 0;
+
+        if (chatSectionEl) {
+            chatSectionEl.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                chatDragDepth++;
+                if (chatDropOverlayEl) {
+                    chatDropOverlayEl.style.display = 'flex';
+                    const descEl = document.getElementById('chatDropTargetDesc');
+                    if (descEl) {
+                        descEl.innerText = currentDmUser 
+                            ? ('Send privately to ' + currentDmUser.userName) 
+                            : 'Send directly to #Team Chat';
+                    }
+                }
             });
 
-            ['dragleave', 'drop'].forEach(eventName => {
-                chatWrapper.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    chatWrapper.classList.remove('chat-drag-active');
-                }, false);
+            chatSectionEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
             });
 
-            chatWrapper.addEventListener('drop', async (e) => {
-                const files = Array.from(e.dataTransfer.files || []).filter(f => {
-                    return (f.type && (f.type.startsWith('image/') || f.type.startsWith('video/'))) ||
-                           /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i.test(f.name);
-                });
+            chatSectionEl.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                chatDragDepth--;
+                if (chatDragDepth <= 0) {
+                    chatDragDepth = 0;
+                    if (chatDropOverlayEl) chatDropOverlayEl.style.display = 'none';
+                }
+            });
+
+            chatSectionEl.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                chatDragDepth = 0;
+                if (chatDropOverlayEl) chatDropOverlayEl.style.display = 'none';
+
+                // Check if in Direct Message with online colleague for 100% P2P Direct Send (0 Host Storage)
+                let p2pTargetPeer = null;
+                if (currentDmUser && typeof window.findOnlinePeer === 'function') {
+                    p2pTargetPeer = window.findOnlinePeer(currentDmUser.userName, currentDmUser.userId);
+                }
+
+                const items = e.dataTransfer.items;
+                if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+                    const collectedFiles = [];
+                    let containsFolder = false;
+
+                    async function scanChatEntry(entry, pathSoFar) {
+                        pathSoFar = pathSoFar || '';
+                        if (entry.isFile) {
+                            await new Promise(resolve => {
+                                entry.file(f => {
+                                    f.customRelativePath = pathSoFar + f.name;
+                                    collectedFiles.push(f);
+                                    resolve();
+                                }, () => resolve());
+                            });
+                        } else if (entry.isDirectory) {
+                            containsFolder = true;
+                            const reader = entry.createReader();
+                            const subEntries = await new Promise(resolve => {
+                                const allSubs = [];
+                                function readSubBatch() {
+                                    reader.readEntries(batch => {
+                                        if (!batch || batch.length === 0) resolve(allSubs);
+                                        else {
+                                            allSubs.push(...batch);
+                                            readSubBatch();
+                                        }
+                                    }, () => resolve(allSubs));
+                                }
+                                readSubBatch();
+                            });
+                            for (const sub of subEntries) {
+                                await scanChatEntry(sub, pathSoFar + entry.name + '/');
+                            }
+                        }
+                    }
+
+                    for (let i = 0; i < items.length; i++) {
+                        const entry = items[i].webkitGetAsEntry();
+                        if (entry) await scanChatEntry(entry, '');
+                    }
+
+                    if (collectedFiles.length > 0) {
+                        if (p2pTargetPeer) {
+                            for (const f of collectedFiles) {
+                                window.sendP2PFileDirectly(p2pTargetPeer.userId, p2pTargetPeer.userName, f);
+                            }
+                            return;
+                        }
+                        if (containsFolder) {
+                            await uploadChatFilesBatch(collectedFiles, 'folder');
+                        } else {
+                            const allMedia = collectedFiles.every(f => 
+                                (f.type && (f.type.startsWith('image/') || f.type.startsWith('video/'))) ||
+                                /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i.test(f.name)
+                            );
+                            if (allMedia) {
+                                await uploadChatMediaBatch(collectedFiles);
+                            } else {
+                                await uploadChatFilesBatch(collectedFiles, 'file');
+                            }
+                        }
+                        return;
+                    }
+                }
+
+                // Fallback for regular file drop
+                const files = Array.from(e.dataTransfer.files || []);
                 if (files.length > 0) {
-                    await uploadChatMediaBatch(files);
+                    if (p2pTargetPeer) {
+                        for (const f of files) {
+                            window.sendP2PFileDirectly(p2pTargetPeer.userId, p2pTargetPeer.userName, f);
+                        }
+                        return;
+                    }
+                    const allMedia = files.every(f => 
+                        (f.type && (f.type.startsWith('image/') || f.type.startsWith('video/'))) ||
+                        /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i.test(f.name)
+                    );
+                    if (allMedia) {
+                        await uploadChatMediaBatch(files);
+                    } else {
+                        await uploadChatFilesBatch(files, 'file');
+                    }
                 }
             });
         }
@@ -431,17 +1005,19 @@
             }
 
             try {
+                const msgBody = Object.assign({
+                    user: currentUserName,
+                    userId: myUserId,
+                    text: caption,
+                    type: uploadedUrls.length > 1 ? 'media_group' : 'image',
+                    imageUrl: uploadedUrls.join('|'),
+                    mediaUrls: uploadedUrls
+                }, getMsgChannelPayload());
+
                 await fetch('/api/messages', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user: currentUserName,
-                        userId: myUserId,
-                        text: caption,
-                        type: uploadedUrls.length > 1 ? 'media_group' : 'image',
-                        imageUrl: uploadedUrls.join('|'),
-                        mediaUrls: uploadedUrls
-                    })
+                    body: JSON.stringify(msgBody)
                 });
                 await loadMessages();
                 showToast(total > 1 ? 'WhatsApp Album with ' + uploadedUrls.length + ' items sent!' : 'Media sent!');
@@ -752,17 +1328,19 @@
                     xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName));
 
                     xhr.onload = async function() {
+                        const voiceBody = Object.assign({
+                            user: currentUserName,
+                            userId: myUserId,
+                            text: '🎤 Voice Message',
+                            type: 'voice',
+                            audioUrl: '/' + encodeURIComponent(filename),
+                            duration: finalDuration
+                        }, getMsgChannelPayload());
+
                         await fetch('/api/messages', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                user: currentUserName,
-                                userId: myUserId,
-                                text: '🎤 Voice Message',
-                                type: 'voice',
-                                audioUrl: '/' + encodeURIComponent(filename),
-                                duration: finalDuration
-                            })
+                            body: JSON.stringify(voiceBody)
                         });
                         await loadMessages();
                     };
@@ -805,15 +1383,17 @@
 
             input.value = '';
             try {
+                const textBody = Object.assign({
+                    user: currentUserName,
+                    userId: myUserId,
+                    text: text,
+                    type: 'text'
+                }, getMsgChannelPayload());
+
                 await fetch('/api/messages', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user: currentUserName,
-                        userId: myUserId,
-                        text: text,
-                        type: 'text'
-                    })
+                    body: JSON.stringify(textBody)
                 });
                 await loadMessages();
                 const container = document.getElementById('chatMessages');

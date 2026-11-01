@@ -822,6 +822,8 @@ function switchView(view) {
 
     if (!container || !filesWrapper || !chatWrapper) return;
 
+    if (view === 'p2p') view = 'chat';
+
     // On mobile devices, split view is not allowed
     if (window.innerWidth < 768 && view === 'split') {
         view = 'files';
