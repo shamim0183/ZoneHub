@@ -3,12 +3,13 @@ title Restart ZoneHub Server
 cd /d "%~dp0"
 
 echo ===================================================
-echo   Restarting ZoneHub Server...
+echo   Restarting ZoneHub Background Server...
 echo ===================================================
 
+:: Stop existing instances
 taskkill /f /im server.exe >nul 2>&1
 taskkill /f /im server_old.exe >nul 2>&1
-ping 127.0.0.1 -n 4 >nul
+ping 127.0.0.1 -n 3 >nul
 
 if exist server_old.exe del /f /q server_old.exe >nul 2>&1
 
@@ -20,13 +21,17 @@ if exist server_new.exe (
     echo [UPDATED] New server.exe applied!
 )
 
-echo Starting ZoneHub server.exe...
-start "ZoneHub Server" /d "%~dp0" "%~dp0server.exe"
+:: Launch server silently as a background service (No CMD window to accidentally close!)
+echo Starting ZoneHub as a silent background service...
+wscript.exe "%~dp0Run-Background-Service.vbs"
 
 echo.
 echo ===================================================
-echo   [SUCCESS] ZoneHub has been restarted!
-echo   Open browser: http://localhost:8080
-echo   Press Ctrl+Shift+R in browser to force refresh!
+echo   [SUCCESS] ZoneHub is running in the BACKGROUND!
+echo   It will keep running even after this window closes.
+echo.
+echo   Localhost:  http://localhost:8080
+echo   To stop it anytime, double-click Stop-Share-Server.bat
+echo   Press Ctrl + Shift + R in browser to force refresh!
 echo ===================================================
-ping 127.0.0.1 -n 3 >nul
+ping 127.0.0.1 -n 4 >nul

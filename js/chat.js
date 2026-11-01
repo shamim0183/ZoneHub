@@ -9,44 +9,29 @@
         let currentChatSearchQuery = '';
         let currentVoiceSpeed = 1.0;
 
-        function toggleChatSearch() {
-            const box = document.getElementById('chatSearchBox');
-            const input = document.getElementById('chatSearchInput');
-            const btn = document.getElementById('chatSearchToggleBtn');
-            if (!box) return;
-
-            if (box.style.display === 'flex') {
-                closeChatSearch();
-            } else {
-                box.style.display = 'flex';
-                if (btn) btn.classList.add('active');
-                if (input) {
-                    input.focus();
-                    input.select();
-                }
-            }
-        }
-        window.toggleChatSearch = toggleChatSearch;
-
         function handleChatSearchInput(query) {
             currentChatSearchQuery = (query || '').trim();
+            const countPill = document.getElementById('chatSearchCount');
+            const clearBtn = document.getElementById('chatSearchClearBtn');
+            if (clearBtn) clearBtn.style.display = currentChatSearchQuery ? 'block' : 'none';
             renderMessages(currentMessages, true);
         }
         window.handleChatSearchInput = handleChatSearchInput;
 
-        function closeChatSearch() {
-            const box = document.getElementById('chatSearchBox');
+        function clearChatSearch() {
             const input = document.getElementById('chatSearchInput');
-            const btn = document.getElementById('chatSearchToggleBtn');
-            if (box) box.style.display = 'none';
+            const countPill = document.getElementById('chatSearchCount');
+            const clearBtn = document.getElementById('chatSearchClearBtn');
             if (input) input.value = '';
-            if (btn) btn.classList.remove('active');
+            if (countPill) countPill.style.display = 'none';
+            if (clearBtn) clearBtn.style.display = 'none';
             if (currentChatSearchQuery) {
                 currentChatSearchQuery = '';
                 renderMessages(currentMessages, true);
             }
         }
-        window.closeChatSearch = closeChatSearch;
+        window.clearChatSearch = clearChatSearch;
+        window.closeChatSearch = clearChatSearch;
 
         function cycleVoiceSpeed(event, msgId) {
             if (event) event.stopPropagation();
@@ -325,16 +310,19 @@
                     return txt.includes(qLower) || usr.includes(qLower) || img.includes(qLower);
                 });
                 const countEl = document.getElementById('chatSearchCount');
-                if (countEl) countEl.innerText = visibleMessages.length + ' found';
+                if (countEl) {
+                    countEl.innerText = visibleMessages.length + ' found';
+                    countEl.style.display = 'inline-block';
+                }
             } else {
                 const countEl = document.getElementById('chatSearchCount');
-                if (countEl) countEl.innerText = '0 found';
+                if (countEl) countEl.style.display = 'none';
             }
 
             container.innerHTML = '';
             if (visibleMessages.length === 0) {
                 if (currentChatSearchQuery) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:26px;margin-bottom:8px;">🔍</div>No messages found matching "<strong>' + escapeHtml(currentChatSearchQuery) + '</strong>"<br><button onclick="closeChatSearch()" class="btn btn-secondary" style="margin-top:12px;font-size:11px;padding:4px 10px;">Clear Search</button></div>';
+                    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:26px;margin-bottom:8px;">🔍</div>No messages found matching "<strong>' + escapeHtml(currentChatSearchQuery) + '</strong>"<br><button onclick="clearChatSearch()" class="btn btn-secondary" style="margin-top:12px;font-size:11px;padding:4px 10px;">Clear Search</button></div>';
                 } else if (currentChatChannel === 'public') {
                     container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">No messages yet. Send a message or photo to start chatting!</div>';
                 } else {
