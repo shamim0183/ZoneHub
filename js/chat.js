@@ -226,6 +226,26 @@
 
             const isScrolledToBottom = isFirstMessagesLoad || (container.scrollHeight - container.clientHeight <= container.scrollTop + 80);
 
+            // Update Pinned Announcement Banner
+            const pinnedBanner = document.getElementById('pinnedMsgBanner');
+            const pinnedAuthor = document.getElementById('pinnedAuthorText');
+            const pinnedSnippet = document.getElementById('pinnedSnippetText');
+            const pinnedMsg = visibleMessages.slice().reverse().find(m => m.isPinned && !m.deleted);
+            window.__currentPinnedMsgId = pinnedMsg ? pinnedMsg.id : null;
+
+            if (pinnedBanner) {
+                if (pinnedMsg) {
+                    pinnedBanner.style.display = 'flex';
+                    if (pinnedAuthor) pinnedAuthor.innerText = (pinnedMsg.user || 'Colleague') + ' (📌 Pinned Announcement)';
+                    if (pinnedSnippet) {
+                        let snip = pinnedMsg.text || (pinnedMsg.type === 'voice' ? '🎤 Voice Note' : (pinnedMsg.type === 'image' ? '📷 Picture' : 'Attached File'));
+                        pinnedSnippet.innerText = snip.length > 70 ? snip.substring(0, 67) + '...' : snip;
+                    }
+                } else {
+                    pinnedBanner.style.display = 'none';
+                }
+            }
+
             container.innerHTML = '';
             if (visibleMessages.length === 0) {
                 if (currentChatChannel === 'public') {
@@ -238,11 +258,12 @@
             visibleMessages.forEach(msg => {
                 const bubble = document.createElement('div');
                 const isDeleted = msg.deleted;
-                bubble.className = 'chat-message-bubble' + (isDeleted ? ' is-deleted' : '');
+                bubble.className = 'chat-message-bubble' + (isDeleted ? ' is-deleted' : '') + (msg.isPinned && !isDeleted ? ' is-pinned' : '');
                 bubble.id = 'msg_' + msg.id;
 
                 const initials = (msg.user || 'E').substring(0, 2).toUpperCase();
                 const editedBadge = msg.edited && !isDeleted ? '<span class="msg-edited-tag">(edited)</span>' : '';
+                const pinnedBadge = msg.isPinned && !isDeleted ? '<span class="pinned-tag">📌 Pinned</span>' : '';
 
                 // Content rendering: text, voice, or instant inline picture!
                 let contentHtml = '';
@@ -419,10 +440,15 @@
                             '</div>';
                     }
 
+                    const pinAction = '<button onclick="togglePinMessage(\'' + msg.id + '\', ' + (!msg.isPinned) + ')" class="msg-act-btn" title="' + (msg.isPinned ? 'Unpin from top' : 'Pin announcement to top') + '">' + (msg.isPinned ? '📌 Unpin' : '📌 Pin') + '</button>';
+
                     actionsHtml = 
                         '<div class="msg-actions">' +
                             quickEmojis +
-                            ownActions +
+                            '<div style="display:flex;gap:4px;align-items:center;">' +
+                                pinAction +
+                                ownActions +
+                            '</div>' +
                         '</div>';
                 }
 
@@ -432,6 +458,7 @@
                             '<div class="author-avatar">' + initials + '</div>' +
                             '<span class="author-name">' + escapeHtml(msg.user) + '</span>' +
                             editedBadge +
+                            pinnedBadge +
                         '</div>' +
                         '<span class="msg-time">' + escapeHtml(msg.timestamp) + '</span>' +
                     '</div>' +
@@ -1465,6 +1492,44 @@
                 }
             }
         }
+
+        async function togglePinMessage(id, isPinned) {
+            try {
+                const res = await fetch('/api/messages/pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id, isPinned: isPinned })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(isPinned ? '📌 Announcement pinned to top of chat!' : 'Notice unpinned');
+                    await loadMessages();
+                } else {
+                    showToast(data.error || 'Failed to update pin');
+                }
+            } catch (err) {
+                showToast('Failed to update pin');
+            }
+        }
+        window.togglePinMessage = togglePinMessage;
+
+        function jumpToPinnedMessage() {
+            if (!window.__currentPinnedMsgId) return;
+            const el = document.getElementById('msg_' + window.__currentPinnedMsgId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('pinned-highlight-pulse');
+                setTimeout(() => el.classList.remove('pinned-highlight-pulse'), 2500);
+            }
+        }
+        window.jumpToPinnedMessage = jumpToPinnedMessage;
+
+        function unpinCurrentMessage() {
+            if (window.__currentPinnedMsgId) {
+                togglePinMessage(window.__currentPinnedMsgId, false);
+            }
+        }
+        window.unpinCurrentMessage = unpinCurrentMessage;
 
         // Helpers
         function escapeHtml(text) {

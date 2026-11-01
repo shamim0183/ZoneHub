@@ -32,6 +32,7 @@ namespace ZoneHub
         public bool isPrivate { get; set; }
         public string recipientId { get; set; }
         public string recipientUser { get; set; }
+        public bool isPinned { get; set; }
     }
 
     public class FileMetaItem
@@ -749,6 +750,13 @@ namespace ZoneHub
                     return;
                 }
 
+                // Pin message endpoint
+                if (req.Method == "POST" && decodedPath.Equals("/api/messages/pin", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandlePinMessage(stream, req);
+                    return;
+                }
+
                 // Handle file serving (GET / HEAD)
                 ServeFile(stream, decodedPath, req.Headers, req.Method == "HEAD");
             }
@@ -1394,6 +1402,47 @@ namespace ZoneHub
                     SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found\"}");
                 }
             }
+        }
+
+        private static void HandlePinMessage(NetworkStream stream, RequestContext req)
+        {
+            string body = ReadBodyString(stream, req);
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            Dictionary<string, object> input = null;
+            try
+            {
+                input = js.Deserialize<Dictionary<string, object>>(body);
+            }
+            catch {}
+
+            string msgId = "";
+            bool isPinned = false;
+            if (input != null)
+            {
+                if (input.ContainsKey("id") && input["id"] != null) msgId = input["id"].ToString();
+                if (input.ContainsKey("isPinned") && input["isPinned"] != null) bool.TryParse(input["isPinned"].ToString(), out isPinned);
+            }
+
+            if (string.IsNullOrEmpty(msgId))
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"id required\"}");
+                return;
+            }
+
+            lock (MessagesLock)
+            {
+                var list = LoadMessages();
+                var target = list.FirstOrDefault(m => m.id == msgId);
+                if (target != null)
+                {
+                    target.isPinned = isPinned;
+                    SaveMessages(list);
+                    Console.WriteLine("[CHAT PIN] " + (isPinned ? "Pinned" : "Unpinned") + " message " + msgId);
+                    SendJsonResponse(stream, 200, "{\"success\":true,\"isPinned\":" + (isPinned ? "true" : "false") + "}");
+                    return;
+                }
+            }
+            SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found\"}");
         }
 
         private static void SendJsonResponse(NetworkStream stream, int statusCode, string json)

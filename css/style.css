@@ -3878,3 +3878,135 @@
         .chat-attach-popup {
             display: none !important;
         }
+
+        /* ============================================================
+           Pinned Messages & Announcements System
+           ============================================================ */
+        .pinned-msg-banner {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.14));
+            border-bottom: 1px solid rgba(99, 102, 241, 0.35);
+            padding: 9px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+            animation: fadeInPinned 0.25s ease-out;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+        }
+
+        @keyframes fadeInPinned {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pinned-msg-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+            cursor: pointer;
+        }
+
+        .pinned-icon {
+            font-size: 16px;
+            animation: bouncePin 2s infinite ease-in-out;
+        }
+
+        @keyframes bouncePin {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        .pinned-content {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .pinned-author {
+            font-size: 11px;
+            font-weight: 800;
+            color: #a5b4fc;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pinned-snippet {
+            font-size: 12px;
+            color: #f1f5f9;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pinned-msg-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-pinned-jump {
+            background: rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            color: #c7d2fe;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-pinned-jump:hover {
+            background: rgba(99, 102, 241, 0.5);
+            color: #ffffff;
+            transform: scale(1.04);
+        }
+
+        .btn-pinned-unpin {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-pinned-unpin:hover {
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .pinned-tag {
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(99, 102, 241, 0.25);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: #c7d2fe;
+            padding: 1px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+
+        .chat-message-bubble.is-pinned {
+            border-left: 3px solid #818cf8;
+            background: rgba(99, 102, 241, 0.07);
+        }
+
+        .pinned-highlight-pulse {
+            animation: highlightPulse 2.5s ease-out;
+        }
+
+        @keyframes highlightPulse {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.8); background: rgba(99, 102, 241, 0.25); }
+            50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.6); background: rgba(99, 102, 241, 0.2); }
+            100% { box-shadow: 0 0 0 0 transparent; }
+        }

@@ -105,9 +105,10 @@
                     <span class="link-label">Localhost (This PC):</span>
                     <a href="http://localhost:8080" class="link-value" target="_blank">http://localhost:8080</a>
                 </div>
-                <div class="link-group highlight-link" style="background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);">
-                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">📱 Office Wi-Fi (Phones &amp; PCs):</span>
+                <div class="link-group highlight-link" style="background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);display:flex;align-items:center;gap:6px;">
+                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">📱 Office Wi-Fi:</span>
                     <a href="http://{{LOCAL_IP}}:8080" id="networkShareLink" class="link-value" target="_blank" style="color:#38bdf8;font-weight:700;">http://{{LOCAL_IP}}:8080</a>
+                    <button type="button" onclick="openQrModal()" class="btn btn-secondary" style="font-size:11px;padding:2px 8px;font-weight:700;gap:4px;background:rgba(56,189,248,0.2);border-color:rgba(56,189,248,0.4);color:#38bdf8;margin-left:4px;" title="Scan with Phone Camera to Connect Instantly">📱 QR Code</button>
                 </div>
                 <div class="link-group pcname-link-group">
                     <span class="link-label">💻 PC Name:</span>
@@ -360,6 +361,21 @@
                         </div>
                     </div>
 
+                    <!-- Pinned Message Announcement Banner -->
+                    <div id="pinnedMsgBanner" class="pinned-msg-banner" style="display:none;">
+                        <div class="pinned-msg-left">
+                            <span class="pinned-icon">📌</span>
+                            <div class="pinned-content" onclick="jumpToPinnedMessage()">
+                                <div class="pinned-author" id="pinnedAuthorText">Pinned Notice</div>
+                                <div class="pinned-snippet" id="pinnedSnippetText">...</div>
+                            </div>
+                        </div>
+                        <div class="pinned-msg-actions">
+                            <button type="button" class="btn-pinned-jump" onclick="jumpToPinnedMessage()" title="Scroll to message">View</button>
+                            <button type="button" class="btn-pinned-unpin" onclick="unpinCurrentMessage()" title="Unpin notice">✕</button>
+                        </div>
+                    </div>
+
                     <div class="chat-messages" id="chatMessages">
                         <!-- Chat messages loaded dynamically -->
                     </div>
@@ -520,6 +536,26 @@
             <div class="corner-toast-text" id="toastPreview">Message preview</div>
         </div>
         <button class="corner-toast-close" onclick="event.stopPropagation(); closeChatToast();">✕</button>
+    </div>
+
+    <!-- Mobile QR Quick Connect Modal -->
+    <div class="modal-overlay" id="qrModal" onclick="closeQrModal(event)">
+        <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:380px;text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
+                    📱 Connect Mobile Phone
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closeQrModal()">✕</button>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px;">
+                Point your iPhone or Android camera at this QR code to instantly open ZoneHub on Wi-Fi without typing:
+            </p>
+            <div id="qrCodeContainer" style="display:flex;justify-content:center;margin-bottom:14px;"></div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span id="qrUrlDisplay" style="font-size:12px;font-family:monospace;color:#38bdf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">http://{{LOCAL_IP}}:8080</span>
+                <button type="button" onclick="copyFullShareUrl()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;">Copy</button>
+            </div>
+        </div>
     </div>
 
     <!-- Hub Rename Modal with 1-Click Suggestions -->
@@ -817,12 +853,37 @@
                 if (panel) panel.style.display = (t === tab ? 'block' : 'none');
             });
         }
+
+        // Mobile QR Code Quick Connect Modal Handlers
+        function openQrModal() {
+            const modal = document.getElementById('qrModal');
+            const container = document.getElementById('qrCodeContainer');
+            const shareLink = document.getElementById('networkShareLink');
+            let url = (shareLink && shareLink.href) ? shareLink.href : window.location.origin;
+            if (url.includes('localhost') || url.includes('127.0.0.1')) {
+                if (shareLink && shareLink.href && !shareLink.href.includes('localhost')) {
+                    url = shareLink.href;
+                }
+            }
+            const display = document.getElementById('qrUrlDisplay');
+            if (display) display.innerText = url;
+            if (modal) modal.style.display = 'flex';
+            if (typeof window.renderQRToSvg === 'function' && container) {
+                window.renderQRToSvg(url, container, 200);
+            }
+        }
+        function closeQrModal(e) {
+            if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('modal-close-btn')) return;
+            const modal = document.getElementById('qrModal');
+            if (modal) modal.style.display = 'none';
+        }
     </script>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/app.js?v=20261031c"></script>
-    <script src="/js/media.js?v=20261031c"></script>
-    <script src="/js/chat.js?v=20261031c"></script>
-    <script src="/js/p2p.js?v=20261031c"></script>
+    <script src="/js/qrcode.js?v=20261101"></script>
+    <script src="/js/app.js?v=20261101"></script>
+    <script src="/js/media.js?v=20261101"></script>
+    <script src="/js/chat.js?v=20261101"></script>
+    <script src="/js/p2p.js?v=20261101"></script>
 </body>
 </html>
