@@ -42,7 +42,11 @@
             review: "Review",
             delete: "Delete",
             expires_days_left: "{days} days left",
-            expires_hours_left: "{hours}h left"
+            expires_hours_left: "{hours}h left",
+            host_disk_storage: "Host Storage",
+            host_lan_speed: "Live LAN Speed",
+            host_active_devices: "Active Devices",
+            host_remote_status: "Remote Access"
         },
         bn: {
             app_title: "জোনহাব ও টিম চ্যাট",
@@ -83,7 +87,11 @@
             review: "ভিউ",
             delete: "ডিলিট",
             expires_days_left: "{days} দিন বাকি",
-            expires_hours_left: "{hours} ঘণ্টা বাকি"
+            expires_hours_left: "{hours} ঘণ্টা বাকি",
+            host_disk_storage: "হোস্ট স্টোরেজ",
+            host_lan_speed: "লাইভ লোকাল স্পিড",
+            host_active_devices: "সক্রিয় ডিভাইস",
+            host_remote_status: "রিমোট অ্যাক্সেস"
         },
         es: {
             app_title: "ZoneHub y Chat de Equipo",
@@ -124,7 +132,11 @@
             review: "Ver",
             delete: "Eliminar",
             expires_days_left: "Quedan {days} días",
-            expires_hours_left: "Quedan {hours}h"
+            expires_hours_left: "Quedan {hours}h",
+            host_disk_storage: "Almacenamiento",
+            host_lan_speed: "Velocidad LAN",
+            host_active_devices: "Dispositivos Activos",
+            host_remote_status: "Acceso Remoto"
         },
         ar: {
             app_title: "زون هب ومحادثة الفريق",
@@ -165,7 +177,11 @@
             review: "معاينة",
             delete: "حذف",
             expires_days_left: "باقي {days} أيام",
-            expires_hours_left: "باقي {hours} ساعة"
+            expires_hours_left: "باقي {hours} ساعة",
+            host_disk_storage: "مساحة التخزين",
+            host_lan_speed: "سرعة الشبكة الحية",
+            host_active_devices: "الأجهزة المتصلة",
+            host_remote_status: "الوصول عن بعد"
         }
     };
 

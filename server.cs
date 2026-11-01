@@ -52,6 +52,8 @@ namespace ZoneHub
         public bool isHost { get; set; }
         public bool isOnline { get; set; }
         public int lastSeenSecAgo { get; set; }
+        public bool isMobile { get; set; }
+        public string userAgent { get; set; }
     }
 
     public class P2PSignalItem
@@ -95,6 +97,18 @@ namespace ZoneHub
         private static object PeersLock = new object();
         private static List<P2PSignalItem> P2PSignals = new List<P2PSignalItem>();
         private static object SignalsLock = new object();
+
+        // Host PC Live Traffic & Speed Counters
+        private static long _totalBytesSent = 0;
+        private static long _totalBytesReceived = 0;
+        private static long _lastSentSample = 0;
+        private static long _lastRecvSample = 0;
+        private static DateTime _lastSampleTime = DateTime.UtcNow;
+        private static double _downloadSpeedBps = 0;
+        private static double _uploadSpeedBps = 0;
+        private static object _speedLock = new object();
+        private static object _cfLock = new object();
+        private static Process _cloudflaredProcess = null;
 
         public static string GetCurrentLocalIp()
         {
@@ -392,6 +406,305 @@ namespace ZoneHub
             return null;
         }
 
+        public static void TrackBytesSent(long count)
+        {
+            if (count > 0) Interlocked.Add(ref _totalBytesSent, count);
+        }
+
+        public static void TrackBytesReceived(long count)
+        {
+            if (count > 0) Interlocked.Add(ref _totalBytesReceived, count);
+        }
+
+        private static void SampleSpeed()
+        {
+            lock (_speedLock)
+            {
+                DateTime now = DateTime.UtcNow;
+                double elapsed = (now - _lastSampleTime).TotalSeconds;
+                if (elapsed >= 0.8)
+                {
+                    long curSent = Interlocked.Read(ref _totalBytesSent);
+                    long curRecv = Interlocked.Read(ref _totalBytesReceived);
+                    _downloadSpeedBps = Math.Max(0, (curSent - _lastSentSample) / elapsed);
+                    _uploadSpeedBps = Math.Max(0, (curRecv - _lastRecvSample) / elapsed);
+                    _lastSentSample = curSent;
+                    _lastRecvSample = curRecv;
+                    _lastSampleTime = now;
+                }
+            }
+        }
+
+        private static string FormatSpeed(double bytesPerSec)
+        {
+            if (bytesPerSec < 1024) return "0 KB/s";
+            if (bytesPerSec < 1024 * 1024) return (bytesPerSec / 1024.0).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + " KB/s";
+            return (bytesPerSec / (1024.0 * 1024.0)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + " MB/s";
+        }
+
+        private static void GetStorageStats(out long totalBytes, out long freeBytes, out double usedPercent, out bool isLowSpace)
+        {
+            totalBytes = 0; freeBytes = 0; usedPercent = 0; isLowSpace = false;
+            try
+            {
+                string rootPath = Path.GetPathRoot(RootDirectory);
+                if (string.IsNullOrEmpty(rootPath)) rootPath = "C:\\";
+                DriveInfo di = new DriveInfo(rootPath);
+                if (di.IsReady)
+                {
+                    totalBytes = di.TotalSize;
+                    freeBytes = di.AvailableFreeSpace;
+                    long usedBytes = totalBytes - freeBytes;
+                    if (totalBytes > 0) usedPercent = Math.Round(((double)usedBytes / totalBytes) * 100, 1);
+                    isLowSpace = usedPercent >= 90.0;
+                }
+            }
+            catch {}
+        }
+
+        private static void RecordActivePeer(string ip, string ua)
+        {
+            if (string.IsNullOrEmpty(ip)) return;
+            bool isMobile = false;
+            if (!string.IsNullOrEmpty(ua))
+            {
+                string lower = ua.ToLowerInvariant();
+                isMobile = lower.Contains("mobi") || lower.Contains("android") || lower.Contains("iphone") || lower.Contains("ipad");
+            }
+            lock (PeersLock)
+            {
+                string key = ip.Trim();
+                if (ActivePeers.ContainsKey(key))
+                {
+                    ActivePeers[key].lastSeenUnix = DateTime.UtcNow.Ticks;
+                    ActivePeers[key].isMobile = isMobile;
+                    if (!string.IsNullOrEmpty(ua)) ActivePeers[key].userAgent = ua;
+                }
+                else
+                {
+                    ActivePeers[key] = new PeerInfo
+                    {
+                        userId = key,
+                        userName = key,
+                        clientIp = key,
+                        lastSeenUnix = DateTime.UtcNow.Ticks,
+                        isHost = (key == "127.0.0.1" || key == "::1" || key == GetCurrentLocalIp()),
+                        isOnline = true,
+                        isMobile = isMobile,
+                        userAgent = ua
+                    };
+                }
+            }
+        }
+
+        private static void GetPeerCounts(out int total, out int desktop, out int mobile)
+        {
+            total = 0; desktop = 0; mobile = 0;
+            long cutoff = DateTime.UtcNow.AddMinutes(-2).Ticks;
+            lock (PeersLock)
+            {
+                List<string> stale = new List<string>();
+                foreach (var kvp in ActivePeers)
+                {
+                    if (kvp.Value.lastSeenUnix < cutoff) stale.Add(kvp.Key);
+                    else
+                    {
+                        total++;
+                        if (kvp.Value.isMobile) mobile++;
+                        else desktop++;
+                    }
+                }
+                foreach (var k in stale) ActivePeers.Remove(k);
+            }
+            if (total == 0) { total = 1; desktop = 1; }
+        }
+
+        public static string GetCloudflaredExePath()
+        {
+            try
+            {
+                string p1 = Path.Combine(RootDirectory, "cloudflared.exe");
+                if (File.Exists(p1)) return p1;
+                string p2 = @"C:\Program Files (x86)\cloudflared\cloudflared.exe";
+                if (File.Exists(p2)) return p2;
+                string p3 = @"C:\Program Files\cloudflared\cloudflared.exe";
+                if (File.Exists(p3)) return p3;
+            }
+            catch {}
+            return null;
+        }
+
+        public static bool IsTunnelRunning()
+        {
+            try
+            {
+                return Process.GetProcessesByName("cloudflared").Length > 0;
+            }
+            catch {}
+            return false;
+        }
+
+        public static void StopCloudflareTunnel()
+        {
+            lock (_cfLock)
+            {
+                try
+                {
+                    foreach (var p in Process.GetProcessesByName("cloudflared"))
+                    {
+                        try { p.Kill(); } catch {}
+                    }
+                }
+                catch {}
+                try
+                {
+                    string onlineTxt = Path.Combine(RootDirectory, "online_url.txt");
+                    if (File.Exists(onlineTxt)) File.Delete(onlineTxt);
+                }
+                catch {}
+            }
+        }
+
+        public static string StartCloudflareTunnel()
+        {
+            lock (_cfLock)
+            {
+                string exe = GetCloudflaredExePath();
+                if (string.IsNullOrEmpty(exe)) return null;
+
+                string current = GetCurrentOnlineTunnelUrl();
+                if (!string.IsNullOrEmpty(current) && IsTunnelRunning()) return current;
+
+                StopCloudflareTunnel();
+
+                string logPath = Path.Combine(RootDirectory, "cloudflared.log");
+                try { if (File.Exists(logPath)) File.Delete(logPath); } catch {}
+
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = exe;
+                psi.Arguments = "tunnel --url http://localhost:8080 --logfile \"" + logPath + "\"";
+                psi.CreateNoWindow = true;
+                psi.UseShellExecute = false;
+                psi.WorkingDirectory = RootDirectory;
+
+                try
+                {
+                    _cloudflaredProcess = Process.Start(psi);
+                }
+                catch { return null; }
+
+                for (int i = 0; i < 24; i++)
+                {
+                    Thread.Sleep(500);
+                    string url = GetCurrentOnlineTunnelUrl();
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        try
+                        {
+                            File.WriteAllText(Path.Combine(RootDirectory, "online_url.txt"), url, Encoding.UTF8);
+                        }
+                        catch {}
+                        return url;
+                    }
+                }
+            }
+            return GetCurrentOnlineTunnelUrl();
+        }
+
+        private static void ServeHostStats(NetworkStream stream, RequestContext req)
+        {
+            SampleSpeed();
+            long totalStorage = 0, freeStorage = 0;
+            double usedPercent = 0;
+            bool isLowSpace = false;
+            GetStorageStats(out totalStorage, out freeStorage, out usedPercent, out isLowSpace);
+
+            int totalPeers = 0, desktopPeers = 0, mobilePeers = 0;
+            GetPeerCounts(out totalPeers, out desktopPeers, out mobilePeers);
+
+            string onlineUrl = GetCurrentOnlineTunnelUrl();
+            bool tunnelRunning = IsTunnelRunning() && !string.IsNullOrEmpty(onlineUrl);
+            bool tunnelInstalled = !string.IsNullOrEmpty(GetCloudflaredExePath());
+
+            long sent = Interlocked.Read(ref _totalBytesSent);
+            long recv = Interlocked.Read(ref _totalBytesReceived);
+
+            string json = "{" +
+                "\"success\":true," +
+                "\"storage\":{" +
+                    "\"drive\":\"" + JsonEscape(Path.GetPathRoot(RootDirectory) ?? "C:\\") + "\"," +
+                    "\"totalBytes\":" + totalStorage + "," +
+                    "\"freeBytes\":" + freeStorage + "," +
+                    "\"usedBytes\":" + (totalStorage - freeStorage) + "," +
+                    "\"usedPercent\":" + usedPercent.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                    "\"totalFormatted\":\"" + FormatBytes(totalStorage) + "\"," +
+                    "\"freeFormatted\":\"" + FormatBytes(freeStorage) + "\"," +
+                    "\"isLowSpace\":" + (isLowSpace ? "true" : "false") +
+                "}," +
+                "\"traffic\":{" +
+                    "\"downloadSpeed\":\"" + FormatSpeed(_downloadSpeedBps) + "\"," +
+                    "\"uploadSpeed\":\"" + FormatSpeed(_uploadSpeedBps) + "\"," +
+                    "\"downloadSpeedBps\":" + ((long)_downloadSpeedBps) + "," +
+                    "\"uploadSpeedBps\":" + ((long)_uploadSpeedBps) + "," +
+                    "\"totalSentFormatted\":\"" + FormatBytes(sent) + "\"," +
+                    "\"totalReceivedFormatted\":\"" + FormatBytes(recv) + "\"" +
+                "}," +
+                "\"devices\":{" +
+                    "\"total\":" + totalPeers + "," +
+                    "\"desktop\":" + desktopPeers + "," +
+                    "\"mobile\":" + mobilePeers +
+                "}," +
+                "\"tunnel\":{" +
+                    "\"installed\":" + (tunnelInstalled ? "true" : "false") + "," +
+                    "\"running\":" + (tunnelRunning ? "true" : "false") + "," +
+                    "\"url\":\"" + JsonEscape(onlineUrl ?? "") + "\"" +
+                "}" +
+            "}";
+
+            SendJsonResponse(stream, 200, json);
+        }
+
+        private static void ServeTunnelStatus(NetworkStream stream, RequestContext req)
+        {
+            string url = GetCurrentOnlineTunnelUrl();
+            bool running = IsTunnelRunning() && !string.IsNullOrEmpty(url);
+            bool installed = !string.IsNullOrEmpty(GetCloudflaredExePath());
+            string json = "{" +
+                "\"success\":true," +
+                "\"installed\":" + (installed ? "true" : "false") + "," +
+                "\"running\":" + (running ? "true" : "false") + "," +
+                "\"url\":\"" + JsonEscape(url ?? "") + "\"" +
+            "}";
+            SendJsonResponse(stream, 200, json);
+        }
+
+        private static void HandleStartTunnel(NetworkStream stream, RequestContext req)
+        {
+            string url = StartCloudflareTunnel();
+            if (!string.IsNullOrEmpty(url))
+            {
+                SendJsonResponse(stream, 200, "{\"success\":true,\"url\":\"" + JsonEscape(url) + "\",\"running\":true}");
+            }
+            else
+            {
+                string exe = GetCloudflaredExePath();
+                if (string.IsNullOrEmpty(exe))
+                {
+                    SendJsonResponse(stream, 500, "{\"success\":false,\"error\":\"cloudflared.exe not found on host PC\"}");
+                }
+                else
+                {
+                    SendJsonResponse(stream, 500, "{\"success\":false,\"error\":\"Failed to establish Cloudflare tunnel. Check cloudflared.log\"}");
+                }
+            }
+        }
+
+        private static void HandleStopTunnel(NetworkStream stream, RequestContext req)
+        {
+            StopCloudflareTunnel();
+            SendJsonResponse(stream, 200, "{\"success\":true,\"running\":false}");
+        }
+
         private static void StartDiscoveryResponder()
         {
             Thread t = new Thread(() =>
@@ -530,6 +843,8 @@ namespace ZoneHub
                     return;
                 }
 
+                RecordActivePeer(req.ClientIp, req.Headers.ContainsKey("user-agent") ? req.Headers["user-agent"] : "");
+
                 // Handle CORS OPTIONS preflight for Mac Safari, iOS, Chrome
                 if (req.Method == "OPTIONS")
                 {
@@ -594,6 +909,42 @@ namespace ZoneHub
                         }
                     }
                     SendJsonResponse(stream, 200, "{\"success\":true}");
+                    return;
+                }
+
+                // Host Stats & System Monitor
+                if (req.Method == "GET" && decodedPath.Equals("/api/stats", StringComparison.OrdinalIgnoreCase))
+                {
+                    ServeHostStats(stream, req);
+                    return;
+                }
+
+                // Cloudflare Go-Global Tunnel Endpoints
+                if (req.Method == "GET" && decodedPath.Equals("/api/tunnel/status", StringComparison.OrdinalIgnoreCase))
+                {
+                    ServeTunnelStatus(stream, req);
+                    return;
+                }
+
+                if (req.Method == "POST" && decodedPath.Equals("/api/tunnel/start", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!IsAdmin(req))
+                    {
+                        SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Admin permission required to start Global Tunnel\"}");
+                        return;
+                    }
+                    HandleStartTunnel(stream, req);
+                    return;
+                }
+
+                if (req.Method == "POST" && decodedPath.Equals("/api/tunnel/stop", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!IsAdmin(req))
+                    {
+                        SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Admin permission required to stop Global Tunnel\"}");
+                        return;
+                    }
+                    HandleStopTunnel(stream, req);
                     return;
                 }
 
@@ -1823,6 +2174,7 @@ namespace ZoneHub
                         bytesToWrite = (int)contentLength;
                     }
                     fs.Write(req.LeftoverBuffer, req.LeftoverOffset, bytesToWrite);
+                    TrackBytesReceived(bytesToWrite);
                     totalWritten += bytesToWrite;
                 }
 
@@ -1840,6 +2192,7 @@ namespace ZoneHub
                     if (read <= 0) break;
 
                     fs.Write(chunk, 0, read);
+                    TrackBytesReceived(read);
                     totalWritten += read;
                 }
                 fs.Flush();
@@ -2410,6 +2763,7 @@ namespace ZoneHub
                     while ((r = rfs.Read(buf, 0, buf.Length)) > 0)
                     {
                         stream.Write(buf, 0, r);
+                        TrackBytesSent(r);
                     }
                 }
                 stream.Flush();
@@ -2757,10 +3111,12 @@ namespace ZoneHub
 
             if (File.Exists(htmlPath))
             {
+                string onlineUrl = GetCurrentOnlineTunnelUrl();
                 html = File.ReadAllText(htmlPath, Encoding.UTF8);
                 html = html.Replace("{{HUB_NAME}}", hubName)
                            .Replace("{{LOCAL_IP}}", currentIp)
-                           .Replace("{{HOSTNAME}}", machineName);
+                           .Replace("{{HOSTNAME}}", machineName)
+                           .Replace("{{ONLINE_URL}}", !string.IsNullOrEmpty(onlineUrl) ? onlineUrl : "");
             }
             else
             {
@@ -2954,6 +3310,7 @@ namespace ZoneHub
                     if (read <= 0) break;
 
                     stream.Write(buffer, 0, read);
+                    TrackBytesSent(read);
                     remaining -= read;
                 }
             }
