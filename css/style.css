@@ -1,4 +1,5 @@
         :root {
+            color-scheme: dark;
             --bg-base: #0b0f19;
             --bg-card: rgba(22, 31, 48, 0.75);
             --bg-card-hover: rgba(30, 41, 64, 0.9);
@@ -15,6 +16,10 @@
             --accent-rose: #f43f5e;
         }
 
+        html, body {
+            color-scheme: dark !important;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -22,7 +27,9 @@
         }
 
         /* Universal Dark Mode Dropdowns & Select Popups (Fixes white-on-white text in Chrome/Windows) */
-        select {
+        select,
+        option,
+        optgroup {
             color-scheme: dark !important;
         }
 
