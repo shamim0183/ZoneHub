@@ -2221,8 +2221,8 @@
             .header-actions {
                 width: 100%;
                 display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
-                gap: 8px !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 6px !important;
                 align-items: center;
                 box-sizing: border-box !important;
             }
@@ -2232,6 +2232,18 @@
                 justify-content: center;
                 padding: 8px 14px;
                 font-size: 12px;
+                box-sizing: border-box !important;
+            }
+            .lang-selector-wrap {
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .lang-select-pill {
+                width: 100% !important;
+                height: 36px !important;
+                padding: 0 4px !important;
+                font-size: 11px !important;
+                text-align: center !important;
                 box-sizing: border-box !important;
             }
             .user-badge {
@@ -4435,4 +4447,133 @@
             background: rgba(99, 102, 241, 0.4);
             color: #fff;
             transform: scale(1.08);
+        }
+
+        /* Multi-Language & Global Features */
+        .lang-select-pill {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            border-radius: 10px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .lang-select-pill:focus, .lang-select-pill:hover {
+            border-color: #38bdf8;
+            background: rgba(255, 255, 255, 0.12);
+        }
+        body.rtl-layout {
+            direction: rtl;
+            text-align: right;
+        }
+
+        /* Auto-Delete Expiry Badges */
+        .expiry-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            font-weight: 700;
+        }
+
+        /* Code Snippet Dark IDE Card */
+        .code-snippet-card {
+            background: #0d1117;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 6px 0;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+        .code-snippet-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #161b22;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .code-snippet-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .code-lang-pill {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #58a6ff;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .code-snippet-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #c9d1d9;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .code-line-count {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+        .btn-copy-code {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #c9d1d9;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-copy-code:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+        }
+        .code-snippet-pre {
+            margin: 0;
+            padding: 12px 14px;
+            overflow-x: auto;
+            max-height: 380px;
+            background: #0d1117;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #c9d1d9;
+            white-space: pre;
+            tab-size: 2;
+        }
+        .code-snippet-code {
+            font-family: inherit;
+        }
+
+        /* Live Screen Share Card in Chat */
+        .screenshare-alert-card {
+            background: rgba(244, 63, 94, 0.08);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin: 6px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
         }

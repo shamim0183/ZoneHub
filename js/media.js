@@ -154,12 +154,15 @@
                         const folderPart = relPath.substring(0, lastSlash);
                         fileTargetFolder = (targetFolder === 'auto' || !targetFolder) ? folderPart : (targetFolder + '/' + folderPart);
                     }
-                    let uploadUrl = '/upload?filename=' + encodeURIComponent(file.name) + '&folder=' + encodeURIComponent(fileTargetFolder);
+                    const expirySelect = document.getElementById('uploadExpirySelect');
+                    const expiryVal = expirySelect ? expirySelect.value : '15d';
+                    let uploadUrl = '/upload?filename=' + encodeURIComponent(file.name) + '&folder=' + encodeURIComponent(fileTargetFolder) + '&expiry=' + encodeURIComponent(expiryVal);
                     if (isZip) uploadUrl += '&extract=true';
 
                     xhr.open('POST', uploadUrl, true);
                     xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
                     xhr.setRequestHeader('X-Folder', encodeURIComponent(fileTargetFolder));
+                    xhr.setRequestHeader('X-Expiry', encodeURIComponent(expiryVal));
                     xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
                     if (isZip) xhr.setRequestHeader('X-Auto-Extract', 'true');
 
@@ -589,6 +592,16 @@
                 const uploaderName = file.uploader || 'obak3';
                 const folderTag = file.folder ? '<span class="meta-tag folder-badge" onclick="event.stopPropagation(); openFolder(\'' + escapeQuotes(file.folder) + '\')" title="Click to view this folder">📁 ' + escapeHtml(file.folder) + '</span>' : '';
 
+                let expiryTag = '';
+                if (file.expiresInMs && file.expiresInMs > 0) {
+                    const hoursLeft = Math.ceil(file.expiresInMs / (1000 * 60 * 60));
+                    const daysLeft = Math.ceil(hoursLeft / 24);
+                    const isUrgent = hoursLeft <= 24;
+                    const badgeText = daysLeft > 1 ? (daysLeft + ' days left') : (hoursLeft + 'h left');
+                    const badgeColor = isUrgent ? '#f59e0b' : '#10b981';
+                    expiryTag = '<span class="meta-tag expiry-badge" style="color:' + badgeColor + ';border-color:' + badgeColor + '40;background:' + badgeColor + '18;font-weight:700;" title="Auto-deletes when policy expires. Files uploaded within 15 days remain safe.">⏳ ' + badgeText + '</span>';
+                }
+
                 const isChecked = selectedFilesMap.has(fileUrl);
                 const checkboxHtml = '<input type="checkbox" class="file-select-checkbox" ' + (isChecked ? 'checked' : '') + ' onchange="onFileCheckboxChanged(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', this)" onclick="event.stopPropagation()" title="Select to batch download" />';
 
@@ -606,6 +619,7 @@
                             '<div class="file-meta">' +
                                 '<span class="meta-tag size-badge">' + file.sizeFormatted + '</span>' +
                                 folderTag +
+                                expiryTag +
                                 '<span class="meta-tag uploader-badge">👤 ' + escapeHtml(uploaderName) + '</span>' +
                                 '<span class="meta-tag">' + file.date + '</span>' +
                             '</div>' +

@@ -39,6 +39,8 @@ namespace ZoneHub
     {
         public string uploader { get; set; }
         public string uploadedAt { get; set; }
+        public string expiresAt { get; set; }
+        public string retentionPolicy { get; set; }
     }
 
     public class PeerInfo
@@ -463,6 +465,8 @@ namespace ZoneHub
             }
 
             StartDiscoveryResponder();
+            RunAutoExpireCleanup();
+            StartExpiryCleanupTimer();
 
             string currentIp = GetCurrentLocalIp();
             string pcName = GetHostName();
@@ -1504,6 +1508,76 @@ namespace ZoneHub
                 File.WriteAllText(path, json, Encoding.UTF8);
             }
         }
+
+        public static void RunAutoExpireCleanup()
+        {
+            try
+            {
+                var meta = LoadFileMetadata();
+                if (meta == null || meta.Count == 0) return;
+
+                List<string> expiredKeys = new List<string>();
+                DateTime nowUtc = DateTime.UtcNow;
+
+                foreach (var kvp in meta)
+                {
+                    var item = kvp.Value;
+                    if (item == null || string.IsNullOrEmpty(item.expiresAt)) continue;
+
+                    DateTime expTime;
+                    if (DateTime.TryParse(item.expiresAt, null, System.Globalization.DateTimeStyles.AdjustToUniversal, out expTime))
+                    {
+                        if (nowUtc >= expTime)
+                        {
+                            expiredKeys.Add(kvp.Key);
+                            string fullPath = Path.Combine(RootDirectory, kvp.Key.Replace('/', '\\'));
+                            if (File.Exists(fullPath))
+                            {
+                                try
+                                {
+                                    File.Delete(fullPath);
+                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                    Console.WriteLine("[AUTO-EXPIRE CLEANUP] Deleted expired file: " + kvp.Key + " (policy: " + item.retentionPolicy + ")");
+                                    Console.ResetColor();
+                                }
+                                catch {}
+                            }
+                        }
+                    }
+                }
+
+                if (expiredKeys.Count > 0)
+                {
+                    lock (MetadataLock)
+                    {
+                        var freshMeta = LoadFileMetadata();
+                        foreach (var k in expiredKeys)
+                        {
+                            if (freshMeta.ContainsKey(k)) freshMeta.Remove(k);
+                        }
+                        SaveFileMetadata(freshMeta);
+                    }
+                }
+            }
+            catch {}
+        }
+
+        private static void StartExpiryCleanupTimer()
+        {
+            Thread cleanupThread = new Thread(() =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        RunAutoExpireCleanup();
+                    }
+                    catch {}
+                    Thread.Sleep(10 * 60 * 1000); // Check every 10 minutes
+                }
+            }) { IsBackground = true, Name = "AutoExpireCleanupThread" };
+            cleanupThread.Start();
+        }
         #endregion
 
         private static bool IsValidSharedFile(FileInfo f)
@@ -1580,6 +1654,7 @@ namespace ZoneHub
         {
             string rawName = "";
             string requestedFolder = "";
+            string requestedExpiry = "15d";
 
             int qIndex = req.Url.IndexOf('?');
             if (qIndex >= 0)
@@ -1596,6 +1671,10 @@ namespace ZoneHub
                     {
                         requestedFolder = Uri.UnescapeDataString(p.Substring(7));
                     }
+                    else if (p.StartsWith("expiry=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        requestedExpiry = Uri.UnescapeDataString(p.Substring(7)).Trim().ToLowerInvariant();
+                    }
                 }
             }
 
@@ -1606,6 +1685,38 @@ namespace ZoneHub
             if (string.IsNullOrEmpty(requestedFolder) && req.Headers.ContainsKey("x-folder"))
             {
                 requestedFolder = Uri.UnescapeDataString(req.Headers["x-folder"]);
+            }
+            if (req.Headers.ContainsKey("x-expiry"))
+            {
+                requestedExpiry = Uri.UnescapeDataString(req.Headers["x-expiry"]).Trim().ToLowerInvariant();
+            }
+
+            string expiresAt = null;
+            if (requestedExpiry == "15d")
+            {
+                expiresAt = DateTime.UtcNow.AddDays(15).ToString("yyyy-MM-ddTHH:mm:ssZ");
+            }
+            else if (requestedExpiry == "30d" || requestedExpiry == "1m")
+            {
+                expiresAt = DateTime.UtcNow.AddDays(30).ToString("yyyy-MM-ddTHH:mm:ssZ");
+            }
+            else if (requestedExpiry == "24h" || requestedExpiry == "1d")
+            {
+                expiresAt = DateTime.UtcNow.AddHours(24).ToString("yyyy-MM-ddTHH:mm:ssZ");
+            }
+            else if (requestedExpiry == "7d")
+            {
+                expiresAt = DateTime.UtcNow.AddDays(7).ToString("yyyy-MM-ddTHH:mm:ssZ");
+            }
+            else if (requestedExpiry == "never" || requestedExpiry == "0")
+            {
+                expiresAt = null;
+                requestedExpiry = "never";
+            }
+            else
+            {
+                expiresAt = DateTime.UtcNow.AddDays(15).ToString("yyyy-MM-ddTHH:mm:ssZ");
+                requestedExpiry = "15d";
             }
 
             if (string.IsNullOrEmpty(rawName))
@@ -1796,7 +1907,9 @@ namespace ZoneHub
                                     var metaDict = LoadFileMetadata();
                                     var metaItem = new FileMetaItem {
                                         uploader = uploader,
-                                        uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt")
+                                        uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt"),
+                                        expiresAt = expiresAt,
+                                        retentionPolicy = requestedExpiry
                                     };
                                     string destRel = string.IsNullOrEmpty(targetSubFolder) ? entry.Name : (targetSubFolder + "/" + entry.Name);
                                     metaDict[entry.Name] = metaItem;
@@ -1824,7 +1937,9 @@ namespace ZoneHub
                     var metaDict = LoadFileMetadata();
                     var metaItem = new FileMetaItem {
                         uploader = uploader,
-                        uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt")
+                        uploadedAt = DateTime.Now.ToString("MMM dd, yyyy - hh:mm tt"),
+                        expiresAt = expiresAt,
+                        retentionPolicy = requestedExpiry
                     };
                     metaDict[safeName] = metaItem;
                     metaDict[relPath] = metaItem;
@@ -2403,6 +2518,7 @@ namespace ZoneHub
 
         private static void ServeFilesJson(NetworkStream stream)
         {
+            try { RunAutoExpireCleanup(); } catch {}
             List<FileInfo> allFiles = new List<FileInfo>();
             try
             {
@@ -2464,8 +2580,32 @@ namespace ZoneHub
                 }
 
                 string uploader = "";
-                if (metaDict.ContainsKey(rel)) uploader = metaDict[rel].uploader;
-                else if (metaDict.ContainsKey(f.Name)) uploader = metaDict[f.Name].uploader;
+                string expiresAt = "";
+                string retention = "";
+                long expiresInMs = -1;
+
+                if (metaDict.ContainsKey(rel))
+                {
+                    uploader = metaDict[rel].uploader;
+                    expiresAt = metaDict[rel].expiresAt ?? "";
+                    retention = metaDict[rel].retentionPolicy ?? "";
+                }
+                else if (metaDict.ContainsKey(f.Name))
+                {
+                    uploader = metaDict[f.Name].uploader;
+                    expiresAt = metaDict[f.Name].expiresAt ?? "";
+                    retention = metaDict[f.Name].retentionPolicy ?? "";
+                }
+
+                if (!string.IsNullOrEmpty(expiresAt))
+                {
+                    DateTime expTime;
+                    if (DateTime.TryParse(expiresAt, null, System.Globalization.DateTimeStyles.AdjustToUniversal, out expTime))
+                    {
+                        TimeSpan rem = expTime - DateTime.UtcNow;
+                        expiresInMs = (long)rem.TotalMilliseconds;
+                    }
+                }
 
                 if (string.IsNullOrEmpty(uploader) || uploader.Equals("Company Shared", StringComparison.OrdinalIgnoreCase))
                 {
@@ -2482,6 +2622,9 @@ namespace ZoneHub
                 sb.Append("\"date\":\"" + JsonEscape(f.LastWriteTime.ToString("MMM dd, yyyy - hh:mm tt")) + "\",");
                 sb.Append("\"type\":\"" + fileType + "\",");
                 sb.Append("\"uploader\":\"" + JsonEscape(uploader) + "\",");
+                sb.Append("\"expiresAt\":\"" + JsonEscape(expiresAt) + "\",");
+                sb.Append("\"retention\":\"" + JsonEscape(retention) + "\",");
+                sb.Append("\"expiresInMs\":" + expiresInMs + ",");
                 sb.Append("\"isVideo\":" + (fileType == "video" ? "true" : "false") + ",");
                 sb.Append("\"isImage\":" + (fileType == "image" ? "true" : "false") + ",");
                 sb.Append("\"isGif\":" + (fileType == "gif" ? "true" : "false") + ",");

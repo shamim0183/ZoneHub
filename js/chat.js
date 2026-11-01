@@ -467,6 +467,40 @@
                                     '📥 Download' +
                                 '</button>' : '') +
                         '</div>';
+                } else if (msg.type === 'code_snippet') {
+                    let snippetData = {};
+                    try { snippetData = JSON.parse(msg.text); } catch(e) { snippetData = { code: msg.text, lang: 'text', title: 'Code Snippet' }; }
+                    const langBadge = (snippetData.lang || 'text').toUpperCase();
+                    const titleText = snippetData.title || (langBadge + ' Snippet');
+                    const rawCode = snippetData.code || '';
+                    const lineCount = rawCode.split('\n').length;
+                    const highlightedHtml = highlightSyntax(rawCode, snippetData.lang);
+
+                    contentHtml = 
+                        '<div class="code-snippet-card">' +
+                            '<div class="code-snippet-header">' +
+                                '<div class="code-snippet-meta">' +
+                                    '<span class="code-lang-pill">' + escapeHtml(langBadge) + '</span>' +
+                                    '<span class="code-snippet-title">' + escapeHtml(titleText) + '</span>' +
+                                    '<span class="code-line-count">' + lineCount + ' lines</span>' +
+                                '</div>' +
+                                '<button type="button" class="btn-copy-code" onclick="copySnippetCode(this, ' + JSON.stringify(rawCode) + ')" title="Copy snippet to clipboard">' +
+                                    '📋 Copy' +
+                                '</button>' +
+                            '</div>' +
+                            '<pre class="code-snippet-pre"><code class="code-snippet-code">' + highlightedHtml + '</code></pre>' +
+                        '</div>';
+                } else if (msg.type === 'screenshare_live') {
+                    contentHtml = 
+                        '<div class="screenshare-alert-card">' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span class="status-dot" style="background:#f43f5e;box-shadow:0 0 10px #f43f5e;"></span>' +
+                                '<strong>' + escapeHtml(msg.text) + '</strong>' +
+                            '</div>' +
+                            '<button type="button" onclick="watchLiveScreen(\'' + (msg.userId || '') + '\', \'' + escapeQuotes(msg.user || '') + '\')" class="btn btn-primary" style="margin-top:8px;font-size:12px;padding:6px 14px;gap:6px;">' +
+                                '▶ Watch Live Screen' +
+                            '</button>' +
+                        '</div>';
                 } else {
                     contentHtml = '<div class="msg-text">' + formatMessageText(msg.text) + '</div>';
                 }
@@ -1639,4 +1673,82 @@
             navigator.clipboard.writeText(fullUrl).then(() => {
                 showToast('Link copied for mobile & employees: ' + fullUrl);
             });
+        }
+
+        // Code Snippet & Screen Share Chat Helpers
+        window.sendCodeSnippetMessage = async function(code, lang, title) {
+            if (!code || !code.trim()) return;
+            const payload = JSON.stringify({
+                code: code,
+                lang: lang || 'text',
+                title: title || ((lang || 'Code').toUpperCase() + ' Snippet')
+            });
+
+            await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.assign({
+                    user: currentUserName,
+                    userId: myUserId,
+                    text: payload,
+                    type: 'code_snippet'
+                }, getMsgChannelPayload()))
+            });
+
+            await loadMessages(true);
+            showToast('💻 Code snippet shared with team!');
+        };
+
+        window.postSystemChatMessage = async function(text, type) {
+            try {
+                await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(Object.assign({
+                        user: currentUserName,
+                        userId: myUserId,
+                        text: text,
+                        type: type || 'text'
+                    }, getMsgChannelPayload()))
+                });
+                await loadMessages(true);
+            } catch(e) {}
+        };
+
+        window.copySnippetCode = function(btn, rawCode) {
+            if (!navigator.clipboard) return;
+            navigator.clipboard.writeText(rawCode).then(function() {
+                const oldHtml = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.style.color = '#10b981';
+                setTimeout(function() {
+                    btn.innerHTML = oldHtml;
+                    btn.style.color = '';
+                }, 2000);
+            });
+        };
+
+        function highlightSyntax(code, lang) {
+            if (!code) return '';
+            let escaped = escapeHtml(code);
+            lang = (lang || '').toLowerCase();
+
+            // Strings: "..." or '...' or `...`
+            escaped = escaped.replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span style="color:#a5d6ff;">$1</span>');
+            // Numbers
+            escaped = escaped.replace(/\b(\d+)\b/g, '<span style="color:#79c0ff;">$1</span>');
+            // Comments (// or #)
+            escaped = escaped.replace(/(\/\/.*?$|#.*?$)/gm, '<span style="color:#8b949e;font-style:italic;">$1</span>');
+
+            // Keywords
+            const jsKeywords = /\b(const|let|var|function|return|if|else|for|while|import|export|from|class|extends|new|this|async|await|try|catch|switch|case|break|default|null|undefined|true|false)\b/g;
+            const pyKeywords = /\b(def|class|import|from|return|if|elif|else|for|while|try|except|with|as|in|is|not|and|or|None|True|False|self)\b/g;
+            const sqlKeywords = /\b(SELECT|FROM|WHERE|INSERT|INTO|UPDATE|DELETE|JOIN|LEFT|RIGHT|INNER|ON|GROUP|BY|ORDER|HAVING|LIMIT|CREATE|TABLE|ALTER|DROP)\b/gi;
+
+            let kwRegex = jsKeywords;
+            if (lang === 'python') kwRegex = pyKeywords;
+            else if (lang === 'sql') kwRegex = sqlKeywords;
+
+            escaped = escaped.replace(kwRegex, '<span style="color:#ff7b72;font-weight:600;">$1</span>');
+            return escaped;
         }
