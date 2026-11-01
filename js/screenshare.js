@@ -137,3 +137,4 @@
     window.watchLiveScreen = watchLiveScreen;
     window.closeScreenModal = closeScreenModal;
 })();
+

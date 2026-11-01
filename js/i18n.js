@@ -229,3 +229,4 @@
         applyLanguage(currentLang);
     });
 })();
+

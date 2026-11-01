@@ -21,6 +21,27 @@
             padding: 0;
         }
 
+        /* Universal Dark Mode Dropdowns & Select Popups (Fixes white-on-white text in Chrome/Windows) */
+        select {
+            color-scheme: dark !important;
+        }
+
+        select option,
+        select optgroup,
+        option {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            padding: 8px 12px !important;
+            font-size: 13px !important;
+        }
+
+        select option:checked,
+        select option:hover,
+        select option:focus {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+        }
+
         /* Best Approach: Auto-Hiding Minimalist Scrollbars (Invisible when idle, smooth 4px pill when scrolling) */
         html, body, * {
             scrollbar-width: thin;
@@ -4451,17 +4472,24 @@
 
         /* Multi-Language & Global Features */
         .lang-select-pill {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #f8fafc;
+            background: #1e293b !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            color: #f8fafc !important;
             border-radius: 10px;
             cursor: pointer;
             outline: none;
             transition: all 0.2s;
+            color-scheme: dark !important;
         }
         .lang-select-pill:focus, .lang-select-pill:hover {
-            border-color: #38bdf8;
-            background: rgba(255, 255, 255, 0.12);
+            border-color: #38bdf8 !important;
+            background: #25334d !important;
+        }
+        .lang-select-pill option,
+        .form-select option {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            padding: 8px 12px !important;
         }
         body.rtl-layout {
             direction: rtl;
