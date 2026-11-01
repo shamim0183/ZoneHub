@@ -6,6 +6,66 @@
         let openDmTabs = []; // list of active DM tabs: [{ userId, userName }]
         let dmUnreadMap = {}; // { [userId]: count }
         let knownChatUsers = new Map(); // normalizedName -> { userId, userName }
+        let currentChatSearchQuery = '';
+        let currentVoiceSpeed = 1.0;
+
+        function toggleChatSearch() {
+            const box = document.getElementById('chatSearchBox');
+            const input = document.getElementById('chatSearchInput');
+            const btn = document.getElementById('chatSearchToggleBtn');
+            if (!box) return;
+
+            if (box.style.display === 'flex') {
+                closeChatSearch();
+            } else {
+                box.style.display = 'flex';
+                if (btn) btn.classList.add('active');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }
+        }
+        window.toggleChatSearch = toggleChatSearch;
+
+        function handleChatSearchInput(query) {
+            currentChatSearchQuery = (query || '').trim();
+            renderMessages(currentMessages, true);
+        }
+        window.handleChatSearchInput = handleChatSearchInput;
+
+        function closeChatSearch() {
+            const box = document.getElementById('chatSearchBox');
+            const input = document.getElementById('chatSearchInput');
+            const btn = document.getElementById('chatSearchToggleBtn');
+            if (box) box.style.display = 'none';
+            if (input) input.value = '';
+            if (btn) btn.classList.remove('active');
+            if (currentChatSearchQuery) {
+                currentChatSearchQuery = '';
+                renderMessages(currentMessages, true);
+            }
+        }
+        window.closeChatSearch = closeChatSearch;
+
+        function cycleVoiceSpeed(event, msgId) {
+            if (event) event.stopPropagation();
+            const btn = event.currentTarget;
+            if (currentVoiceSpeed === 1.0) currentVoiceSpeed = 1.5;
+            else if (currentVoiceSpeed === 1.5) currentVoiceSpeed = 2.0;
+            else currentVoiceSpeed = 1.0;
+
+            const speedText = currentVoiceSpeed + 'x';
+            if (btn) btn.innerText = speedText;
+
+            // Update all speed buttons on screen to match
+            document.querySelectorAll('.voice-speed-btn').forEach(b => b.innerText = speedText);
+
+            if (activeVoicePlayer && activeVoicePlayer.audio) {
+                activeVoicePlayer.audio.playbackRate = currentVoiceSpeed;
+            }
+        }
+        window.cycleVoiceSpeed = cycleVoiceSpeed;
 
         function getMsgChannelPayload() {
             if (currentChatChannel !== 'public' && currentDmUser) {
@@ -89,6 +149,15 @@
                 });
                 ytCardsHtml += '</div>';
                 text += ytCardsHtml;
+            }
+
+            // Highlight search query keywords if search is active
+            if (currentChatSearchQuery) {
+                try {
+                    const esc = currentChatSearchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const reg = new RegExp('(?![^<]*>)(' + esc + ')', 'gi');
+                    text = text.replace(reg, '<mark class="chat-search-highlight">$1</mark>');
+                } catch(e) {}
             }
 
             return text;
@@ -246,9 +315,27 @@
                 }
             }
 
+            // Filter by in-chat search query if user is searching
+            if (currentChatSearchQuery) {
+                const qLower = currentChatSearchQuery.toLowerCase();
+                visibleMessages = visibleMessages.filter(m => {
+                    const txt = (m.text || '').toLowerCase();
+                    const usr = (m.user || '').toLowerCase();
+                    const img = (m.imageUrl || '').toLowerCase();
+                    return txt.includes(qLower) || usr.includes(qLower) || img.includes(qLower);
+                });
+                const countEl = document.getElementById('chatSearchCount');
+                if (countEl) countEl.innerText = visibleMessages.length + ' found';
+            } else {
+                const countEl = document.getElementById('chatSearchCount');
+                if (countEl) countEl.innerText = '0 found';
+            }
+
             container.innerHTML = '';
             if (visibleMessages.length === 0) {
-                if (currentChatChannel === 'public') {
+                if (currentChatSearchQuery) {
+                    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:26px;margin-bottom:8px;">🔍</div>No messages found matching "<strong>' + escapeHtml(currentChatSearchQuery) + '</strong>"<br><button onclick="closeChatSearch()" class="btn btn-secondary" style="margin-top:12px;font-size:11px;padding:4px 10px;">Clear Search</button></div>';
+                } else if (currentChatChannel === 'public') {
                     container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">No messages yet. Send a message or photo to start chatting!</div>';
                 } else {
                     container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:24px;margin-bottom:8px;">🔒</div><strong>Private 1-on-1 Chat with ' + escapeHtml(currentDmUser.userName) + '</strong><br><span style="font-size:12px;">Only you two can see messages and files sent here. No other computer will receive notifications.</span></div>';
@@ -369,6 +456,7 @@
                                 '<div class="voice-meta-row">' +
                                     '<span class="voice-time-current" id="time_' + msg.id + '">0:00</span>' +
                                     '<span class="voice-time-total" id="dur_' + msg.id + '">' + durFormatted + '</span>' +
+                                    '<button type="button" class="voice-speed-btn" onclick="cycleVoiceSpeed(event, \'' + msg.id + '\')" title="Playback Speed">' + currentVoiceSpeed + 'x</button>' +
                                 '</div>' +
                             '</div>' +
                         '</div>';
@@ -488,6 +576,7 @@
         }
 
         function switchChatChannel(channel, dmUser) {
+            if (typeof closeChatSearch === 'function') closeChatSearch();
             currentChatChannel = channel;
             if (channel === 'public') {
                 currentDmUser = null;
@@ -1093,6 +1182,7 @@
 
             const audio = new Audio(audioUrl);
             audio.volume = 1.0;
+            audio.playbackRate = currentVoiceSpeed;
 
             activeVoicePlayer = {
                 msgId: msgId,

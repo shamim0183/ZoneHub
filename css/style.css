@@ -4010,3 +4010,104 @@
             50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.6); background: rgba(99, 102, 241, 0.2); }
             100% { box-shadow: 0 0 0 0 transparent; }
         }
+
+        /* ============================================================
+           In-Chat Live Search Bar & Voice Speed Styles
+           ============================================================ */
+        .chat-search-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid rgba(56, 189, 248, 0.35);
+            padding: 8px 14px;
+            animation: slideDownSearch 0.2s ease-out;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            backdrop-filter: blur(8px);
+        }
+
+        @keyframes slideDownSearch {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-search-icon {
+            color: #38bdf8;
+            flex-shrink: 0;
+        }
+
+        .chat-search-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .chat-search-input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .chat-search-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .chat-search-clear-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .chat-search-clear-btn:hover {
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .chat-search-highlight {
+            background: rgba(251, 191, 36, 0.35);
+            color: #fef08a;
+            border-bottom: 2px solid #f59e0b;
+            padding: 0 2px;
+            border-radius: 2px;
+            font-weight: 700;
+        }
+
+        #chatSearchToggleBtn.active {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: rgba(56, 189, 248, 0.5);
+            color: #38bdf8;
+        }
+
+        .voice-speed-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #c7d2fe;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 6px;
+        }
+
+        .voice-speed-btn:hover {
+            background: rgba(99, 102, 241, 0.4);
+            color: #fff;
+            transform: scale(1.08);
+        }
