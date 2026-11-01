@@ -8,10 +8,15 @@ echo.
 echo =========================================================
 echo   [SUCCESS] ZoneHub is now set to AUTO-START on PC Boot!
 echo.
+echo   Starting ZoneHub background service now...
+wscript.exe "%~dp0Run-Background-Service.vbs"
+echo.
 echo   When your PC starts:
 echo     1. ZoneHub Server starts in background.
 echo     2. Online Tunnel activates automatically.
 echo     3. Floating Desktop Bubble appears on your screen!
+echo.
+echo   Open in browser: http://localhost:8080
 echo =========================================================
 echo.
 timeout /t 3 >nul
