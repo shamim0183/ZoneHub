@@ -20,9 +20,19 @@ function getAdminToken() {
 
 function updateAdminUI() {
     const adminLoginBtn = document.getElementById('adminLoginBtn');
+    const adminStatusWrap = document.getElementById('adminStatusWrap') || document.querySelector('.admin-status-wrap');
     const adminBtnIcon = document.getElementById('adminBtnIcon');
     const adminBtnLabel = document.getElementById('adminBtnLabel');
     const hubRenameBtn = document.getElementById('hubRenameBtn');
+    const hostStorageChangeBtn = document.getElementById('hostStorageChangeBtn');
+    const remoteToggleQuickBtn = document.getElementById('remoteToggleQuickBtn');
+
+    // 1. Admin Header Button Visibility:
+    // Only visible on Host PC (Host is server owner) or if actively authenticated with Admin PIN.
+    // Standard employees never see the Admin button!
+    if (adminStatusWrap) {
+        adminStatusWrap.style.display = (isCurrentHost || isAdmin) ? 'block' : 'none';
+    }
 
     if (adminLoginBtn) {
         if (isAdmin) {
@@ -38,8 +48,19 @@ function updateAdminUI() {
         }
     }
 
+    // 2. Hub Rename Button: Only Admin
     if (hubRenameBtn) {
         hubRenameBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+
+    // 3. Storage Drive "Change ▾" Button: Only Admin
+    if (hostStorageChangeBtn) {
+        hostStorageChangeBtn.style.display = isAdmin ? 'inline-block' : 'none';
+    }
+
+    // 4. Remote Access "Go Global / Manage" Button: Only Admin
+    if (remoteToggleQuickBtn) {
+        remoteToggleQuickBtn.style.display = isAdmin ? 'inline-block' : 'none';
     }
 
     // Trigger re-render of folders grid if loaded

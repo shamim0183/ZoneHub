@@ -135,10 +135,16 @@
 
         const quickBtn = document.getElementById('remoteToggleQuickBtn');
         if (quickBtn) {
+            quickBtn.style.display = (typeof isAdmin !== 'undefined' && isAdmin) ? 'inline-block' : 'none';
             quickBtn.innerText = isRunning ? 'Manage ▾' : 'Go Global';
             quickBtn.style.color = isRunning ? '#34d399' : '#a5b4fc';
             quickBtn.style.borderColor = isRunning ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)';
             quickBtn.style.background = isRunning ? 'rgba(16,185,129,0.12)' : 'rgba(99,102,241,0.15)';
+        }
+
+        const hostStorageChangeBtn = document.getElementById('hostStorageChangeBtn');
+        if (hostStorageChangeBtn) {
+            hostStorageChangeBtn.style.display = (typeof isAdmin !== 'undefined' && isAdmin) ? 'inline-block' : 'none';
         }
 
         if (globalPill) {
@@ -459,6 +465,10 @@
     }
 
     function handleStorageMetricClick() {
+        if (typeof isAdmin !== 'undefined' && !isAdmin) {
+            if (typeof showToast === 'function') showToast('Host Storage status (Admin required to change drives).');
+            return;
+        }
         if (typeof window.openAdminModal === 'function') {
             window.openAdminModal();
             setTimeout(() => {
@@ -467,6 +477,18 @@
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 250);
+        }
+    }
+
+    function handleRemoteMetricClick() {
+        if (typeof isAdmin !== 'undefined' && !isAdmin) {
+            if (typeof showToast === 'function') {
+                showToast(currentGlobalUrl ? 'ZoneHub is live worldwide!' : 'ZoneHub is in Local Office Wi-Fi mode.');
+            }
+            return;
+        }
+        if (typeof window.openAdminModal === 'function') {
+            window.openAdminModal();
         }
     }
 
@@ -481,5 +503,6 @@
     window.selectDrivePath = selectDrivePath;
     window.applyStorageLocation = applyStorageLocation;
     window.handleStorageMetricClick = handleStorageMetricClick;
+    window.handleRemoteMetricClick = handleRemoteMetricClick;
 })();
 

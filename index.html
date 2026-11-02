@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261102d">
+    <link rel="stylesheet" href="/css/style.css?v=20261102e">
 </head>
 <body>
     <div class="container">
@@ -68,7 +68,7 @@
                     </select>
                 </div>
                 <button id="pwaInstallBtn" onclick="triggerPwaInstall()" class="pwa-install-btn" style="display:none;" title="Install Hub App to your PC or Phone">📲 Install App</button>
-                <div class="admin-status-wrap">
+                <div class="admin-status-wrap" id="adminStatusWrap" style="display:none;">
                     <button id="adminLoginBtn" onclick="openAdminModal()" class="btn btn-secondary admin-toggle-btn" title="Admin Security &amp; Access">
                         <span id="adminBtnIcon">🔒</span>
                         <span id="adminBtnLabel">Admin</span>
@@ -126,12 +126,12 @@
 
         <!-- Host PC Live System & Speed Dashboard -->
         <div class="host-live-dashboard" id="hostLiveDashboard">
-            <div class="dashboard-metric metric-disk" id="metricDisk" onclick="handleStorageMetricClick()" style="cursor:pointer;" title="Click to view or change Host Storage Drive (Admin)">
+            <div class="dashboard-metric metric-disk" id="metricDisk" onclick="handleStorageMetricClick()" style="cursor:pointer;" title="Host Storage Drive">
                 <div class="metric-icon">💽</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_disk_storage">Host Storage</span>
-                        <span class="metric-devices-badge" style="white-space:nowrap;">Change ▾</span>
+                        <span class="metric-devices-badge" id="hostStorageChangeBtn" style="white-space:nowrap;display:none;">Change ▾</span>
                     </div>
                     <span class="metric-value" id="diskFreeText" style="display:block;margin-bottom:3px;">Loading...</span>
                     <div class="disk-progress-bar-wrap" title="Storage Usage">
@@ -159,12 +159,12 @@
                     <span class="metric-value" id="activeDevicesText">1 Online</span>
                 </div>
             </div>
-            <div class="dashboard-metric metric-remote" id="metricRemote" onclick="openAdminModal()" style="cursor:pointer;" title="Click to manage Remote Access in Admin">
+            <div class="dashboard-metric metric-remote" id="metricRemote" onclick="handleRemoteMetricClick()" style="cursor:pointer;" title="Remote Access Status">
                 <div class="metric-icon">🌐</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_remote_status">Remote Access</span>
-                        <button type="button" onclick="event.stopPropagation(); openAdminModal();" class="btn-micro-toggle" id="remoteToggleQuickBtn" title="Toggle Remote Access in Admin">Go Global</button>
+                        <button type="button" onclick="event.stopPropagation(); if(typeof isAdmin!=='undefined'&&isAdmin)openAdminModal();" class="btn-micro-toggle" id="remoteToggleQuickBtn" style="display:none;" title="Toggle Remote Access in Admin">Go Global</button>
                     </div>
                     <span class="metric-value" id="remoteStatusText" style="display:block;font-size:13px;font-weight:800;color:var(--text-muted);">⚪ Local Only</span>
                 </div>

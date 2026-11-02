@@ -2311,8 +2311,8 @@
             }
             .header-actions {
                 width: 100%;
-                display: grid !important;
-                grid-template-columns: repeat(3, 1fr) !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
                 gap: 6px !important;
                 align-items: center;
                 box-sizing: border-box !important;
@@ -2322,9 +2322,8 @@
                 display: none !important;
             }
             .lang-selector-wrap {
-                grid-column: 1 / 2 !important;
-                grid-row: 1 !important;
-                width: 100% !important;
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
                 box-sizing: border-box !important;
             }
             .lang-select-pill {
@@ -2337,9 +2336,8 @@
                 border-radius: 10px !important;
             }
             .admin-status-wrap {
-                grid-column: 2 / 3 !important;
-                grid-row: 1 !important;
-                width: 100% !important;
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
                 box-sizing: border-box !important;
             }
             .admin-status-wrap .admin-toggle-btn {
@@ -2352,9 +2350,8 @@
                 border-radius: 10px !important;
             }
             .header-actions .btn-primary {
-                grid-column: 3 / 4 !important;
-                grid-row: 1 !important;
-                width: 100% !important;
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
                 height: 36px !important;
                 justify-content: center !important;
                 padding: 0 8px !important;
@@ -2364,9 +2361,8 @@
                 white-space: nowrap !important;
             }
             .user-badge {
-                grid-column: 1 / -1 !important;
-                grid-row: 2 !important;
                 width: 100% !important;
+                flex: 1 1 100% !important;
                 height: 38px !important;
                 display: flex !important;
                 align-items: center !important;
@@ -2408,11 +2404,13 @@
                 flex-shrink: 0 !important;
             }
             .pwa-install-btn {
-                grid-column: 1 / -1 !important;
-                grid-row: 3 !important;
                 width: 100% !important;
+                flex: 1 1 100% !important;
                 justify-content: center;
                 padding: 8px 14px;
+                font-size: 12px;
+                box-sizing: border-box !important;
+            }
                 font-size: 12px;
                 box-sizing: border-box !important;
             }
