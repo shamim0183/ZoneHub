@@ -61,9 +61,11 @@
             }
         }
 
-        // 3. Active Devices Metric
+        // 3. Active Devices Metric & Popover Details
         const devicesText = document.getElementById('activeDevicesText');
-        if (data.devices && devicesText) {
+        const countTag = document.getElementById('activePeersCountTag');
+        const peersList = document.getElementById('activePeersList');
+        if (data.devices) {
             const total = data.devices.total || 1;
             const pc = data.devices.desktop || 0;
             const mob = data.devices.mobile || 0;
@@ -75,7 +77,42 @@
             } else if (pc > 0) {
                 breakdown += ` (${pc} PC)`;
             }
-            devicesText.innerText = breakdown;
+            if (devicesText) devicesText.innerText = breakdown;
+            if (countTag) countTag.innerText = `${total} Online`;
+
+            // Populate Active Peers details in popover
+            if (peersList && Array.isArray(data.devices.peers)) {
+                if (data.devices.peers.length === 0) {
+                    peersList.innerHTML = '<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:12px;">No colleagues currently active</div>';
+                } else {
+                    peersList.innerHTML = data.devices.peers.map(p => {
+                        const isHost = p.isHost;
+                        const icon = p.icon || (isHost ? '💻' : '📱');
+                        const hostBadge = isHost ? '<span class="peer-host-badge">Host</span>' : '';
+                        const ipText = p.ip ? `<span>${escapeHtml(p.ip)}</span> • ` : '';
+                        const devType = p.deviceType || (p.isMobile ? 'Mobile' : 'PC');
+                        const lastSeen = p.lastSeen || 'Just now';
+                        const name = p.name || 'Anonymous';
+                        return `
+                            <div class="active-peer-row">
+                                <div class="peer-avatar-wrap">
+                                    <span class="peer-avatar-icon">${icon}</span>
+                                    <span class="peer-status-dot"></span>
+                                </div>
+                                <div class="peer-info-wrap">
+                                    <div class="peer-name-line">
+                                        <span class="peer-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+                                        ${hostBadge}
+                                    </div>
+                                    <div class="peer-meta-line">
+                                        ${ipText}<span>${escapeHtml(devType)}</span> • <span class="peer-time">${escapeHtml(lastSeen)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
         }
 
         // 4. Remote Internet Access (Cloudflare Tunnel)
@@ -210,6 +247,35 @@
         }
     }
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function toggleActivePeersPopover(e) {
+        if (e) e.stopPropagation();
+        const popover = document.getElementById('activePeersPopover');
+        if (popover) {
+            popover.classList.toggle('active');
+        }
+    }
+
+    // Close popover when clicked outside
+    document.addEventListener('click', function(e) {
+        const popover = document.getElementById('activePeersPopover');
+        const metricDevices = document.getElementById('metricDevices');
+        if (popover && popover.classList.contains('active')) {
+            if (!metricDevices || !metricDevices.contains(e.target)) {
+                popover.classList.remove('active');
+            }
+        }
+    });
+
     // Initialize Polling on DOM Ready
     function init() {
         fetchHostStats();
@@ -228,4 +294,6 @@
     window.copyGlobalLink = copyGlobalLink;
     window.openGlobalQrModal = openGlobalQrModal;
     window.fetchHostStats = fetchHostStats;
+    window.toggleActivePeersPopover = toggleActivePeersPopover;
 })();
+

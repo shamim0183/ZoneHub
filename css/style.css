@@ -4768,6 +4768,164 @@
             color: #fff;
         }
 
+        /* Active Devices Hover & Tap Popover */
+        .dashboard-metric.metric-devices {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .metric-devices-badge {
+            font-size: 9px;
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .active-peers-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            min-width: 290px;
+            max-width: 360px;
+            background: #0f172a;
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(99, 102, 241, 0.2);
+            z-index: 1200;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+
+        .dashboard-metric.metric-devices:hover .active-peers-popover,
+        .dashboard-metric.metric-devices:focus-within .active-peers-popover,
+        .active-peers-popover.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .active-peers-popover-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .active-peers-count-tag {
+            font-size: 11px;
+            font-weight: 700;
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 10px;
+            padding: 1px 7px;
+        }
+
+        .active-peers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .active-peer-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 9px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .active-peer-row:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.25);
+        }
+
+        .peer-avatar-wrap {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .peer-status-dot {
+            position: absolute;
+            bottom: -1px;
+            right: -1px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            border: 2px solid #0f172a;
+        }
+
+        .peer-info-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .peer-name-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .peer-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: #f8fafc;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .peer-host-badge {
+            font-size: 9px;
+            font-weight: 800;
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 4px;
+            padding: 1px 4px;
+        }
+
+        .peer-meta-line {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .peer-time {
+            color: #38bdf8;
+            font-weight: 600;
+        }
+
         /* Admin Go-Global Card */
         .admin-feature-card {
             background: rgba(255, 255, 255, 0.03);

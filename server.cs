@@ -519,6 +519,90 @@ namespace ZoneHub
             if (total == 0) { total = 1; desktop = 1; }
         }
 
+        private static string DetectDeviceType(string ua, bool isMobile, out string icon)
+        {
+            icon = "💻";
+            if (string.IsNullOrEmpty(ua)) return isMobile ? "Mobile Device" : "PC / Laptop";
+            string lower = ua.ToLowerInvariant();
+            if (lower.Contains("iphone")) { icon = "📱"; return "Apple iPhone"; }
+            if (lower.Contains("ipad")) { icon = "📱"; return "Apple iPad"; }
+            if (lower.Contains("android")) { icon = "🤖"; return "Android Phone"; }
+            if (lower.Contains("macintosh") || lower.Contains("mac os")) { icon = "🍎"; return "Apple Mac"; }
+            if (lower.Contains("windows")) { icon = "💻"; return "Windows PC"; }
+            if (lower.Contains("linux")) { icon = "🐧"; return "Linux PC"; }
+            return isMobile ? "Mobile Device" : "PC / Laptop";
+        }
+
+        private static List<Dictionary<string, object>> GetActivePeerDetails()
+        {
+            List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+            long now = DateTime.UtcNow.Ticks;
+            long cutoff = DateTime.UtcNow.AddMinutes(-2).Ticks;
+
+            lock (PeersLock)
+            {
+                Dictionary<string, PeerInfo> dedup = new Dictionary<string, PeerInfo>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var kvp in ActivePeers)
+                {
+                    if (kvp.Value.lastSeenUnix < cutoff) continue;
+                    var p = kvp.Value;
+                    string key = !string.IsNullOrEmpty(p.clientIp) ? p.clientIp.Trim() : kvp.Key;
+                    if (!dedup.ContainsKey(key) || dedup[key].lastSeenUnix < p.lastSeenUnix)
+                    {
+                        dedup[key] = p;
+                    }
+                }
+
+                foreach (var kvp in dedup)
+                {
+                    var p = kvp.Value;
+                    int secAgo = (int)((now - p.lastSeenUnix) / TimeSpan.TicksPerSecond);
+                    string icon;
+                    string devType = DetectDeviceType(p.userAgent, p.isMobile, out icon);
+
+                    string displayName = !string.IsNullOrEmpty(p.userName) ? p.userName : p.clientIp;
+                    if (string.Equals(displayName, p.clientIp, StringComparison.OrdinalIgnoreCase))
+                    {
+                        lock (DeviceNameCache)
+                        {
+                            if (DeviceNameCache.ContainsKey(p.clientIp)) displayName = DeviceNameCache[p.clientIp];
+                        }
+                    }
+
+                    if (p.isHost)
+                    {
+                        displayName = Environment.UserName + " (Host PC)";
+                    }
+
+                    string timeStr = secAgo <= 5 ? "Just now" : secAgo + "s ago";
+
+                    var d = new Dictionary<string, object>();
+                    d["name"] = displayName;
+                    d["ip"] = p.clientIp ?? "";
+                    d["isHost"] = p.isHost;
+                    d["deviceType"] = devType;
+                    d["icon"] = icon;
+                    d["lastSeen"] = timeStr;
+                    list.Add(d);
+                }
+            }
+
+            if (list.Count == 0)
+            {
+                var host = new Dictionary<string, object>();
+                host["name"] = Environment.UserName + " (Host PC)";
+                host["ip"] = GetCurrentLocalIp();
+                host["isHost"] = true;
+                host["deviceType"] = "Windows PC";
+                host["icon"] = "💻";
+                host["lastSeen"] = "Just now";
+                list.Add(host);
+            }
+
+            return list;
+        }
+
         public static string GetCloudflaredExePath()
         {
             try
@@ -629,6 +713,10 @@ namespace ZoneHub
             long sent = Interlocked.Read(ref _totalBytesSent);
             long recv = Interlocked.Read(ref _totalBytesReceived);
 
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            var peerDetails = GetActivePeerDetails();
+            string peersJson = js.Serialize(peerDetails);
+
             string json = "{" +
                 "\"success\":true," +
                 "\"storage\":{" +
@@ -652,7 +740,8 @@ namespace ZoneHub
                 "\"devices\":{" +
                     "\"total\":" + totalPeers + "," +
                     "\"desktop\":" + desktopPeers + "," +
-                    "\"mobile\":" + mobilePeers +
+                    "\"mobile\":" + mobilePeers + "," +
+                    "\"peers\":" + peersJson +
                 "}," +
                 "\"tunnel\":{" +
                     "\"installed\":" + (tunnelInstalled ? "true" : "false") + "," +

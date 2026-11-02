@@ -158,13 +158,26 @@
                     </div>
                 </div>
             </div>
-            <div class="dashboard-metric metric-devices" id="metricDevices">
+            <div class="dashboard-metric metric-devices" id="metricDevices" onclick="toggleActivePeersPopover(event)" tabindex="0" title="Click or hover to see active users &amp; devices">
                 <div class="metric-icon">👥</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_active_devices">Active Devices</span>
+                        <span class="metric-devices-badge">Details ▾</span>
                     </div>
                     <span class="metric-value" id="activeDevicesText">1 Online</span>
+                </div>
+                <!-- Floating Active Devices Details Popover (Hover & Click) -->
+                <div class="active-peers-popover" id="activePeersPopover" onclick="event.stopPropagation()">
+                    <div class="active-peers-popover-header">
+                        <div style="font-weight:800;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;">
+                            <span>👥</span> Connected Devices
+                        </div>
+                        <span class="active-peers-count-tag" id="activePeersCountTag">1 Online</span>
+                    </div>
+                    <div class="active-peers-list" id="activePeersList">
+                        <div style="font-size:11px;color:var(--text-muted);text-align:center;padding:12px;">Loading active colleagues...</div>
+                    </div>
                 </div>
             </div>
             <div class="dashboard-metric metric-remote" id="metricRemote">
