@@ -3622,9 +3622,10 @@ namespace ZoneHub
             res.Append("Access-Control-Allow-Headers: *\r\n");
             if (fi.Extension.Equals(".js", StringComparison.OrdinalIgnoreCase) || 
                 fi.Extension.Equals(".css", StringComparison.OrdinalIgnoreCase) ||
+                fi.Extension.Equals(".html", StringComparison.OrdinalIgnoreCase) ||
                 fi.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
             {
-                res.Append("Cache-Control: no-cache, must-revalidate\r\n");
+                res.Append("Cache-Control: no-cache, no-store, must-revalidate, max-age=0\r\nPragma: no-cache\r\nExpires: 0\r\n");
             }
             res.Append("Connection: close\r\n\r\n");
 

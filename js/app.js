@@ -14,8 +14,19 @@ let isCurrentHost = false;
 let isAdmin = false;
 let currentUserName = localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '';
 
+// Clean up any legacy persistent admin tokens that might have been stored on client devices
+try {
+    localStorage.removeItem('zonehub_admin_pin');
+    localStorage.removeItem('zonehub_admin_token');
+} catch (e) {}
+
 function getAdminToken() {
-    return localStorage.getItem('zonehub_admin_pin') || '';
+    if (isCurrentHost) return 'localhost_master';
+    try {
+        return sessionStorage.getItem('zonehub_admin_session') || '';
+    } catch (e) {
+        return '';
+    }
 }
 
 function updateAdminUI() {
@@ -28,10 +39,11 @@ function updateAdminUI() {
     const remoteToggleQuickBtn = document.getElementById('remoteToggleQuickBtn');
 
     // 1. Admin Header Button Visibility:
-    // Only visible on Host PC (Host is server owner) or if actively authenticated with Admin PIN.
-    // Standard employees never see the Admin button!
+    // Host PC ALWAYS sees '👑 Admin (Host)' because it is the master server host.
+    // Client / remote devices ONLY see this button IF explicitly authenticated with Admin PIN in the current session.
+    // Normal employees and coworkers NEVER see the Admin button!
     if (adminStatusWrap) {
-        adminStatusWrap.style.display = (isCurrentHost || isAdmin) ? 'block' : 'none';
+        adminStatusWrap.style.display = (isCurrentHost || isAdmin) ? 'inline-flex' : 'none';
     }
 
     if (adminLoginBtn) {
@@ -48,17 +60,17 @@ function updateAdminUI() {
         }
     }
 
-    // 2. Hub Rename Button: Only Admin
+    // 2. Hub Rename Button: Strictly Admin Only
     if (hubRenameBtn) {
         hubRenameBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     }
 
-    // 3. Storage Drive "Change ▾" Button: Only Admin
+    // 3. Storage Drive "Change ▾" Button: Strictly Admin Only
     if (hostStorageChangeBtn) {
         hostStorageChangeBtn.style.display = isAdmin ? 'inline-block' : 'none';
     }
 
-    // 4. Remote Access "Go Global / Manage" Button: Only Admin
+    // 4. Remote Access "Go Global / Manage" Button: Strictly Admin Only
     if (remoteToggleQuickBtn) {
         remoteToggleQuickBtn.style.display = isAdmin ? 'inline-block' : 'none';
     }
@@ -90,15 +102,22 @@ function initUserInfo() {
         return;
     }
 
-    const adminToken = getAdminToken();
+    // Proactively purge any persistent admin PIN from client device localStorage
+    try {
+        localStorage.removeItem('zonehub_admin_pin');
+        localStorage.removeItem('zonehub_admin_token');
+    } catch (e) {}
+
+    const sessionToken = getAdminToken();
     const reqHeaders = {};
-    if (adminToken) reqHeaders['X-Admin-Token'] = adminToken;
+    if (sessionToken) reqHeaders['X-Admin-Token'] = sessionToken;
 
     fetch('/api/my-info', { headers: reqHeaders })
         .then(r => r.json())
         .then(info => {
             isCurrentHost = !!info.isHost;
-            isAdmin = !!info.isAdmin || isCurrentHost;
+            // Admin is ONLY true if this is the Host PC, OR if remote client actively authenticated in this session
+            isAdmin = isCurrentHost || (!!info.isAdmin && !!sessionToken);
             updateAdminUI();
 
             const roleLabel = document.getElementById('userBadgeRoleLabel');
@@ -129,18 +148,6 @@ function initUserInfo() {
             if (!currentUserName) currentUserName = 'Employee';
             updateUserDisplay();
         });
-
-    if (!isAdmin && adminToken) {
-        fetch('/api/admin/status', { headers: { 'X-Admin-Token': adminToken } })
-            .then(r => r.json())
-            .then(st => {
-                if (st && st.isAdmin) {
-                    isAdmin = true;
-                    updateAdminUI();
-                }
-            })
-            .catch(() => {});
-    }
 }
 
 function updateUserDisplay() {
@@ -342,10 +349,14 @@ async function submitAdminLogin() {
         const data = await res.json();
         if (data.success && data.isAdmin) {
             isAdmin = true;
-            localStorage.setItem('zonehub_admin_pin', data.token || pin);
+            try {
+                sessionStorage.setItem('zonehub_admin_session', data.token || pin);
+                localStorage.removeItem('zonehub_admin_pin');
+                localStorage.removeItem('zonehub_admin_token');
+            } catch (e) {}
             updateAdminUI();
             closeAdminModal();
-            showToast('👑 Admin Mode Unlocked!');
+            showToast('👑 Admin Mode Unlocked for this session!');
             if (typeof loadFoldersList === 'function') loadFoldersList();
             if (typeof loadFileList === 'function') loadFileList();
         } else {
@@ -380,7 +391,11 @@ async function changeAdminPin() {
         });
         const data = await res.json();
         if (data.success) {
-            localStorage.setItem('zonehub_admin_pin', newPin);
+            try {
+                sessionStorage.setItem('zonehub_admin_session', newPin);
+                localStorage.removeItem('zonehub_admin_pin');
+                localStorage.removeItem('zonehub_admin_token');
+            } catch (e) {}
             if (input) input.value = '';
             const pinVal = document.getElementById('currentAdminPinValue');
             if (pinVal) pinVal.innerText = newPin;
@@ -399,7 +414,11 @@ function logoutAdmin() {
         showToast('Host PC cannot be locked out of Admin.');
         return;
     }
-    localStorage.removeItem('zonehub_admin_pin');
+    try {
+        sessionStorage.removeItem('zonehub_admin_session');
+        localStorage.removeItem('zonehub_admin_pin');
+        localStorage.removeItem('zonehub_admin_token');
+    } catch (e) {}
     isAdmin = false;
     updateAdminUI();
     closeAdminModal();
