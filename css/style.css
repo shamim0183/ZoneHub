@@ -150,37 +150,94 @@
         .header-actions {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
-        /* User Profile Badge */
+        /* Perfectly Matched Header Action Pills */
+        .header-actions .btn,
+        .header-actions .btn-secondary,
+        .header-actions .btn-primary,
+        .admin-toggle-btn,
+        .lang-select-pill,
         .user-badge {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 6px 14px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 13px;
+            height: 36px !important;
+            box-sizing: border-box !important;
+            border-radius: 999px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            vertical-align: middle !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+
+        /* User Profile Badge - Sleek Matching Pill */
+        .user-badge {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            padding: 0 12px !important;
+            gap: 7px !important;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .user-badge:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border-color: rgba(99, 102, 241, 0.4) !important;
+            transform: translateY(-1px);
         }
 
         .user-avatar-circle {
-            width: 28px;
-            height: 28px;
+            width: 22px !important;
+            height: 22px !important;
             border-radius: 50%;
             background: linear-gradient(135deg, #6366f1, #a855f7);
             color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            font-size: 12px;
+            font-weight: 800;
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .user-badge-text-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .user-badge-role {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
         }
 
         .user-name-text {
-            font-weight: 600;
+            font-weight: 700;
             color: #fff;
+            font-size: 12px;
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-badge-edit-icon {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-left: 2px;
+            transition: opacity 0.2s, transform 0.2s;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .user-badge:hover .user-badge-edit-icon {
+            opacity: 1;
+            transform: scale(1.15);
         }
 
         /* Network Status Bar */
@@ -2277,43 +2334,44 @@
             .user-badge {
                 grid-column: 1 / -1 !important;
                 width: 100% !important;
+                height: 40px !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: space-between !important;
-                padding: 8px 12px !important;
+                padding: 0 14px !important;
                 font-size: 12px;
-                gap: 10px !important;
+                gap: 8px !important;
                 box-sizing: border-box !important;
                 background: rgba(255, 255, 255, 0.05) !important;
                 border: 1px solid rgba(255, 255, 255, 0.12) !important;
-                border-radius: 12px !important;
+                border-radius: 999px !important;
             }
             .user-avatar-circle {
-                width: 32px !important;
-                height: 32px !important;
-                font-size: 12px !important;
+                width: 24px !important;
+                height: 24px !important;
+                font-size: 11px !important;
                 flex-shrink: 0;
             }
-            .user-badge > div:nth-child(2) {
+            .user-badge-text-wrap {
                 flex: 1 1 auto !important;
                 min-width: 0 !important;
-                margin: 0 4px !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                margin: 0 6px !important;
             }
             .user-name-text {
                 max-width: 100% !important;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                display: block;
+                display: inline-block;
                 font-size: 13px !important;
                 font-weight: 700;
             }
-            .user-badge .btn-icon {
-                padding: 5px 10px !important;
-                font-size: 12px !important;
-                background: rgba(255, 255, 255, 0.08) !important;
-                border: 1px solid rgba(255, 255, 255, 0.1) !important;
-                border-radius: 8px !important;
+            .user-badge-edit-icon {
+                font-size: 13px !important;
+                opacity: 0.8 !important;
                 flex-shrink: 0 !important;
             }
             .admin-status-wrap {
