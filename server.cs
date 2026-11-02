@@ -81,6 +81,7 @@ namespace ZoneHub
 
     class Program
     {
+        private static string AppDirectory = AppDomain.CurrentDomain.BaseDirectory;
         private static string RootDirectory = AppDomain.CurrentDomain.BaseDirectory;
         private static int Port = 8080;
         private static object MessagesLock = new object();
@@ -185,7 +186,92 @@ namespace ZoneHub
 
         private static string GetConfigFilePath()
         {
-            return Path.Combine(RootDirectory, "hub_config.json");
+            return Path.Combine(AppDirectory, "hub_config.json");
+        }
+
+        public static string GetConfiguredStorageDirectory()
+        {
+            try
+            {
+                string configPath = GetConfigFilePath();
+                if (File.Exists(configPath))
+                {
+                    JavaScriptSerializer js = new JavaScriptSerializer();
+                    string json = File.ReadAllText(configPath, Encoding.UTF8);
+                    var dict = js.Deserialize<Dictionary<string, object>>(json);
+                    if (dict != null && dict.ContainsKey("storageDir") && dict["storageDir"] != null)
+                    {
+                        string s = dict["storageDir"].ToString().Trim();
+                        if (!string.IsNullOrEmpty(s))
+                        {
+                            if (!Directory.Exists(s)) Directory.CreateDirectory(s);
+                            return Path.GetFullPath(s);
+                        }
+                    }
+                }
+            }
+            catch {}
+            return AppDirectory;
+        }
+
+        public static void EnsureStorageDirectoryExists()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(RootDirectory)) RootDirectory = AppDirectory;
+                if (!Directory.Exists(RootDirectory))
+                {
+                    Directory.CreateDirectory(RootDirectory);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("[AUTO-RESTORE] Storage directory was missing and was automatically recreated: " + RootDirectory);
+                    Console.ResetColor();
+                }
+
+                // Ensure standard media categories exist
+                string[] std = new string[] { "Videos", "Pictures", "Documents" };
+                foreach (var s in std)
+                {
+                    string p = Path.Combine(RootDirectory, s);
+                    if (!Directory.Exists(p))
+                    {
+                        try { Directory.CreateDirectory(p); } catch {}
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("[STORAGE FALLBACK] Configured storage inaccessible (" + ex.Message + "). Falling back to App Directory: " + AppDirectory);
+                Console.ResetColor();
+                RootDirectory = AppDirectory;
+                try { if (!Directory.Exists(RootDirectory)) Directory.CreateDirectory(RootDirectory); } catch {}
+            }
+        }
+
+        public static void SetStorageDirectory(string newDir)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(newDir)) newDir = AppDirectory;
+                newDir = Path.GetFullPath(newDir.Trim());
+                if (!Directory.Exists(newDir)) Directory.CreateDirectory(newDir);
+
+                lock (ConfigLock)
+                {
+                    string configPath = GetConfigFilePath();
+                    JavaScriptSerializer js = new JavaScriptSerializer();
+                    Dictionary<string, object> dict = new Dictionary<string, object>();
+                    if (File.Exists(configPath))
+                    {
+                        try { dict = js.Deserialize<Dictionary<string, object>>(File.ReadAllText(configPath, Encoding.UTF8)) ?? dict; } catch {}
+                    }
+                    dict["storageDir"] = newDir;
+                    dict["updatedAt"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    File.WriteAllText(configPath, js.Serialize(dict), Encoding.UTF8);
+                    RootDirectory = newDir;
+                }
+            }
+            catch {}
         }
 
         public static string GetDefaultHubName()
@@ -601,6 +687,8 @@ namespace ZoneHub
         {
             try
             {
+                string pApp = Path.Combine(AppDirectory, "cloudflared.exe");
+                if (File.Exists(pApp)) return pApp;
                 string p1 = Path.Combine(RootDirectory, "cloudflared.exe");
                 if (File.Exists(p1)) return p1;
                 string p2 = @"C:\Program Files (x86)\cloudflared\cloudflared.exe";
@@ -691,6 +779,7 @@ namespace ZoneHub
 
         private static void ServeHostStats(NetworkStream stream, RequestContext req)
         {
+            EnsureStorageDirectoryExists();
             SampleSpeed();
             long totalStorage = 0, freeStorage = 0;
             double usedPercent = 0;
@@ -714,6 +803,7 @@ namespace ZoneHub
                 "\"success\":true," +
                 "\"storage\":{" +
                     "\"drive\":\"" + JsonEscape(Path.GetPathRoot(RootDirectory) ?? "C:\\") + "\"," +
+                    "\"storageDir\":\"" + JsonEscape(RootDirectory) + "\"," +
                     "\"totalBytes\":" + totalStorage + "," +
                     "\"freeBytes\":" + freeStorage + "," +
                     "\"usedBytes\":" + (totalStorage - freeStorage) + "," +
@@ -820,6 +910,19 @@ namespace ZoneHub
 
         static void Main(string[] args)
         {
+            RootDirectory = GetConfiguredStorageDirectory();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i].StartsWith("--storage=", StringComparison.OrdinalIgnoreCase))
+                {
+                    SetStorageDirectory(args[i].Substring(10));
+                }
+                else if (args[i] == "--storage" && i + 1 < args.Length)
+                {
+                    SetStorageDirectory(args[i + 1]);
+                }
+            }
+
             int customPort;
             if (args.Length > 0 && int.TryParse(args[0], out customPort))
             {
@@ -1034,7 +1137,8 @@ namespace ZoneHub
                 if (decodedPath.Equals("/api/admin/status", StringComparison.OrdinalIgnoreCase))
                 {
                     bool isAdm = IsAdmin(req);
-                    SendJsonResponse(stream, 200, "{\"success\":true,\"isAdmin\":" + (isAdm ? "true" : "false") + ",\"isHost\":" + (req.IsLocalhost ? "true" : "false") + "}");
+                    string pinField = req.IsLocalhost ? ",\"currentPin\":\"" + JsonEscape(GetAdminPin()) + "\"" : "";
+                    SendJsonResponse(stream, 200, "{\"success\":true,\"isAdmin\":" + (isAdm ? "true" : "false") + ",\"isHost\":" + (req.IsLocalhost ? "true" : "false") + pinField + "}");
                     return;
                 }
 
@@ -1047,6 +1151,19 @@ namespace ZoneHub
                 if (req.Method == "POST" && decodedPath.Equals("/api/admin/change-pin", StringComparison.OrdinalIgnoreCase))
                 {
                     HandleAdminChangePin(stream, req);
+                    return;
+                }
+
+                // Admin Storage Drive & Location Endpoints
+                if (req.Method == "GET" && decodedPath.Equals("/api/admin/drives", StringComparison.OrdinalIgnoreCase))
+                {
+                    ServeHostDrives(stream, req);
+                    return;
+                }
+
+                if (req.Method == "POST" && decodedPath.Equals("/api/admin/set-storage", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleSetStorage(stream, req);
                     return;
                 }
 
@@ -1498,11 +1615,19 @@ namespace ZoneHub
         #region Chat Methods
         private static string GetMessagesFilePath()
         {
-            return Path.Combine(RootDirectory, "messages.json");
+            // Primary storage for app databases is always AppDirectory to prevent loss on drive switch/deletion
+            string appPath = Path.Combine(AppDirectory, "messages.json");
+            if (File.Exists(appPath)) return appPath;
+            string rootPath = Path.Combine(RootDirectory, "messages.json");
+            if (File.Exists(rootPath)) return rootPath;
+            return appPath;
         }
 
         private static string GetChatStorageDir()
         {
+            string appChat = Path.Combine(AppDirectory, "Chat_Media");
+            if (Directory.Exists(appChat)) return appChat;
+
             string dir = Path.Combine(RootDirectory, ".chat_transfers");
             if (!Directory.Exists(dir))
             {
@@ -1539,10 +1664,14 @@ namespace ZoneHub
         {
             lock (MessagesLock)
             {
-                string path = GetMessagesFilePath();
                 JavaScriptSerializer js = new JavaScriptSerializer();
                 string json = js.Serialize(list);
-                File.WriteAllText(path, json, Encoding.UTF8);
+                string appPath = Path.Combine(AppDirectory, "messages.json");
+                try { File.WriteAllText(appPath, json, Encoding.UTF8); } catch {}
+                if (!string.Equals(RootDirectory, AppDirectory, StringComparison.OrdinalIgnoreCase) && Directory.Exists(RootDirectory))
+                {
+                    try { File.WriteAllText(Path.Combine(RootDirectory, "messages.json"), json, Encoding.UTF8); } catch {}
+                }
             }
         }
 
@@ -1909,7 +2038,11 @@ namespace ZoneHub
         #region File Metadata
         private static string GetMetaFilePath()
         {
-            return Path.Combine(RootDirectory, "file_metadata.json");
+            string appPath = Path.Combine(AppDirectory, "file_metadata.json");
+            if (File.Exists(appPath)) return appPath;
+            string rootPath = Path.Combine(RootDirectory, "file_metadata.json");
+            if (File.Exists(rootPath)) return rootPath;
+            return appPath;
         }
 
         private static Dictionary<string, FileMetaItem> LoadFileMetadata()
@@ -1935,10 +2068,14 @@ namespace ZoneHub
         {
             lock (MetadataLock)
             {
-                string path = GetMetaFilePath();
                 JavaScriptSerializer js = new JavaScriptSerializer();
                 string json = js.Serialize(dict);
-                File.WriteAllText(path, json, Encoding.UTF8);
+                string appPath = Path.Combine(AppDirectory, "file_metadata.json");
+                try { File.WriteAllText(appPath, json, Encoding.UTF8); } catch {}
+                if (!string.Equals(RootDirectory, AppDirectory, StringComparison.OrdinalIgnoreCase) && Directory.Exists(RootDirectory))
+                {
+                    try { File.WriteAllText(Path.Combine(RootDirectory, "file_metadata.json"), json, Encoding.UTF8); } catch {}
+                }
             }
         }
 
@@ -2867,6 +3004,7 @@ namespace ZoneHub
 
         private static void ServeFoldersJson(NetworkStream stream)
         {
+            EnsureStorageDirectoryExists();
             var standardFolders = new string[] { "Videos", "Pictures", "Documents" };
             foreach (var sf in standardFolders)
             {
@@ -2954,6 +3092,7 @@ namespace ZoneHub
 
         private static void ServeFilesJson(NetworkStream stream)
         {
+            EnsureStorageDirectoryExists();
             try { RunAutoExpireCleanup(); } catch {}
             List<FileInfo> allFiles = new List<FileInfo>();
             try
@@ -3150,7 +3289,7 @@ namespace ZoneHub
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("[ADMIN PIN UPDATED] Admin PIN was changed.");
             Console.ResetColor();
-            SendJsonResponse(stream, 200, "{\"success\":true,\"token\":\"" + JsonEscape(newPin) + "\"}");
+            SendJsonResponse(stream, 200, "{\"success\":true,\"token\":\"" + JsonEscape(newPin) + "\",\"currentPin\":\"" + JsonEscape(newPin) + "\"}");
         }
 
         private static void HandleSaveConfig(NetworkStream stream, RequestContext req)
@@ -3183,9 +3322,116 @@ namespace ZoneHub
             }
         }
 
+        private static void ServeHostDrives(NetworkStream stream, RequestContext req)
+        {
+            if (!IsAdmin(req) && !req.IsLocalhost)
+            {
+                SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Admin permission required to view host storage drives.\"}");
+                return;
+            }
+
+            try
+            {
+                DriveInfo[] drives = DriveInfo.GetDrives();
+                List<string> driveItems = new List<string>();
+                string currentRoot = Path.GetPathRoot(RootDirectory);
+
+                foreach (DriveInfo d in drives)
+                {
+                    if (!d.IsReady) continue;
+                    try
+                    {
+                        string name = d.Name;
+                        string label = "";
+                        try { label = d.VolumeLabel; } catch {}
+                        long total = d.TotalSize;
+                        long free = d.AvailableFreeSpace;
+                        double usedPct = total > 0 ? ((double)(total - free) / total) * 100.0 : 0;
+                        bool isCurrent = string.Equals(name, currentRoot, StringComparison.OrdinalIgnoreCase);
+
+                        driveItems.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                            "{{\"name\":\"{0}\",\"label\":\"{1}\",\"driveType\":\"{2}\",\"totalBytes\":{3},\"freeBytes\":{4},\"totalFormatted\":\"{5}\",\"freeFormatted\":\"{6}\",\"usedPercent\":{7:F1},\"isCurrent\":{8}}}",
+                            JsonEscape(name),
+                            JsonEscape(label),
+                            JsonEscape(d.DriveType.ToString()),
+                            total,
+                            free,
+                            JsonEscape(FormatBytes(total)),
+                            JsonEscape(FormatBytes(free)),
+                            usedPct,
+                            isCurrent ? "true" : "false"
+                        ));
+                    }
+                    catch {}
+                }
+
+                string currentStorageDir = RootDirectory;
+                string json = "{\"success\":true,\"currentDir\":\"" + JsonEscape(currentStorageDir) + "\",\"currentDrive\":\"" + JsonEscape(currentRoot ?? "") + "\",\"drives\":[" + string.Join(",", driveItems.ToArray()) + "]}";
+                SendJsonResponse(stream, 200, json);
+            }
+            catch (Exception ex)
+            {
+                SendJsonResponse(stream, 500, "{\"success\":false,\"error\":\"" + JsonEscape(ex.Message) + "\"}");
+            }
+        }
+
+        private static void HandleSetStorage(NetworkStream stream, RequestContext req)
+        {
+            if (!IsAdmin(req) && !req.IsLocalhost)
+            {
+                SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Admin permission required to change storage location.\"}");
+                return;
+            }
+
+            string body = ReadBodyString(stream, req);
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            Dictionary<string, string> input = null;
+            try
+            {
+                input = js.Deserialize<Dictionary<string, string>>(body);
+            }
+            catch {}
+
+            if (input != null && input.ContainsKey("path") && !string.IsNullOrWhiteSpace(input["path"]))
+            {
+                string rawPath = input["path"].Trim();
+                try
+                {
+                    string fullPath = Path.GetFullPath(rawPath);
+                    if (!Directory.Exists(fullPath))
+                    {
+                        Directory.CreateDirectory(fullPath);
+                    }
+
+                    // Test write permission
+                    string testFile = Path.Combine(fullPath, ".zonehub_test_write");
+                    File.WriteAllText(testFile, "test");
+                    File.Delete(testFile);
+
+                    // Update configuration
+                    SetStorageDirectory(fullPath);
+                    RootDirectory = fullPath;
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("[STORAGE CHANGED] Storage directory set to: " + fullPath);
+                    Console.ResetColor();
+
+                    SendJsonResponse(stream, 200, "{\"success\":true,\"message\":\"Storage directory updated successfully!\",\"storageDir\":\"" + JsonEscape(fullPath) + "\",\"drive\":\"" + JsonEscape(Path.GetPathRoot(fullPath) ?? "") + "\"}");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Cannot use specified path: " + JsonEscape(ex.Message) + "\"}");
+                    return;
+                }
+            }
+
+            SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Invalid directory path provided.\"}");
+        }
+
         private static void ServeDashboard(NetworkStream stream, bool headOnly)
         {
-            string htmlPath = Path.Combine(RootDirectory, "index.html");
+            string htmlPath = Path.Combine(AppDirectory, "index.html");
             string html = "";
             string currentIp = GetCurrentLocalIp();
             string machineName = GetHostName();
@@ -3228,7 +3474,7 @@ namespace ZoneHub
 
         private static void ServeManifest(NetworkStream stream, bool headOnly)
         {
-            string manifestPath = Path.Combine(RootDirectory, "manifest.json");
+            string manifestPath = Path.Combine(AppDirectory, "manifest.json");
             string json = "";
             string hubName = GetHubName();
 
@@ -3263,31 +3509,47 @@ namespace ZoneHub
         private static void ServeFile(NetworkStream stream, string relativePath, Dictionary<string, string> headers, bool headOnly)
         {
             string cleanRel = relativePath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
-            string fullPath = Path.GetFullPath(Path.Combine(RootDirectory, cleanRel));
+            string fullPath = null;
 
-            if (!fullPath.StartsWith(RootDirectory, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
+            // 1. Check if asset exists in AppDirectory (CSS, JS, favicons, Bubble exe, etc.)
+            string appCandidate = Path.GetFullPath(Path.Combine(AppDirectory, cleanRel));
+            if (appCandidate.StartsWith(AppDirectory, StringComparison.OrdinalIgnoreCase) && File.Exists(appCandidate))
             {
-                // Check inside .chat_transfers
-                string chatBase = GetChatStorageDir();
-                string chatCandidate = Path.GetFullPath(Path.Combine(chatBase, cleanRel));
-                if (chatCandidate.StartsWith(chatBase, StringComparison.OrdinalIgnoreCase) && File.Exists(chatCandidate))
+                fullPath = appCandidate;
+            }
+            else
+            {
+                // 2. Check in RootDirectory (user storage folder)
+                string rootCandidate = Path.GetFullPath(Path.Combine(RootDirectory, cleanRel));
+                if (rootCandidate.StartsWith(RootDirectory, StringComparison.OrdinalIgnoreCase) && File.Exists(rootCandidate))
                 {
-                    fullPath = chatCandidate;
+                    fullPath = rootCandidate;
                 }
                 else
                 {
-                    // Fallback: Check if file exists in any subfolder of RootDirectory or chatBase
-                    string fileName = Path.GetFileName(cleanRel);
-                    string found = FindFileInSubfolders(RootDirectory, fileName);
-                    if (found == null) found = FindFileInSubfolders(chatBase, fileName);
-                    if (found != null && File.Exists(found))
+                    // 3. Check inside .chat_transfers
+                    string chatBase = GetChatStorageDir();
+                    string chatCandidate = Path.GetFullPath(Path.Combine(chatBase, cleanRel));
+                    if (chatCandidate.StartsWith(chatBase, StringComparison.OrdinalIgnoreCase) && File.Exists(chatCandidate))
                     {
-                        fullPath = found;
+                        fullPath = chatCandidate;
                     }
                     else
                     {
-                        SendError(stream, 404, "File Not Found");
-                        return;
+                        // 4. Fallback search
+                        string fileName = Path.GetFileName(cleanRel);
+                        string found = FindFileInSubfolders(RootDirectory, fileName);
+                        if (found == null) found = FindFileInSubfolders(chatBase, fileName);
+                        if (found == null) found = FindFileInSubfolders(AppDirectory, fileName);
+                        if (found != null && File.Exists(found))
+                        {
+                            fullPath = found;
+                        }
+                        else
+                        {
+                            SendError(stream, 404, "File Not Found");
+                            return;
+                        }
                     }
                 }
             }

@@ -615,7 +615,7 @@
             if (channel === 'public') {
                 if (teamBtn) teamBtn.classList.add('active');
                 if (banner) banner.style.display = 'none';
-                if (chatInput) chatInput.placeholder = 'Type a message, paste images (Ctrl+V), or drag & drop files/folders...';
+                if (chatInput) chatInput.placeholder = 'Type a message or paste images...';
             } else if (currentDmUser) {
                 if (teamBtn) teamBtn.classList.remove('active');
                 // Ensure DM tab exists in openDmTabs
@@ -627,7 +627,7 @@
                     banner.style.display = 'flex';
                     if (bannerText) bannerText.innerHTML = '🔒 Private Chat with <strong>' + escapeHtml(currentDmUser.userName) + '</strong> <span style="opacity:0.8;font-size:10px;margin-left:4px;">(Only visible to you two)</span>';
                 }
-                if (chatInput) chatInput.placeholder = '🔒 Private message to ' + currentDmUser.userName + ', or drop files/folders here...';
+                if (chatInput) chatInput.placeholder = '🔒 Private message to ' + currentDmUser.userName + '...';
                 dmUnreadMap[currentDmUser.userId] = 0;
                 dmUnreadMap[uNorm] = 0;
             }
@@ -1515,12 +1515,23 @@
             }
         }
 
+        function autoResizeChatInput(el) {
+            if (!el) el = document.getElementById('chatInput');
+            if (!el) return;
+            el.style.height = 'auto';
+            const baseH = window.innerWidth <= 600 ? 38 : 40;
+            const newH = Math.max(baseH, Math.min(100, el.scrollHeight));
+            el.style.height = newH + 'px';
+        }
+        window.autoResizeChatInput = autoResizeChatInput;
+
         async function sendMessage() {
             const input = document.getElementById('chatInput');
             const text = input.value.trim();
             if (!text) return;
 
             input.value = '';
+            input.style.height = '';
             try {
                 const textBody = Object.assign({
                     user: currentUserName,

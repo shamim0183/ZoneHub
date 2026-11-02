@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261102b">
+    <link rel="stylesheet" href="/css/style.css?v=20261102d">
 </head>
 <body>
     <div class="container">
@@ -88,12 +88,6 @@
                 <a href="/ZoneHubBubble.exe" download="ZoneHubBubble.exe" onclick="handleDesktopBubbleClick(event)" class="btn btn-secondary btn-desktop-bubble" title="Download Floating Desktop Bubble for PC or Mac Guide" style="font-weight:700;gap:6px;text-decoration:none;">
                     🖥️ Desktop Bubble
                 </a>
-                <button id="expandFullBtn" onclick="expandToFullView()" class="btn btn-primary btn-expand-full" style="display:none;padding:6px 12px;font-size:12px;font-weight:700;">
-                    ⤢ Full View
-                </button>
-                <button id="miniBubbleToggleBtn" onclick="toggleMiniWindowBubbleMode()" class="btn btn-secondary" style="display:none;padding:6px 10px;font-size:11px;font-weight:700;gap:4px;" title="Minimize to Circle Bubble">
-                    ⚪ Bubble
-                </button>
                 <button onclick="copyFullShareUrl()" class="btn btn-primary">
                     <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                     Copy Link
@@ -132,13 +126,14 @@
 
         <!-- Host PC Live System & Speed Dashboard -->
         <div class="host-live-dashboard" id="hostLiveDashboard">
-            <div class="dashboard-metric metric-disk" id="metricDisk">
+            <div class="dashboard-metric metric-disk" id="metricDisk" onclick="handleStorageMetricClick()" style="cursor:pointer;" title="Click to view or change Host Storage Drive (Admin)">
                 <div class="metric-icon">💽</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_disk_storage">Host Storage</span>
-                        <span class="metric-value" id="diskFreeText">Loading...</span>
+                        <span class="metric-devices-badge" style="white-space:nowrap;">Change ▾</span>
                     </div>
+                    <span class="metric-value" id="diskFreeText" style="display:block;margin-bottom:3px;">Loading...</span>
                     <div class="disk-progress-bar-wrap" title="Storage Usage">
                         <div class="disk-progress-bar" id="diskProgressBar" style="width: 0%;"></div>
                     </div>
@@ -149,11 +144,9 @@
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_lan_speed">Live LAN Speed</span>
+                        <span class="metric-sub" id="lanTrafficTotal" style="margin:0;font-size:10px;white-space:nowrap;">↓ 0 B • ↑ 0 B</span>
                     </div>
-                    <div class="metric-value-row">
-                        <span class="metric-value" id="lanSpeedText">0 KB/s</span>
-                        <span class="metric-sub" id="lanTrafficTotal">↓ 0 MB • ↑ 0 MB</span>
-                    </div>
+                    <span class="metric-value" id="lanSpeedText">↓ 0 KB/s ↑ 0 KB/s</span>
                 </div>
             </div>
             <div class="dashboard-metric metric-devices" id="metricDevices" onclick="toggleActivePeersPopover(event)" tabindex="0">
@@ -165,30 +158,32 @@
                     </div>
                     <span class="metric-value" id="activeDevicesText">1 Online</span>
                 </div>
-                <!-- Floating Active Devices Details Popover (Hover & Click) -->
-                <div class="active-peers-popover" id="activePeersPopover" onclick="event.stopPropagation()">
-                    <div class="active-peers-popover-header">
-                        <div style="font-weight:800;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;">
-                            <span>👥</span> Connected Devices
-                        </div>
-                        <span class="active-peers-count-tag" id="activePeersCountTag">1 Online</span>
-                    </div>
-                    <div class="active-peers-list" id="activePeersList">
-                        <div style="font-size:11px;color:var(--text-muted);text-align:center;padding:12px;">Loading active colleagues...</div>
-                    </div>
-                </div>
             </div>
-            <div class="dashboard-metric metric-remote" id="metricRemote">
+            <div class="dashboard-metric metric-remote" id="metricRemote" onclick="openAdminModal()" style="cursor:pointer;" title="Click to manage Remote Access in Admin">
                 <div class="metric-icon">🌐</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_remote_status">Remote Access</span>
+                        <button type="button" onclick="event.stopPropagation(); openAdminModal();" class="btn-micro-toggle" id="remoteToggleQuickBtn" title="Toggle Remote Access in Admin">Go Global</button>
                     </div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-                        <span class="metric-value" id="remoteStatusText" style="color:var(--text-muted);font-size:12px;">Local Only</span>
-                        <button type="button" onclick="openAdminModal()" class="btn-micro-toggle" id="remoteToggleQuickBtn" title="Toggle Remote Access in Admin">Go Global</button>
-                    </div>
+                    <span class="metric-value" id="remoteStatusText" style="display:block;font-size:13px;font-weight:800;color:var(--text-muted);">⚪ Local Only</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Floating Active Devices Details Popover -->
+        <div class="active-peers-popover" id="activePeersPopover" onclick="event.stopPropagation()">
+            <div class="active-peers-popover-header">
+                <div style="font-weight:800;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;">
+                    <span>👥</span> Connected Devices
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="active-peers-count-tag" id="activePeersCountTag">1 Online</span>
+                    <button type="button" class="popover-close-btn" onclick="closeActivePeersPopover(event)" title="Close">✕</button>
+                </div>
+            </div>
+            <div class="active-peers-list" id="activePeersList">
+                <div style="font-size:11px;color:var(--text-muted);text-align:center;padding:12px;">Loading active colleagues...</div>
             </div>
         </div>
 
@@ -208,9 +203,6 @@
                 Team Chat
                 <span class="badge-counter" id="chatCountBadge">0</span>
                 <span class="badge-counter" id="chatUnreadBadge" style="display:none;background:var(--accent-rose);color:#fff;font-weight:700;">0</span>
-            </button>
-            <button class="tab-btn btn-mini-dock-tab" onclick="toggleMiniDock()" title="Open Floating Mini Dock in screen corner" style="margin-left:auto;border-color:rgba(99,102,241,0.35);color:#a5b4fc;">
-                📌 Mini Dock
             </button>
         </div>
 
@@ -516,7 +508,7 @@
                             </div>
                         </div>
 
-                        <textarea id="chatInput" class="chat-input" placeholder="Type a message, paste images (Ctrl+V), or drag &amp; drop files/folders..." rows="1" onkeydown="handleChatKeyDown(event)"></textarea>
+                        <textarea id="chatInput" class="chat-input" placeholder="Type a message or paste images..." rows="1" onkeydown="handleChatKeyDown(event)" oninput="autoResizeChatInput(this)"></textarea>
 
                         <!-- Send Picture / Video Album Button -->
                         <button type="button" onclick="document.getElementById('chatPhotoInput').click()" class="action-tool-btn" title="Send Picture or Video (Multi-Select)">
@@ -710,12 +702,12 @@
 
     <!-- Admin Authentication & PIN Management Modal -->
     <div id="adminAuthModal" class="modal-overlay" onclick="closeAdminModal(event)">
-        <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:440px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
+        <div class="rename-modal-box admin-modal-box" onclick="event.stopPropagation()" style="max-width:440px;">
+            <div class="admin-modal-sticky-header">
+                <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin:0;">
                     <span id="adminModalIcon">👑</span> <span id="adminModalTitle">Admin Security Control</span>
                 </h3>
-                <button type="button" class="modal-close-btn" onclick="closeAdminModal()">✕</button>
+                <button type="button" class="modal-close-btn" onclick="closeAdminModal()" title="Close">✕</button>
             </div>
             
             <div id="adminLockedView">
@@ -733,8 +725,12 @@
                 </div>
                 <div id="adminLoginError" style="display:none;color:#f87171;font-size:12px;margin-bottom:8px;"></div>
                 <p style="font-size:11px;color:var(--text-muted);line-height:1.4;">
-                    💡 <em>Host PC is automatically Admin. Remote phones and laptops can unlock Admin mode using this PIN.</em>
+                    💡 <em>Host PC is automatically Admin. Remote phones and laptops can unlock Admin mode using this PIN.</em><br>
+                    <span style="color:#a5b4fc;margin-top:4px;display:inline-block;">Forgot PIN? Open ZoneHub directly on the Host PC (Host is always Admin) or reset with <code>tools\Reset-Admin-PIN.bat</code>.</span>
                 </p>
+                <button type="button" onclick="closeAdminModal()" class="btn btn-secondary modal-bottom-close-btn" style="width:100%;justify-content:center;margin-top:14px;padding:9px;font-weight:700;font-size:12px;border-color:rgba(255,255,255,0.15);">
+                    ✕ Close
+                </button>
             </div>
 
             <div id="adminUnlockedView" style="display:none;">
@@ -771,8 +767,46 @@
                     </button>
                 </div>
 
-                <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">
-                    🔑 Change Admin PIN:
+                <!-- Storage Drive & Hosting Location Feature Card -->
+                <div class="admin-feature-card">
+                    <div class="admin-feature-card-header">
+                        <span class="admin-feature-title">
+                            <span>💽</span> Host Storage Drive & Location
+                        </span>
+                        <span id="adminCurrentDriveBadge" class="admin-badge-status" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);">C: Drive</span>
+                    </div>
+                    <p style="font-size:11px;color:var(--text-muted);line-height:1.4;margin-bottom:10px;">
+                        ZoneHub-এর সমস্ত আপলোড ও শেয়ার করা ফাইল হোস্ট পিসির যে ড্রাইভ বা ফোল্ডারে সেভ হবে তা সিলেক্ট করুন:
+                    </p>
+
+                    <!-- Detected Drives Quick Select List -->
+                    <div style="font-size:11px;color:#cbd5e1;font-weight:700;margin-bottom:6px;">
+                        পিসির উপলব্ধ ড্রাইভসমূহ (Available Drives):
+                    </div>
+                    <div id="adminDrivesList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+                        <div style="font-size:11px;color:var(--text-muted);padding:8px;text-align:center;">
+                            Loading drive information...
+                        </div>
+                    </div>
+
+                    <!-- Custom Path Input -->
+                    <div style="font-size:11px;color:#cbd5e1;font-weight:700;margin-bottom:6px;">
+                        কাস্টম ফোল্ডার পাথ (Custom Storage Folder):
+                    </div>
+                    <div style="display:flex;gap:6px;margin-bottom:6px;">
+                        <input type="text" id="adminStoragePathInput" class="chat-input" style="height:36px;flex:1;font-size:12px;font-family:monospace;" placeholder="e.g. D:\ZoneHub_Storage" />
+                        <button type="button" id="adminApplyStorageBtn" onclick="applyStorageLocation()" class="btn btn-primary" style="padding:0 12px;font-size:12px;font-weight:700;white-space:nowrap;">
+                            💾 Apply
+                        </button>
+                    </div>
+                    <div id="adminStorageMsg" style="display:none;font-size:11px;padding:6px 10px;border-radius:6px;margin-top:6px;"></div>
+                </div>
+
+                <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+                    <span>🔑 Change Admin PIN:</span>
+                    <span id="currentAdminPinBadge" style="display:none;font-size:11px;color:#38bdf8;background:rgba(56,189,248,0.12);padding:2px 8px;border-radius:4px;border:1px solid rgba(56,189,248,0.3);font-family:monospace;font-weight:700;">
+                        Current PIN: <span id="currentAdminPinValue">1234</span>
+                    </span>
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:10px;">
                     <input type="password" id="newAdminPinInput" class="chat-input" style="height:40px;flex:1;font-size:14px;" placeholder="New PIN (min 4 digits)..." maxlength="16" />
@@ -790,6 +824,10 @@
                         🔒 Lock Admin
                     </button>
                 </div>
+
+                <button type="button" onclick="closeAdminModal()" class="btn btn-secondary modal-bottom-close-btn" style="width:100%;justify-content:center;margin-top:14px;padding:10px;font-weight:700;font-size:12px;border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);">
+                    ✕ Close Admin Settings
+                </button>
             </div>
         </div>
     </div>

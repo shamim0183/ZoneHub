@@ -28,7 +28,8 @@
             const usedPct = data.storage.usedPercent || 0;
             if (diskFreeText) {
                 diskFreeText.innerText = `${data.storage.freeFormatted || '0 GB'} free (${usedPct}% used)`;
-                diskFreeText.title = `Drive ${data.storage.drive || 'C:'} • Total: ${data.storage.totalFormatted} • Free: ${data.storage.freeFormatted}`;
+                const dirInfo = data.storage.storageDir ? ` • Location: ${data.storage.storageDir}` : '';
+                diskFreeText.title = `Drive ${data.storage.drive || 'C:'}${dirInfo} • Total: ${data.storage.totalFormatted} • Free: ${data.storage.freeFormatted}`;
             }
             if (diskBar) {
                 diskBar.style.width = Math.min(100, Math.max(2, usedPct)) + '%';
@@ -130,6 +131,14 @@
         if (remoteText) {
             remoteText.innerText = isRunning ? '🟢 Live Worldwide' : '⚪ Local Only';
             remoteText.style.color = isRunning ? '#34d399' : 'var(--text-muted)';
+        }
+
+        const quickBtn = document.getElementById('remoteToggleQuickBtn');
+        if (quickBtn) {
+            quickBtn.innerText = isRunning ? 'Manage ▾' : 'Go Global';
+            quickBtn.style.color = isRunning ? '#34d399' : '#a5b4fc';
+            quickBtn.style.borderColor = isRunning ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)';
+            quickBtn.style.background = isRunning ? 'rgba(16,185,129,0.12)' : 'rgba(99,102,241,0.15)';
         }
 
         if (globalPill) {
@@ -257,21 +266,55 @@
             .replace(/'/g, '&#39;');
     }
 
+    function closeActivePeersPopover(e) {
+        if (e) {
+            e.stopPropagation();
+            if (e.preventDefault) e.preventDefault();
+        }
+        const popover = document.getElementById('activePeersPopover');
+        if (popover) {
+            popover.classList.remove('active');
+        }
+        const metricDevices = document.getElementById('metricDevices');
+        if (metricDevices) {
+            metricDevices.blur();
+        }
+    }
+
+    function positionActivePeersPopover() {
+        const popover = document.getElementById('activePeersPopover');
+        const metricDevices = document.getElementById('metricDevices');
+        if (!popover || !metricDevices) return;
+        if (window.innerWidth <= 600) {
+            popover.style.top = '';
+            popover.style.left = '';
+            return;
+        }
+        const rect = metricDevices.getBoundingClientRect();
+        popover.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+        popover.style.left = Math.max(12, Math.min(window.innerWidth - 370, rect.left + window.scrollX)) + 'px';
+    }
+
     function toggleActivePeersPopover(e) {
         if (e) e.stopPropagation();
         const popover = document.getElementById('activePeersPopover');
         if (popover) {
-            popover.classList.toggle('active');
+            if (popover.classList.contains('active')) {
+                closeActivePeersPopover(e);
+            } else {
+                positionActivePeersPopover();
+                popover.classList.add('active');
+            }
         }
     }
 
     // Close popover when clicked outside
     document.addEventListener('click', function(e) {
         const popover = document.getElementById('activePeersPopover');
-        const metricDevices = document.getElementById('metricDevices');
         if (popover && popover.classList.contains('active')) {
+            const metricDevices = document.getElementById('metricDevices');
             if (!metricDevices || !metricDevices.contains(e.target)) {
-                popover.classList.remove('active');
+                closeActivePeersPopover(e);
             }
         }
     });
@@ -289,11 +332,154 @@
         init();
     }
 
+    // Admin Storage Drive Management Handlers
+    async function loadAdminDrives() {
+        const listEl = document.getElementById('adminDrivesList');
+        const inputEl = document.getElementById('adminStoragePathInput');
+        const badgeEl = document.getElementById('adminCurrentDriveBadge');
+        if (!listEl) return;
+
+        try {
+            const adminToken = localStorage.getItem('zonehub_admin_pin') || '';
+            const res = await fetch('/api/admin/drives', {
+                headers: { 'X-Admin-Pin': adminToken }
+            });
+            const data = await res.json();
+            if (data.success && Array.isArray(data.drives)) {
+                if (inputEl && (!inputEl.value || inputEl.value === '')) {
+                    inputEl.value = data.currentDir || '';
+                }
+                if (badgeEl) {
+                    badgeEl.innerText = data.currentDrive ? (data.currentDrive.replace(/\\$/, '') + ' Drive') : 'Current Storage';
+                }
+
+                let html = '';
+                data.drives.forEach(d => {
+                    const isCur = !!d.isCurrent;
+                    const labelTxt = d.label ? ` (${escapeHtml(d.label)})` : '';
+                    const freeTxt = `${d.freeFormatted} free of ${d.totalFormatted}`;
+                    const defaultFolder = d.name.endsWith('\\') ? `${d.name}ZoneHub_Storage` : `${d.name}\\ZoneHub_Storage`;
+                    const safeFolderStr = defaultFolder.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+                    html += `
+                        <div style="background:rgba(255,255,255,${isCur ? '0.08' : '0.03'});border:1px solid ${isCur ? 'rgba(59,130,246,0.6)' : 'rgba(255,255,255,0.08)'};border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                            <div style="min-width:0;">
+                                <div style="font-size:12px;font-weight:700;color:${isCur ? '#60a5fa' : '#fff'};display:flex;align-items:center;gap:6px;">
+                                    <span>💽</span>
+                                    <span>${escapeHtml(d.name)}${labelTxt}</span>
+                                    ${isCur ? '<span style="font-size:10px;background:rgba(59,130,246,0.25);color:#93c5fd;padding:2px 6px;border-radius:4px;font-weight:800;">Active</span>' : ''}
+                                </div>
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                                    ${freeTxt} (${d.usedPercent}% used)
+                                </div>
+                            </div>
+                            <button type="button" onclick="selectDrivePath('${safeFolderStr}')" class="btn btn-secondary" style="font-size:11px;padding:4px 10px;font-weight:700;white-space:nowrap;height:28px;">
+                                ${isCur ? '✓ Selected' : 'Use Drive'}
+                            </button>
+                        </div>
+                    `;
+                });
+                listEl.innerHTML = html;
+            } else {
+                listEl.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;text-align:center;">${escapeHtml(data.error || 'Failed to detect drives')}</div>`;
+            }
+        } catch (err) {
+            listEl.innerHTML = `<div style="font-size:11px;color:#f87171;padding:6px;text-align:center;">Error communicating with server</div>`;
+        }
+    }
+
+    function selectDrivePath(folderPath) {
+        const inputEl = document.getElementById('adminStoragePathInput');
+        if (inputEl) {
+            inputEl.value = folderPath;
+            inputEl.focus();
+        }
+    }
+
+    async function applyStorageLocation() {
+        const inputEl = document.getElementById('adminStoragePathInput');
+        const msgEl = document.getElementById('adminStorageMsg');
+        const btn = document.getElementById('adminApplyStorageBtn');
+        if (!inputEl) return;
+        const newPath = inputEl.value.trim();
+        if (!newPath) {
+            if (msgEl) {
+                msgEl.style.display = 'block';
+                msgEl.style.background = 'rgba(239,68,68,0.15)';
+                msgEl.style.color = '#f87171';
+                msgEl.innerText = 'Please specify a folder path.';
+            }
+            return;
+        }
+
+        if (btn) { btn.disabled = true; btn.innerText = 'Applying...'; }
+        if (msgEl) msgEl.style.display = 'none';
+
+        try {
+            const adminToken = localStorage.getItem('zonehub_admin_pin') || '';
+            const res = await fetch('/api/admin/set-storage', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Pin': adminToken
+                },
+                body: JSON.stringify({ path: newPath })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (msgEl) {
+                    msgEl.style.display = 'block';
+                    msgEl.style.background = 'rgba(16,185,129,0.15)';
+                    msgEl.style.color = '#34d399';
+                    msgEl.innerText = '✅ ' + (data.message || 'Storage directory updated successfully!');
+                }
+                if (typeof showToast === 'function') showToast('💽 Storage location updated successfully!');
+                loadAdminDrives();
+                fetchHostStats();
+                if (typeof window.loadFoldersList === 'function') window.loadFoldersList();
+                if (typeof window.loadFileList === 'function') window.loadFileList();
+            } else {
+                if (msgEl) {
+                    msgEl.style.display = 'block';
+                    msgEl.style.background = 'rgba(239,68,68,0.15)';
+                    msgEl.style.color = '#f87171';
+                    msgEl.innerText = '❌ ' + (data.error || 'Failed to update storage path.');
+                }
+            }
+        } catch (e) {
+            if (msgEl) {
+                msgEl.style.display = 'block';
+                msgEl.style.background = 'rgba(239,68,68,0.15)';
+                msgEl.style.color = '#f87171';
+                msgEl.innerText = '❌ Connection failed.';
+            }
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerText = '💾 Apply'; }
+        }
+    }
+
+    function handleStorageMetricClick() {
+        if (typeof window.openAdminModal === 'function') {
+            window.openAdminModal();
+            setTimeout(() => {
+                const el = document.getElementById('adminDrivesList');
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 250);
+        }
+    }
+
     // Expose Global Handlers
     window.toggleGlobalTunnel = toggleGlobalTunnel;
     window.copyGlobalLink = copyGlobalLink;
     window.openGlobalQrModal = openGlobalQrModal;
     window.fetchHostStats = fetchHostStats;
     window.toggleActivePeersPopover = toggleActivePeersPopover;
+    window.closeActivePeersPopover = closeActivePeersPopover;
+    window.loadAdminDrives = loadAdminDrives;
+    window.selectDrivePath = selectDrivePath;
+    window.applyStorageLocation = applyStorageLocation;
+    window.handleStorageMetricClick = handleStorageMetricClick;
 })();
 

@@ -266,6 +266,24 @@ function openAdminModal() {
         if (logoutBtn) {
             logoutBtn.style.display = isCurrentHost ? 'none' : 'inline-block';
         }
+        if (isCurrentHost) {
+            fetch('/api/admin/status')
+                .then(r => r.json())
+                .then(st => {
+                    if (st && st.currentPin) {
+                        const pinBadge = document.getElementById('currentAdminPinBadge');
+                        const pinVal = document.getElementById('currentAdminPinValue');
+                        if (pinBadge && pinVal) {
+                            pinVal.innerText = st.currentPin;
+                            pinBadge.style.display = 'inline-block';
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+        if (typeof loadAdminDrives === 'function') {
+            loadAdminDrives();
+        }
     } else {
         if (lockedView) lockedView.style.display = 'block';
         if (unlockedView) unlockedView.style.display = 'none';
@@ -279,10 +297,11 @@ function openAdminModal() {
 }
 
 function closeAdminModal(e) {
-    if (!e || e.target.id === 'adminAuthModal' || (e.target.classList && e.target.classList.contains('modal-close-btn'))) {
-        const modal = document.getElementById('adminAuthModal');
-        if (modal) modal.classList.remove('active');
+    if (e && e.target && e.target.closest && e.target.closest('.rename-modal-box') && !e.target.closest('.modal-close-btn') && !e.target.closest('.modal-bottom-close-btn')) {
+        return;
     }
+    const modal = document.getElementById('adminAuthModal');
+    if (modal) modal.classList.remove('active');
 }
 
 async function submitAdminLogin() {
@@ -342,6 +361,8 @@ async function changeAdminPin() {
         if (data.success) {
             localStorage.setItem('zonehub_admin_pin', newPin);
             if (input) input.value = '';
+            const pinVal = document.getElementById('currentAdminPinValue');
+            if (pinVal) pinVal.innerText = newPin;
             if (msgDiv) { msgDiv.style.color = '#34d399'; msgDiv.innerText = '✅ PIN updated successfully!'; msgDiv.style.display = 'block'; }
             showToast('Admin PIN updated!');
         } else {
@@ -862,14 +883,42 @@ function switchView(view) {
 
 // Mini Dock & Corner Floating Mode
 let activePipWindow = null;
+let activeMiniPopup = null;
 
 async function toggleMiniDock() {
-    if (window.location.search.includes('view=mini') || document.body.classList.contains('mini-dock-mode')) {
+    // 1. If currently INSIDE the mini dock window: close it cleanly
+    if (window.location.search.includes('view=mini') || window.name === 'ZoneHubMiniDock') {
+        try {
+            if (window.opener && !window.opener.closed) {
+                window.opener.focus();
+            }
+        } catch (e) {}
+        window.close();
+        return;
+    }
+
+    // 2. If in-page mini-dock mode is active: restore full view
+    if (document.body.classList.contains('mini-dock-mode')) {
         expandToFullView();
         return;
     }
 
-    // Open true Always-On-Top mini window over Premiere / Photoshop / Folders
+    // 3. Toggle behavior: If mini dock is already open, CLOSE it
+    if (activePipWindow && !activePipWindow.closed) {
+        try { activePipWindow.close(); } catch (e) {}
+        activePipWindow = null;
+        showToast('📌 Closed Always-on-Top Mini Dock');
+        return;
+    }
+
+    if (activeMiniPopup && !activeMiniPopup.closed) {
+        try { activeMiniPopup.close(); } catch (e) {}
+        activeMiniPopup = null;
+        showToast('📌 Closed Mini Dock');
+        return;
+    }
+
+    // 4. Open single instance of Always-On-Top mini window
     openAlwaysOnTopOsWindow();
 }
 
@@ -921,7 +970,13 @@ async function openAlwaysOnTopOsWindow() {
         }
     }
 
-    // 2. Standard popup window fallback
+    // 2. Standard popup window fallback (Focus existing if already open)
+    if (activeMiniPopup && !activeMiniPopup.closed) {
+        activeMiniPopup.focus();
+        showToast('📌 Focused Mini Dock');
+        return;
+    }
+
     const left = Math.max(0, (window.screen.availWidth || 1366) - width - 15);
     const top = 50;
     const miniUrl = window.location.origin + '/?view=mini';
@@ -932,6 +987,7 @@ async function openAlwaysOnTopOsWindow() {
             `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,location=no,toolbar=no,menubar=no`
         );
         if (miniWin && !miniWin.closed) {
+            activeMiniPopup = miniWin;
             miniWin.focus();
             showToast('📌 ZoneHub opened in Screen Corner Window!');
             return;
@@ -947,35 +1003,29 @@ async function openAlwaysOnTopOsWindow() {
 }
 
 function expandToFullView() {
-    try {
-        if (window.parent && window.parent !== window) {
-            if (window.parent.close) window.parent.close();
-            return;
-        }
-    } catch (e) {}
+    // 1. Remove all mini-dock and compact bubble classes immediately
+    document.body.classList.remove('mini-dock-mode');
+    document.body.classList.remove('bubble-compact-view');
 
+    // 2. If running inside a Document Picture-in-Picture window, close it
     if (activePipWindow && !activePipWindow.closed) {
-        activePipWindow.close();
+        try { activePipWindow.close(); } catch (e) {}
         activePipWindow = null;
-        return;
     }
 
-    if (window.opener && !window.opener.closed) {
-        window.close();
-        window.opener.focus();
-        return;
-    }
+    // 3. If running in a true detached mini window (?view=mini), navigate to full desktop URL
     if (window.location.search.includes('view=mini')) {
         window.location.href = window.location.origin + '/';
         return;
     }
-    document.body.classList.remove('mini-dock-mode');
+
+    // 4. Restore desktop layout (split view on desktop, files on mobile)
     if (window.innerWidth >= 768) {
         switchView('split');
     } else {
         switchView('files');
     }
-    showToast('⤢ Restored to Full View');
+    showToast('⤢ Restored to Full Desktop View');
 }
 
 // ==========================================

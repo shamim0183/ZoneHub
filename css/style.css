@@ -1774,15 +1774,18 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-color);
             border-radius: 10px;
-            padding: 10px 14px;
+            padding: 9px 12px;
             color: #fff;
             font-size: 13px;
+            line-height: 1.4;
+            height: 40px;
+            min-height: 40px;
+            max-height: 100px;
+            box-sizing: border-box;
             font-family: inherit;
             outline: none;
             resize: none;
-            max-height: 80px;
-            min-height: 40px;
-            overflow-y: hidden;
+            overflow-y: auto;
             scrollbar-width: none;
             transition: border-color 0.2s;
         }
@@ -2029,6 +2032,9 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .modal-overlay.active {
@@ -2311,15 +2317,13 @@
                 align-items: center;
                 box-sizing: border-box !important;
             }
-            .pwa-install-btn {
-                grid-column: 1 / -1 !important;
-                width: 100% !important;
-                justify-content: center;
-                padding: 8px 14px;
-                font-size: 12px;
-                box-sizing: border-box !important;
+            .header-actions .btn-mini-dock,
+            .header-actions .btn-desktop-bubble {
+                display: none !important;
             }
             .lang-selector-wrap {
+                grid-column: 1 / 2 !important;
+                grid-row: 1 !important;
                 width: 100% !important;
                 box-sizing: border-box !important;
             }
@@ -2330,15 +2334,44 @@
                 font-size: 11px !important;
                 text-align: center !important;
                 box-sizing: border-box !important;
+                border-radius: 10px !important;
+            }
+            .admin-status-wrap {
+                grid-column: 2 / 3 !important;
+                grid-row: 1 !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .admin-status-wrap .admin-toggle-btn {
+                width: 100% !important;
+                height: 36px !important;
+                justify-content: center !important;
+                padding: 0 8px !important;
+                font-size: 11.5px !important;
+                box-sizing: border-box !important;
+                border-radius: 10px !important;
+            }
+            .header-actions .btn-primary {
+                grid-column: 3 / 4 !important;
+                grid-row: 1 !important;
+                width: 100% !important;
+                height: 36px !important;
+                justify-content: center !important;
+                padding: 0 8px !important;
+                font-size: 11.5px !important;
+                box-sizing: border-box !important;
+                border-radius: 10px !important;
+                white-space: nowrap !important;
             }
             .user-badge {
                 grid-column: 1 / -1 !important;
+                grid-row: 2 !important;
                 width: 100% !important;
-                height: 40px !important;
+                height: 38px !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: space-between !important;
-                padding: 0 14px !important;
+                padding: 0 12px !important;
                 font-size: 12px;
                 gap: 8px !important;
                 box-sizing: border-box !important;
@@ -2374,25 +2407,14 @@
                 opacity: 0.8 !important;
                 flex-shrink: 0 !important;
             }
-            .admin-status-wrap {
+            .pwa-install-btn {
+                grid-column: 1 / -1 !important;
+                grid-row: 3 !important;
                 width: 100% !important;
+                justify-content: center;
+                padding: 8px 14px;
+                font-size: 12px;
                 box-sizing: border-box !important;
-            }
-            .admin-status-wrap .admin-toggle-btn {
-                width: 100% !important;
-                justify-content: center !important;
-                padding: 8px 10px !important;
-                font-size: 12px !important;
-                box-sizing: border-box !important;
-                border-radius: 10px !important;
-            }
-            .header-actions .btn-primary {
-                width: 100% !important;
-                justify-content: center !important;
-                padding: 8px 10px !important;
-                font-size: 12px !important;
-                box-sizing: border-box !important;
-                border-radius: 10px !important;
             }
 
             /* Upload Dropzone on Mobile */
@@ -2753,8 +2775,12 @@
                 box-sizing: border-box !important;
             }
             .chat-input {
-                font-size: 12px !important;
-                padding: 6px 8px !important;
+                font-size: 12.5px !important;
+                padding: 8px 10px !important;
+                height: 38px !important;
+                min-height: 38px !important;
+                line-height: 1.35 !important;
+                box-sizing: border-box !important;
             }
             .action-tool-btn {
                 width: 32px !important;
@@ -2931,6 +2957,23 @@
             width: 480px;
             max-width: 90vw;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            box-sizing: border-box;
+            max-height: 92vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .admin-modal-sticky-header {
+            position: sticky;
+            top: -24px;
+            background: #111827;
+            padding: 16px 0 10px 0;
+            margin-top: -24px;
+            margin-bottom: 12px;
+            z-index: 50;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         .suggestion-chips-grid {
             display: flex;
@@ -3133,7 +3176,7 @@
         body.mini-dock-mode .btn-mini-dock,
         body.mini-dock-mode .btn-mini-dock-tab,
         body.mini-dock-mode .user-badge,
-        body.mini-dock-mode .header-actions .btn-primary:not(#expandFullBtn),
+        body.mini-dock-mode .header-actions .btn-primary,
         body.mini-dock-mode .hub-rename-pill-btn,
         body.mini-dock-mode .chat-title,
         body.mini-dock-mode .chat-header button:not(#notifToggleBtn) {
@@ -3167,13 +3210,6 @@
         body.mini-dock-mode .brand-title {
             font-size: 15px !important;
             font-weight: 800 !important;
-        }
-
-        body.mini-dock-mode #expandFullBtn {
-            display: inline-flex !important;
-            padding: 5px 10px !important;
-            font-size: 11px !important;
-            font-weight: 700 !important;
         }
 
         body.mini-dock-mode .tabs-header {
@@ -3261,10 +3297,6 @@
             min-height: 0 !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
-        }
-
-        body.mini-dock-mode #miniBubbleToggleBtn {
-            display: inline-flex !important;
         }
 
         /* In-Page Corner Mini Dock Card (Opens right above the floating circle icon) */
@@ -4751,6 +4783,7 @@
             font-size: 10px;
             color: #94a3b8;
             margin-left: 6px;
+            white-space: nowrap;
         }
 
         .metric-value-row {
@@ -4817,9 +4850,13 @@
             color: #a5b4fc;
             font-size: 10px;
             font-weight: 700;
-            border-radius: 6px;
+            border-radius: 4px;
             padding: 2px 7px;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            line-height: 1.2;
             transition: all 0.2s;
         }
 
@@ -4843,12 +4880,15 @@
             padding: 1px 5px;
             border-radius: 4px;
             font-weight: 700;
+            white-space: nowrap;
+        }
+
+        #qrModal {
+            z-index: 99999 !important;
         }
 
         .active-peers-popover {
             position: absolute;
-            top: calc(100% + 8px);
-            left: 0;
             min-width: 290px;
             max-width: 360px;
             background: #0b1120 !important;
@@ -4857,20 +4897,33 @@
             padding: 14px;
             box-shadow: 0 24px 50px rgba(0, 0, 0, 0.95), 0 0 24px rgba(99, 102, 241, 0.25) !important;
             z-index: 99999 !important;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-8px);
-            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            display: none;
             pointer-events: none;
         }
 
-        .dashboard-metric.metric-devices:hover .active-peers-popover,
-        .dashboard-metric.metric-devices:focus-within .active-peers-popover,
         .active-peers-popover.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
+            display: block !important;
             pointer-events: auto;
+        }
+
+        .popover-close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            transition: all 0.15s ease;
+        }
+        .popover-close-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            color: #f87171;
         }
 
         .active-peers-popover-header {
@@ -5038,27 +5091,113 @@
             }
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 600px) {
             .host-live-dashboard {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 6px;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+                margin-bottom: 14px !important;
             }
             .dashboard-metric {
-                padding: 8px 10px;
-                gap: 8px;
+                padding: 9px 8px !important;
+                gap: 6px !important;
+                min-width: 0 !important;
+                overflow: hidden !important;
+                border-radius: 12px !important;
             }
             .metric-icon {
-                width: 30px;
-                height: 30px;
-                font-size: 15px;
+                width: 26px !important;
+                height: 26px !important;
+                font-size: 13px !important;
+                border-radius: 8px !important;
+                flex-shrink: 0 !important;
+            }
+            .metric-body {
+                min-width: 0 !important;
+                flex: 1 1 auto !important;
+                overflow: hidden !important;
+            }
+            .metric-header {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                gap: 3px !important;
+                margin-bottom: 2px !important;
             }
             .metric-title {
-                font-size: 9px;
+                font-size: 9px !important;
+                font-weight: 800 !important;
+                letter-spacing: 0.2px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
             }
             .metric-value {
-                font-size: 11px;
+                font-size: 10.5px !important;
+                font-weight: 800 !important;
+                line-height: 1.3 !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            .metric-speed .metric-value {
+                font-size: 10px !important;
+                line-height: 1.25 !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 1px 4px !important;
+            }
+            .metric-devices-badge,
+            .btn-micro-toggle {
+                font-size: 9px !important;
+                padding: 1px 5px !important;
+                height: 18px !important;
+                line-height: 16px !important;
+                flex-shrink: 0 !important;
             }
             .metric-sub {
-                display: none;
+                display: none !important;
+            }
+
+            /* Connected Devices Popover centered on mobile */
+            .active-peers-popover {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                width: calc(100vw - 32px) !important;
+                max-width: 360px !important;
+                max-height: 80vh !important;
+                z-index: 100000 !important;
+                border-radius: 16px !important;
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), 0 0 0 100vmax rgba(5, 8, 16, 0.75) !important;
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+            }
+            .active-peers-popover.active {
+                display: block !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                transform: translate(-50%, -50%) !important;
+            }
+
+            /* Admin Modal scrollable with sticky close header on mobile */
+            .modal-overlay {
+                padding: 10px 8px !important;
+                align-items: flex-start !important;
+            }
+            .rename-modal-box {
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: 94vh !important;
+                padding: 16px 12px !important;
+                margin: auto 0 !important;
+                border-radius: 16px !important;
+            }
+            .admin-modal-sticky-header {
+                top: -16px !important;
+                padding: 12px 0 10px 0 !important;
+                margin-top: -16px !important;
             }
         }

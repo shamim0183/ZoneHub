@@ -1,6 +1,6 @@
 @echo off
 title Restart ZoneHub Server
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo ===================================================
 echo   Restarting ZoneHub Background Server...
@@ -23,7 +23,7 @@ if exist server_new.exe (
 
 :: Launch server silently as a background service (No CMD window to accidentally close!)
 echo Starting ZoneHub as a silent background service...
-wscript.exe "%~dp0Run-Background-Service.vbs"
+wscript.exe "%~dp0..\Run-Background-Service.vbs"
 
 echo.
 echo ===================================================
