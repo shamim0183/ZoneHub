@@ -497,28 +497,6 @@ namespace ZoneHub
             }
         }
 
-        private static void GetPeerCounts(out int total, out int desktop, out int mobile)
-        {
-            total = 0; desktop = 0; mobile = 0;
-            long cutoff = DateTime.UtcNow.AddMinutes(-2).Ticks;
-            lock (PeersLock)
-            {
-                List<string> stale = new List<string>();
-                foreach (var kvp in ActivePeers)
-                {
-                    if (kvp.Value.lastSeenUnix < cutoff) stale.Add(kvp.Key);
-                    else
-                    {
-                        total++;
-                        if (kvp.Value.isMobile) mobile++;
-                        else desktop++;
-                    }
-                }
-                foreach (var k in stale) ActivePeers.Remove(k);
-            }
-            if (total == 0) { total = 1; desktop = 1; }
-        }
-
         private static string DetectDeviceType(string ua, bool isMobile, out string icon)
         {
             icon = "💻";
@@ -533,19 +511,28 @@ namespace ZoneHub
             return isMobile ? "Mobile Device" : "PC / Laptop";
         }
 
-        private static List<Dictionary<string, object>> GetActivePeerDetails()
+        private static List<Dictionary<string, object>> GetActivePeerDetails(out int total, out int desktop, out int mobile)
         {
             List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+            total = 0; desktop = 0; mobile = 0;
             long now = DateTime.UtcNow.Ticks;
             long cutoff = DateTime.UtcNow.AddMinutes(-2).Ticks;
 
             lock (PeersLock)
             {
+                // Clean up stale peers
+                List<string> stale = new List<string>();
+                foreach (var kvp in ActivePeers)
+                {
+                    if (kvp.Value.lastSeenUnix < cutoff) stale.Add(kvp.Key);
+                }
+                foreach (var k in stale) ActivePeers.Remove(k);
+
+                // Deduplicate by IP or userId to ensure clean 1-to-1 mapping
                 Dictionary<string, PeerInfo> dedup = new Dictionary<string, PeerInfo>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var kvp in ActivePeers)
                 {
-                    if (kvp.Value.lastSeenUnix < cutoff) continue;
                     var p = kvp.Value;
                     string key = !string.IsNullOrEmpty(p.clientIp) ? p.clientIp.Trim() : kvp.Key;
                     if (!dedup.ContainsKey(key) || dedup[key].lastSeenUnix < p.lastSeenUnix)
@@ -585,6 +572,10 @@ namespace ZoneHub
                     d["icon"] = icon;
                     d["lastSeen"] = timeStr;
                     list.Add(d);
+
+                    total++;
+                    if (p.isMobile) mobile++;
+                    else desktop++;
                 }
             }
 
@@ -598,6 +589,9 @@ namespace ZoneHub
                 host["icon"] = "💻";
                 host["lastSeen"] = "Just now";
                 list.Add(host);
+                total = 1;
+                desktop = 1;
+                mobile = 0;
             }
 
             return list;
@@ -704,7 +698,7 @@ namespace ZoneHub
             GetStorageStats(out totalStorage, out freeStorage, out usedPercent, out isLowSpace);
 
             int totalPeers = 0, desktopPeers = 0, mobilePeers = 0;
-            GetPeerCounts(out totalPeers, out desktopPeers, out mobilePeers);
+            var peerDetails = GetActivePeerDetails(out totalPeers, out desktopPeers, out mobilePeers);
 
             string onlineUrl = GetCurrentOnlineTunnelUrl();
             bool tunnelRunning = IsTunnelRunning() && !string.IsNullOrEmpty(onlineUrl);
@@ -714,7 +708,6 @@ namespace ZoneHub
             long recv = Interlocked.Read(ref _totalBytesReceived);
 
             JavaScriptSerializer js = new JavaScriptSerializer();
-            var peerDetails = GetActivePeerDetails();
             string peersJson = js.Serialize(peerDetails);
 
             string json = "{" +

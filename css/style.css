@@ -4622,6 +4622,8 @@
             gap: 10px;
             margin-top: 10px;
             margin-bottom: 6px;
+            position: relative;
+            z-index: 1000;
         }
 
         .dashboard-metric {
@@ -4771,6 +4773,7 @@
         /* Active Devices Hover & Tap Popover */
         .dashboard-metric.metric-devices {
             position: relative;
+            z-index: 1001;
             cursor: pointer;
         }
 
@@ -4790,12 +4793,12 @@
             left: 0;
             min-width: 290px;
             max-width: 360px;
-            background: #0f172a;
-            border: 1px solid rgba(99, 102, 241, 0.35);
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(99, 102, 241, 0.2);
-            z-index: 1200;
+            background: #0b1120 !important;
+            border: 1px solid rgba(99, 102, 241, 0.45) !important;
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.95), 0 0 24px rgba(99, 102, 241, 0.25) !important;
+            z-index: 99999 !important;
             opacity: 0;
             visibility: hidden;
             transform: translateY(-8px);
