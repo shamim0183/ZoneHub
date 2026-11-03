@@ -190,11 +190,17 @@ namespace ZoneHub {
                 return clean;
             }
 
+            // If localhost server is running on this PC, connect directly!
+            if (TestServerReachable("http://localhost:8080")) {
+                SaveServerUrl("http://localhost:8080");
+                return "http://localhost:8080";
+            }
+
             string serverFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bubble_server.txt");
             if (File.Exists(serverFile)) {
                 try {
                     string saved = File.ReadAllText(serverFile).Trim().TrimEnd('/');
-                    if (!string.IsNullOrEmpty(saved)) return saved;
+                    if (!string.IsNullOrEmpty(saved) && TestServerReachable(saved)) return saved;
                 } catch { }
             }
 
@@ -962,6 +968,8 @@ namespace ZoneHub {
             pollTimer.Start();
         }
 
+        private int consecutivePollFails = 0;
+
         private void PollServer() {
             ThreadPool.QueueUserWorkItem(state => {
                 try {
@@ -974,10 +982,36 @@ namespace ZoneHub {
                                 string json = reader.ReadToEnd();
                                 ParseMessagesResult(json);
                             }
+                            consecutivePollFails = 0;
                             UpdateConnectionIndicator(true);
+                            return;
                         }
                     }
                 } catch {
+                    consecutivePollFails++;
+                }
+
+                // If poll failed, auto-heal connection:
+                if (consecutivePollFails >= 2) {
+                    if (serverUrl != "http://localhost:8080" && TestServerReachable("http://localhost:8080")) {
+                        serverUrl = "http://localhost:8080";
+                        SaveServerUrl(serverUrl);
+                        consecutivePollFails = 0;
+                        UpdateConnectionIndicator(true);
+                        RegisterDeviceWithServer();
+                        return;
+                    }
+
+                    string lan = DiscoverServerOnLan();
+                    if (!string.IsNullOrEmpty(lan) && TestServerReachable(lan)) {
+                        serverUrl = lan;
+                        SaveServerUrl(serverUrl);
+                        consecutivePollFails = 0;
+                        UpdateConnectionIndicator(true);
+                        RegisterDeviceWithServer();
+                        return;
+                    }
+
                     UpdateConnectionIndicator(false);
                 }
             });
