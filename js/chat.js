@@ -1,4 +1,12 @@
         // Real-time Team Chat & Private Direct Messages Logic
+        function formatBytes(bytes) {
+            if (!bytes || bytes <= 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+        }
+        window.formatBytes = formatBytes;
+
         let currentMessages = [];
         let isFirstMessagesLoad = true;
         let currentChatChannel = 'public'; // 'public' or userId
@@ -887,6 +895,7 @@
             e.target.value = '';
             await uploadChatMediaBatch(files);
         }
+        window.handleChatPhotoUpload = handleChatPhotoUpload;
 
         // 1-Click File Attachment Handler (Any File Type: ZIP, PDF, DOCX, Video, etc.)
         async function handleChatGenericFileUpload(e) {
@@ -923,6 +932,7 @@
                 await uploadChatFilesBatch(files, 'file');
             }
         }
+        window.handleChatGenericFileUpload = handleChatGenericFileUpload;
 
         // 1-Click Entire Folder Attachment Handler (Recursive)
         async function handleChatFolderUpload(e) {
@@ -942,6 +952,7 @@
 
             await uploadChatFilesBatch(files, 'folder');
         }
+        window.handleChatFolderUpload = handleChatFolderUpload;
 
         async function uploadChatFilesBatch(files, mode) {
             if (!files || files.length === 0) return;

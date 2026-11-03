@@ -115,24 +115,22 @@
             }, false);
         }
 
-        // Entire Files Section Drag & Drop Catchment
+        // Entire Files Section Drag & Drop Catchment (Seamless Drop Anywhere in Files Column)
         if (filesSection) {
             let filesSectionDragDepth = 0;
 
             filesSection.addEventListener('dragenter', (e) => {
-                if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
-                    filesSectionDragDepth++;
-                    if (dropZone) dropZone.classList.add('dragover');
-                }
+                e.preventDefault();
+                filesSectionDragDepth++;
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                if (dropZone) dropZone.classList.add('dragover');
             }, false);
 
             filesSection.addEventListener('dragover', (e) => {
-                if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'copy';
-                    if (dropZone && !dropZone.classList.contains('dragover')) {
-                        dropZone.classList.add('dragover');
-                    }
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                if (dropZone && !dropZone.classList.contains('dragover')) {
+                    dropZone.classList.add('dragover');
                 }
             }, false);
 
@@ -176,21 +174,28 @@
         }, false);
 
         function handleFileSelect(e) {
-            const files = e.target.files;
-            if (files && files.length > 0) {
-                uploadFilesQueue(Array.from(files));
-            }
+            const files = Array.from(e.target.files || []);
             e.target.value = '';
+            if (files && files.length > 0) {
+                if (typeof showToast === 'function') {
+                    showToast('📤 Preparing ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' for upload...');
+                }
+                uploadFilesQueue(files);
+            }
         }
+        window.handleFileSelect = handleFileSelect;
 
         function handleFolderSelect(e) {
             const files = Array.from(e.target.files || []);
-            if (files.length > 0) {
-                showToast('📁 Uploading folder with ' + files.length + ' files...');
+            e.target.value = '';
+            if (files && files.length > 0) {
+                if (typeof showToast === 'function') {
+                    showToast('📁 Uploading folder with ' + files.length + ' files...');
+                }
                 uploadFilesQueue(files);
             }
-            e.target.value = '';
         }
+        window.handleFolderSelect = handleFolderSelect;
 
         function formatBytes(bytes) {
             if (!bytes || bytes <= 0) return '0 B';
@@ -1568,4 +1573,24 @@
         window.onFileSortChange = onFileSortChange;
         window.onFileSearchInput = onFileSearchInput;
         window.clearFileSearch = clearFileSearch;
+        window.loadFoldersList = loadFoldersList;
+        window.loadFileList = loadFileList;
+        window.uploadFilesQueue = uploadFilesQueue;
+        window.formatBytes = formatBytes;
+        window.openFolder = openFolder;
+        window.backToAllFolders = backToAllFolders;
+        window.switchViewMode = switchViewMode;
+        window.setFilter = setFilter;
+        window.promptCreateNewFolder = promptCreateNewFolder;
+        window.onUploadFolderChanged = onUploadFolderChanged;
+        window.deleteActiveFolderPrompt = deleteActiveFolderPrompt;
+        window.downloadActiveFolderAll = downloadActiveFolderAll;
+        window.downloadFolderById = downloadFolderById;
+        window.selectAllVisibleFiles = selectAllVisibleFiles;
+        window.clearFileSelection = clearFileSelection;
+        window.downloadSelectedFiles = downloadSelectedFiles;
+
+        // Auto-run on load
+        if (typeof loadFoldersList === 'function') loadFoldersList();
+        if (typeof loadFileList === 'function') loadFileList();
 

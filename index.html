@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261103d">
+    <link rel="stylesheet" href="/css/style.css?v=20261103e">
 </head>
 <body>
     <div class="container">
@@ -274,11 +274,11 @@
                     </div>
 
                     <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;flex-wrap:wrap;" onclick="event.stopPropagation()">
-                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                        <button type="button" class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                             Select Files
                         </button>
-                        <button type="button" class="btn btn-primary" onclick="document.getElementById('folderInput').click()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 12px rgba(99,102,241,0.35);">
+                        <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('folderInput').click()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 12px rgba(99,102,241,0.35);">
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
                             📁 Upload Entire Folder
                         </button>
@@ -1375,13 +1375,13 @@
     </div>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/i18n.js?v=20261103d"></script>
-    <script src="/js/qrcode.js?v=20261103d"></script>
-    <script src="/js/screenshare.js?v=20261103d"></script>
-    <script src="/js/app.js?v=20261103d"></script>
-    <script src="/js/media.js?v=20261103d"></script>
-    <script src="/js/chat.js?v=20261103d"></script>
-    <script src="/js/p2p.js?v=20261103d"></script>
-    <script src="/js/dashboard.js?v=20261103d"></script>
+    <script src="/js/i18n.js?v=20261103e"></script>
+    <script src="/js/qrcode.js?v=20261103e"></script>
+    <script src="/js/screenshare.js?v=20261103e"></script>
+    <script src="/js/media.js?v=20261103e"></script>
+    <script src="/js/chat.js?v=20261103e"></script>
+    <script src="/js/p2p.js?v=20261103e"></script>
+    <script src="/js/dashboard.js?v=20261103e"></script>
+    <script src="/js/app.js?v=20261103e"></script>
 </body>
 </html>
