@@ -105,6 +105,29 @@
         async function uploadFilesQueue(fileList) {
             if (!fileList || fileList.length === 0) return;
 
+            // Security Policy: Reject dangerous executables & scripts for non-admin clients
+            const blockedExts = ['.exe', '.bat', '.cmd', '.ps1', '.vbs', '.msi', '.scr', '.sh', '.reg', '.com', '.hta', '.cpl', '.pif', '.jar'];
+            const safeList = [];
+            let blockedCount = 0;
+            for (let i = 0; i < fileList.length; i++) {
+                const f = fileList[i];
+                const dotIdx = f.name.lastIndexOf('.');
+                const ext = dotIdx >= 0 ? f.name.substring(dotIdx).toLowerCase() : '';
+                const isBlocked = blockedExts.includes(ext);
+                if (isBlocked && (typeof isAdmin === 'undefined' || !isAdmin) && (typeof isCurrentHost === 'undefined' || !isCurrentHost)) {
+                    blockedCount++;
+                } else {
+                    safeList.push(f);
+                }
+            }
+
+            if (blockedCount > 0) {
+                showToast('🚫 Security Block: ' + blockedCount + ' executable/script file(s) (.exe, .bat, etc.) were rejected for server safety.');
+            }
+
+            if (safeList.length === 0) return;
+            fileList = safeList;
+
             const totalFiles = fileList.length;
             let totalBatchBytes = 0;
             for (let i = 0; i < totalFiles; i++) {
@@ -578,6 +601,20 @@
 
                     reviewBtn = '<button onclick="previewMedia(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', \'' + fileType + '\')" class="btn ' + (fileType === 'gif' ? 'btn-amber' : 'btn-cyan') + '" title="Review in Browser">' +
                         '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Review</button>';
+                } else if (file.name.match(/\.(csv|tsv)$/i)) {
+                    thumbHtml = 
+                        '<div class="file-thumb-box" onclick="openCsvViewer(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" style="background:rgba(16,185,129,0.12);color:#34d399;cursor:pointer;" title="Click to View Spreadsheet Grid">' +
+                            '<span style="font-size:22px;">📊</span>' +
+                        '</div>';
+                    reviewBtn = '<button onclick="openCsvViewer(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" class="btn btn-secondary" style="border-color:rgba(52,211,153,0.4);color:#34d399;" title="View CSV Spreadsheet in Browser">' +
+                        '📊 View Sheet</button>';
+                } else if (file.name.match(/\.(txt|md|json|js|py|html|css|cs|sql|sh|log|env|xml|yml|yaml)$/i)) {
+                    thumbHtml = 
+                        '<div class="file-thumb-box" onclick="openCodeViewer(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" style="background:rgba(99,102,241,0.12);color:#818cf8;cursor:pointer;" title="Click to View / Edit Code">' +
+                            '<span style="font-size:22px;">📝</span>' +
+                        '</div>';
+                    reviewBtn = '<button onclick="openCodeViewer(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" class="btn btn-secondary" style="border-color:rgba(129,140,248,0.4);color:#a5b4fc;" title="View & Edit Code/Text in Browser">' +
+                        '📝 View / Edit</button>';
                 } else {
                     thumbHtml = 
                         '<div class="file-thumb-box" style="background:rgba(255,255,255,0.05);">' +
@@ -965,4 +1002,300 @@
             playerSection.style.display = 'block';
             playerSection.scrollIntoView({ behavior: 'smooth' });
         }
+
+        // =============================================================
+        // In-Browser Document & Code Viewer / Editor (CSV, Code & Text)
+        // =============================================================
+        let currentDocUrl = '';
+        let currentDocName = '';
+        let currentDocRawText = '';
+        let isDocEditMode = false;
+
+        function parseCSV(text, delimiter) {
+            delimiter = delimiter || ',';
+            const pattern = new RegExp(
+                (
+                    "(\\" + delimiter + "|\\r?\\n|\\r|^)" +
+                    "(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|" +
+                    "([^\"\\" + delimiter + "\\r\\n]*))"
+                ), "gi"
+            );
+            const data = [[]];
+            let matches = null;
+            while (matches = pattern.exec(text)) {
+                const matchedDelimiter = matches[1];
+                if (matchedDelimiter.length && (matchedDelimiter !== delimiter)) {
+                    data.push([]);
+                }
+                let matchedValue;
+                if (matches[2]) {
+                    matchedValue = matches[2].replace(new RegExp("\"\"", "g"), "\"");
+                } else {
+                    matchedValue = matches[3];
+                }
+                data[data.length - 1].push(matchedValue || '');
+            }
+            if (data.length > 0 && data[data.length - 1].length <= 1 && data[data.length - 1][0] === '') {
+                data.pop();
+            }
+            return data;
+        }
+
+        async function openCsvViewer(url, fileName) {
+            currentDocUrl = url;
+            currentDocName = fileName;
+            isDocEditMode = false;
+
+            const modal = document.getElementById('docViewerModal');
+            const iconEl = document.getElementById('docViewerIcon');
+            const titleEl = document.getElementById('docViewerTitle');
+            const metaEl = document.getElementById('docViewerMeta');
+            const bodyEl = document.getElementById('docViewerBody');
+            const searchInput = document.getElementById('docViewerSearchInput');
+            const editBtn = document.getElementById('docEditToggleBtn');
+            const saveBtn = document.getElementById('docSaveBtn');
+
+            if (iconEl) iconEl.innerText = '📊';
+            if (titleEl) titleEl.innerText = fileName;
+            if (metaEl) metaEl.innerText = 'Loading spreadsheet data...';
+            if (searchInput) { searchInput.value = ''; searchInput.style.display = 'inline-block'; }
+            if (editBtn) editBtn.style.display = 'none';
+            if (saveBtn) saveBtn.style.display = 'none';
+            if (bodyEl) bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);"><span style="font-size:32px;display:block;margin-bottom:8px;">⏳</span>Loading Spreadsheet Grid...</div>';
+
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+            }
+
+            try {
+                const res = await fetch(url);
+                currentDocRawText = await res.text();
+                const isTsv = fileName.toLowerCase().endsWith('.tsv');
+                const rows = parseCSV(currentDocRawText, isTsv ? '\t' : ',');
+
+                if (!rows || rows.length === 0) {
+                    if (bodyEl) bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">Spreadsheet is empty.</div>';
+                    if (metaEl) metaEl.innerText = '0 Rows, 0 Columns';
+                    return;
+                }
+
+                const rowCount = rows.length;
+                const colCount = Math.max(...rows.map(r => r.length));
+                if (metaEl) metaEl.innerText = 'Spreadsheet Grid • ' + rowCount + ' Rows, ' + colCount + ' Columns';
+
+                let tableHtml = '<div class="csv-table-wrapper"><table class="csv-grid-table" id="csvDataTable">';
+                
+                // Header Row (Row 0)
+                tableHtml += '<thead><tr><th class="csv-row-num-cell">#</th>';
+                for (let c = 0; c < colCount; c++) {
+                    const colLetter = String.fromCharCode(65 + (c % 26)) + (c >= 26 ? Math.floor(c / 26) : '');
+                    const cellVal = rows[0] && rows[0][c] !== undefined ? escapeHtml(rows[0][c]) : ('Col ' + colLetter);
+                    tableHtml += '<th><span class="csv-col-letter">' + colLetter + '</span>' + cellVal + '</th>';
+                }
+                tableHtml += '</tr></thead><tbody>';
+
+                // Data Rows (Row 1 to End)
+                const startRow = rowCount > 1 ? 1 : 0;
+                for (let r = startRow; r < rowCount; r++) {
+                    tableHtml += '<tr class="csv-data-row"><td class="csv-row-num-cell">' + r + '</td>';
+                    for (let c = 0; c < colCount; c++) {
+                        const val = rows[r] && rows[r][c] !== undefined ? rows[r][c] : '';
+                        tableHtml += '<td>' + escapeHtml(val) + '</td>';
+                    }
+                    tableHtml += '</tr>';
+                }
+                tableHtml += '</tbody></table></div>';
+
+                if (bodyEl) bodyEl.innerHTML = tableHtml;
+            } catch (err) {
+                if (bodyEl) bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:#f87171;">Failed to load CSV file: ' + escapeHtml(err.message) + '</div>';
+            }
+        }
+        window.openCsvViewer = openCsvViewer;
+
+        function filterDocViewerContent(query) {
+            query = (query || '').toLowerCase().trim();
+            const table = document.getElementById('csvDataTable');
+            if (table) {
+                const rows = table.querySelectorAll('tbody tr.csv-data-row');
+                rows.forEach(tr => {
+                    const txt = tr.innerText.toLowerCase();
+                    tr.style.display = (!query || txt.includes(query)) ? '' : 'none';
+                });
+                return;
+            }
+            const textarea = document.getElementById('docCodeTextarea');
+            if (textarea && query) {
+                const idx = textarea.value.toLowerCase().indexOf(query);
+                if (idx >= 0) {
+                    textarea.focus();
+                    textarea.setSelectionRange(idx, idx + query.length);
+                }
+            }
+        }
+        window.filterDocViewerContent = filterDocViewerContent;
+
+        async function openCodeViewer(url, fileName) {
+            currentDocUrl = url;
+            currentDocName = fileName;
+            isDocEditMode = false;
+
+            const modal = document.getElementById('docViewerModal');
+            const iconEl = document.getElementById('docViewerIcon');
+            const titleEl = document.getElementById('docViewerTitle');
+            const metaEl = document.getElementById('docViewerMeta');
+            const bodyEl = document.getElementById('docViewerBody');
+            const searchInput = document.getElementById('docViewerSearchInput');
+            const editBtn = document.getElementById('docEditToggleBtn');
+            const saveBtn = document.getElementById('docSaveBtn');
+
+            const ext = fileName.split('.').pop().toLowerCase();
+            const extIcons = {
+                'json': '📦', 'js': '⚡', 'py': '🐍', 'html': '🌐', 'css': '🎨', 
+                'cs': '🔷', 'sql': '🗄️', 'md': '📝', 'txt': '📄', 'sh': '⚙️', 'log': '📋'
+            };
+            if (iconEl) iconEl.innerText = extIcons[ext] || '📝';
+            if (titleEl) titleEl.innerText = fileName;
+            if (metaEl) metaEl.innerText = 'Loading document...';
+            if (searchInput) { searchInput.value = ''; searchInput.style.display = 'inline-block'; }
+            if (editBtn) { editBtn.innerText = '✏️ Edit'; editBtn.style.display = 'inline-flex'; }
+            if (saveBtn) saveBtn.style.display = 'none';
+
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+            }
+
+            try {
+                const res = await fetch(url);
+                currentDocRawText = await res.text();
+                const lines = currentDocRawText.split('\n');
+                if (metaEl) metaEl.innerText = ext.toUpperCase() + ' Source • ' + lines.length + ' Lines • ' + formatBytes(new Blob([currentDocRawText]).size);
+
+                renderCodeViewerContent(currentDocRawText, false);
+            } catch (err) {
+                if (bodyEl) bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:#f87171;">Failed to load file: ' + escapeHtml(err.message) + '</div>';
+            }
+        }
+        window.openCodeViewer = openCodeViewer;
+
+        function renderCodeViewerContent(text, editable) {
+            const bodyEl = document.getElementById('docViewerBody');
+            if (!bodyEl) return;
+
+            const lines = text.split('\n');
+            let lineNumsHtml = '';
+            for (let i = 1; i <= Math.max(1, lines.length); i++) {
+                lineNumsHtml += '<span>' + i + '</span>\n';
+            }
+
+            if (editable) {
+                bodyEl.innerHTML = 
+                    '<div class="doc-code-editor-wrap is-editable">' +
+                        '<div class="doc-line-numbers">' + lineNumsHtml + '</div>' +
+                        '<textarea id="docCodeTextarea" class="doc-code-textarea" spellcheck="false">' + escapeHtml(text) + '</textarea>' +
+                    '</div>';
+                const ta = document.getElementById('docCodeTextarea');
+                if (ta) {
+                    ta.focus();
+                    ta.addEventListener('input', () => {
+                        const newLines = ta.value.split('\n').length;
+                        let newNums = '';
+                        for (let i = 1; i <= newLines; i++) newNums += '<span>' + i + '</span>\n';
+                        const lnEl = bodyEl.querySelector('.doc-line-numbers');
+                        if (lnEl) lnEl.innerHTML = newNums;
+                    });
+                }
+            } else {
+                bodyEl.innerHTML = 
+                    '<div class="doc-code-editor-wrap">' +
+                        '<div class="doc-line-numbers">' + lineNumsHtml + '</div>' +
+                        '<pre class="doc-code-pre"><code class="doc-code-content">' + escapeHtml(text) + '</code></pre>' +
+                    '</div>';
+            }
+        }
+
+        function toggleDocEditMode() {
+            isDocEditMode = !isDocEditMode;
+            const editBtn = document.getElementById('docEditToggleBtn');
+            const saveBtn = document.getElementById('docSaveBtn');
+            const metaEl = document.getElementById('docViewerMeta');
+
+            if (isDocEditMode) {
+                const pre = document.querySelector('.doc-code-content');
+                const text = pre ? pre.innerText : currentDocRawText;
+                renderCodeViewerContent(text, true);
+                if (editBtn) editBtn.innerText = '👁️ View Mode';
+                if (saveBtn) saveBtn.style.display = 'inline-flex';
+                if (metaEl) metaEl.innerText = '✏️ Editing Mode Active (Click 💾 Save when done)';
+            } else {
+                const ta = document.getElementById('docCodeTextarea');
+                if (ta) currentDocRawText = ta.value;
+                renderCodeViewerContent(currentDocRawText, false);
+                if (editBtn) editBtn.innerText = '✏️ Edit';
+                if (saveBtn) saveBtn.style.display = 'none';
+                const lines = currentDocRawText.split('\n');
+                if (metaEl) metaEl.innerText = 'Source View • ' + lines.length + ' Lines';
+            }
+        }
+        window.toggleDocEditMode = toggleDocEditMode;
+
+        async function saveDocEditorContent() {
+            const ta = document.getElementById('docCodeTextarea');
+            const content = ta ? ta.value : currentDocRawText;
+
+            // Extract relative server path from currentDocUrl
+            let relPath = currentDocUrl.replace(/^\/files\//i, '').replace(/^\/api\/files\/download\?path=/i, '');
+            if (relPath.startsWith('/')) relPath = relPath.substring(1);
+            try { relPath = decodeURIComponent(relPath); } catch(e) {}
+
+            try {
+                showToast('💾 Saving changes to server...');
+                const headers = { 'Content-Type': 'application/json' };
+                if (typeof currentUserName !== 'undefined' && currentUserName) {
+                    headers['X-User-Name'] = encodeURIComponent(currentUserName);
+                }
+                const adminToken = (typeof getAdminToken === 'function') ? getAdminToken() : '';
+                if (adminToken) headers['X-Admin-Token'] = adminToken;
+
+                const res = await fetch('/api/save-file', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        path: relPath,
+                        content: content
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentDocRawText = content;
+                    showToast('✅ File saved successfully on server!');
+                    toggleDocEditMode(); // Revert to view mode
+                    if (typeof loadFileList === 'function') loadFileList();
+                } else {
+                    alert('Save Failed: ' + (data.error || 'Server rejected file edit'));
+                }
+            } catch (err) {
+                alert('Save Error: ' + err.message);
+            }
+        }
+        window.saveDocEditorContent = saveDocEditorContent;
+
+        function downloadCurrentDocFile() {
+            if (!currentDocUrl) return;
+            triggerDownloadTracked(currentDocUrl, currentDocName || 'document.txt');
+        }
+        window.downloadCurrentDocFile = downloadCurrentDocFile;
+
+        function closeDocViewerModal(e) {
+            if (!e || e.target.id === 'docViewerModal' || (e.target.classList && e.target.classList.contains('modal-close-btn'))) {
+                const modal = document.getElementById('docViewerModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('active');
+                }
+            }
+        }
+        window.closeDocViewerModal = closeDocViewerModal;
 

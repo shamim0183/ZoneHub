@@ -501,6 +501,50 @@
                                 '▶ Watch Live Screen' +
                             '</button>' +
                         '</div>';
+                } else if (msg.isPoll || msg.type === 'poll') {
+                    const pollQ = msg.pollQuestion || msg.text || 'Team Poll';
+                    const opts = msg.pollOptions || [];
+                    const votesMap = msg.pollVotes || {};
+                    
+                    let totalVotes = 0;
+                    for (let k in votesMap) {
+                        if (Array.isArray(votesMap[k])) totalVotes += votesMap[k].length;
+                    }
+
+                    let optionsHtml = '';
+                    opts.forEach((optText, optIdx) => {
+                        const optKey = optIdx.toString();
+                        const optVoters = votesMap[optKey] || [];
+                        const optCount = optVoters.length;
+                        const pct = totalVotes > 0 ? Math.round((optCount / totalVotes) * 100) : 0;
+                        const hasVoted = optVoters.includes(myId) || (typeof currentUserName !== 'undefined' && optVoters.includes(currentUserName));
+
+                        optionsHtml += 
+                            '<div class="poll-option-item' + (hasVoted ? ' is-voted' : '') + '" onclick="castPollVote(\'' + msg.id + '\', \'' + optIdx + '\')">' +
+                                '<div class="poll-option-fill" style="width:' + pct + '%;"></div>' +
+                                '<div class="poll-option-content">' +
+                                    '<div class="poll-option-label">' +
+                                        (hasVoted ? '<span class="poll-check-icon">✓</span> ' : '<span class="poll-radio-dot"></span> ') +
+                                        '<span>' + escapeHtml(optText) + '</span>' +
+                                    '</div>' +
+                                    '<div class="poll-option-stats">' +
+                                        '<span class="poll-pct">' + pct + '%</span>' +
+                                        '<span class="poll-count">(' + optCount + ')</span>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>';
+                    });
+
+                    contentHtml = 
+                        '<div class="chat-poll-card">' +
+                            '<div class="chat-poll-header">' +
+                                '<span class="chat-poll-badge">📊 Live Poll</span>' +
+                                '<span class="chat-poll-total">' + totalVotes + ' ' + (totalVotes === 1 ? 'vote' : 'votes') + '</span>' +
+                            '</div>' +
+                            '<div class="chat-poll-question">' + escapeHtml(pollQ) + '</div>' +
+                            '<div class="chat-poll-options">' + optionsHtml + '</div>' +
+                            '<div class="chat-poll-footer">Tap an option to vote or change your vote</div>' +
+                        '</div>';
                 } else {
                     contentHtml = '<div class="msg-text">' + formatMessageText(msg.text) + '</div>';
                 }
@@ -1763,3 +1807,129 @@
             escaped = escaped.replace(kwRegex, '<span style="color:#ff7b72;font-weight:600;">$1</span>');
             return escaped;
         }
+
+        // -------------------------------------------------------------
+        // Team Polls & Voting Logic
+        // -------------------------------------------------------------
+        async function castPollVote(msgId, optIdx) {
+            try {
+                const res = await fetch('/api/messages/vote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messageId: msgId,
+                        optionIndex: optIdx,
+                        userId: myUserId,
+                        userName: currentUserName
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const msg = currentMessages.find(m => m.id === msgId);
+                    if (msg) {
+                        msg.pollVotes = data.pollVotes;
+                        renderMessages(currentMessages, true);
+                    }
+                    if (typeof playProfessionalChime === 'function') {
+                        playProfessionalChime();
+                    }
+                }
+            } catch (e) {
+                console.error('Error voting on poll:', e);
+            }
+        }
+        window.castPollVote = castPollVote;
+
+        function openCreatePollModal() {
+            const modal = document.getElementById('createPollModal');
+            const qInput = document.getElementById('pollQuestionInput');
+            if (qInput) qInput.value = '';
+            const optsContainer = document.getElementById('pollOptionsList');
+            if (optsContainer) {
+                optsContainer.innerHTML = 
+                    '<div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 1 (e.g. Burger / ৩টা)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>' +
+                    '<div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 2 (e.g. Biryani / ৫টা)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>';
+            }
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+            }
+            setTimeout(() => { if (qInput) qInput.focus(); }, 150);
+        }
+        window.openCreatePollModal = openCreatePollModal;
+
+        function closeCreatePollModal(e) {
+            if (!e || e.target.id === 'createPollModal' || (e.target.classList && e.target.classList.contains('modal-close-btn'))) {
+                const modal = document.getElementById('createPollModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('active');
+                }
+            }
+        }
+        window.closeCreatePollModal = closeCreatePollModal;
+
+        function addPollOption() {
+            const optsContainer = document.getElementById('pollOptionsList');
+            if (!optsContainer) return;
+            const currentCount = optsContainer.querySelectorAll('.poll-opt-input').length;
+            if (currentCount >= 6) {
+                showToast('Maximum 6 options allowed');
+                return;
+            }
+            const div = document.createElement('div');
+            div.className = 'poll-input-row';
+            div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+            div.innerHTML = '<input type="text" class="chat-input poll-opt-input" placeholder="Option ' + (currentCount + 1) + '" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /><button type="button" class="btn btn-secondary" onclick="this.parentElement.remove()" style="padding:0 10px;height:36px;font-size:11px;" title="Remove">✕</button>';
+            optsContainer.appendChild(div);
+            const newInput = div.querySelector('input');
+            if (newInput) newInput.focus();
+        }
+        window.addPollOption = addPollOption;
+
+        async function submitCreatePoll() {
+            const qInput = document.getElementById('pollQuestionInput');
+            const question = qInput ? qInput.value.trim() : '';
+            if (!question) {
+                showToast('Please enter a poll question');
+                if (qInput) qInput.focus();
+                return;
+            }
+            const optInputs = document.querySelectorAll('.poll-opt-input');
+            const options = [];
+            optInputs.forEach(inp => {
+                const val = inp.value.trim();
+                if (val) options.push(val);
+            });
+            if (options.length < 2) {
+                showToast('Please provide at least 2 options for voting');
+                return;
+            }
+
+            try {
+                const body = Object.assign({
+                    user: currentUserName,
+                    userId: myUserId,
+                    text: '📊 ' + question,
+                    type: 'poll',
+                    isPoll: true,
+                    pollQuestion: question,
+                    pollOptions: options
+                }, getMsgChannelPayload());
+
+                const res = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeCreatePollModal();
+                    await loadMessages();
+                    showToast('📊 Poll created successfully!');
+                }
+            } catch (e) {
+                showToast('Error creating poll');
+            }
+        }
+        window.submitCreatePoll = submitCreatePoll;

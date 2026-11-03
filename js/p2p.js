@@ -85,6 +85,7 @@
                 if (typeof updateDmUsersMenu === 'function') {
                     updateDmUsersMenu();
                 }
+                renderP2PPeersGrid();
             }
         } catch (e) {}
     }
@@ -145,6 +146,8 @@
     // -------------------------------------------------------------
     // File Offer & Prompt Dialog
     // -------------------------------------------------------------
+    let pendingIncomingOffer = null;
+
     function handleFileOfferPrompt(sig) {
         let meta = {};
         try { meta = JSON.parse(sig.data); } catch (e) {}
@@ -158,31 +161,71 @@
             playProfessionalChime();
         }
 
-        const confirmed = window.confirm(
-            '⚡ [ZoneHub P2P Direct Drop]\n\n' +
-            fromName + ' wants to send you:\n' +
-            '📄 ' + fileName + ' (' + fileSizeStr + ')\n\n' +
-            'This transfers directly between your computers at full LAN speed with 0 bytes saved on the Host PC.\n\n' +
-            'Do you want to accept and download this file?'
-        );
+        pendingIncomingOffer = {
+            sig: sig,
+            meta: meta,
+            fromName: fromName,
+            fileName: fileName,
+            fileSizeStr: fileSizeStr
+        };
 
-        if (confirmed) {
-            currentIncomingTransfer = {
-                fromId: sig.fromId,
-                fromName: fromName,
-                name: fileName,
-                size: meta.size || 0,
-                mime: meta.mime || 'application/octet-stream',
-                chunks: [],
-                receivedBytes: 0,
-                startTime: Date.now()
-            };
-            showP2PProgressCard('Receiving: ' + fileName, 0, 0, meta.size || 0);
-            postSignal(sig.fromId, 'file-accept', { accepted: true });
+        const modal = document.getElementById('incomingAirDropModal');
+        const senderText = document.getElementById('airDropSenderText');
+        const fileEl = document.getElementById('airDropFileName');
+        const sizeEl = document.getElementById('airDropFileSize');
+
+        if (senderText) senderText.innerText = fromName + ' wants to beam you:';
+        if (fileEl) fileEl.innerText = fileName;
+        if (sizeEl) sizeEl.innerText = fileSizeStr;
+
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
         } else {
-            postSignal(sig.fromId, 'file-decline', { accepted: false });
+            if (window.confirm('⚡ [ZoneHub AirDrop Beam]\n\n' + fromName + ' wants to send you:\n📄 ' + fileName + ' (' + fileSizeStr + ')\n\nTransfer directly between devices at full Wi-Fi speed (0 host storage used)?')) {
+                window.acceptIncomingAirDrop();
+            } else {
+                window.declineIncomingAirDrop();
+            }
         }
     }
+
+    window.acceptIncomingAirDrop = function() {
+        if (!pendingIncomingOffer) return;
+        const offer = pendingIncomingOffer;
+        const modal = document.getElementById('incomingAirDropModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+
+        currentIncomingTransfer = {
+            fromId: offer.sig.fromId,
+            fromName: offer.fromName,
+            name: offer.fileName,
+            size: offer.meta.size || 0,
+            mime: offer.meta.mime || 'application/octet-stream',
+            chunks: [],
+            receivedBytes: 0,
+            startTime: Date.now()
+        };
+
+        showP2PProgressCard('Receiving: ' + offer.fileName, 0, 0, offer.meta.size || 0);
+        postSignal(offer.sig.fromId, 'file-accept', { accepted: true });
+        pendingIncomingOffer = null;
+    };
+
+    window.declineIncomingAirDrop = function() {
+        if (!pendingIncomingOffer) return;
+        const offer = pendingIncomingOffer;
+        const modal = document.getElementById('incomingAirDropModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+        postSignal(offer.sig.fromId, 'file-decline', { accepted: false });
+        pendingIncomingOffer = null;
+    };
 
     // -------------------------------------------------------------
     // Sender WebRTC Setup
@@ -458,7 +501,8 @@
             card.className = 'p2p-peer-card';
 
             const isHost = peer.isHost;
-            const avatarIcon = isHost ? '🖥️' : '💻';
+            const uNameLower = (peer.userName || '').toLowerCase();
+            const avatarIcon = isHost ? '🖥️' : (uNameLower.includes('phone') || uNameLower.includes('android') || uNameLower.includes('iphone') || uNameLower.includes('mobile') ? '📱' : '💻');
 
             card.innerHTML = 
                 '<div class="p2p-peer-top">' +

@@ -33,6 +33,10 @@ namespace ZoneHub
         public string recipientId { get; set; }
         public string recipientUser { get; set; }
         public bool isPinned { get; set; }
+        public bool isPoll { get; set; }
+        public string pollQuestion { get; set; }
+        public List<string> pollOptions { get; set; }
+        public Dictionary<string, List<string>> pollVotes { get; set; }
     }
 
     public class FileMetaItem
@@ -1088,6 +1092,10 @@ namespace ZoneHub
                     }
                     if (!string.IsNullOrEmpty(devName) && !string.IsNullOrEmpty(req.ClientIp))
                     {
+                        if (IsReservedName(devName) && !req.IsLocalhost && !IsAdmin(req))
+                        {
+                            devName = "Employee_" + devName;
+                        }
                         lock (DeviceNameCache)
                         {
                             DeviceNameCache[req.ClientIp] = devName;
@@ -1308,6 +1316,20 @@ namespace ZoneHub
                 if (req.Method == "POST" && decodedPath.Equals("/api/messages/pin", StringComparison.OrdinalIgnoreCase))
                 {
                     HandlePinMessage(stream, req);
+                    return;
+                }
+
+                // Poll voting endpoint
+                if (req.Method == "POST" && decodedPath.Equals("/api/messages/vote", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleVotePoll(stream, req);
+                    return;
+                }
+
+                // In-browser text/code file saving endpoint
+                if (req.Method == "POST" && decodedPath.Equals("/api/save-file", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleSaveFile(stream, req);
                     return;
                 }
 
@@ -1540,6 +1562,13 @@ namespace ZoneHub
                 defaultName = "Employee";
             }
 
+            if (!isHost && !IsAdmin(req) && IsReservedName(defaultName))
+            {
+                string ipTail = req.ClientIp != null ? req.ClientIp.Replace(".", "_").Replace(":", "_") : "Client";
+                string shortNum = (ipTail.Length > 3 ? ipTail.Substring(ipTail.Length - 3) : "PC");
+                defaultName = "Employee_" + shortNum;
+            }
+
             if (!string.IsNullOrEmpty(defaultName) && !string.IsNullOrEmpty(req.ClientIp))
             {
                 lock (PeersLock)
@@ -1754,15 +1783,23 @@ namespace ZoneHub
             }
             catch {}
 
-            if (input == null || (string.IsNullOrWhiteSpace(input.text) && string.IsNullOrEmpty(input.audioUrl) && string.IsNullOrEmpty(input.imageUrl) && (input.mediaUrls == null || input.mediaUrls.Count == 0)))
+            if (input == null || (!input.isPoll && string.IsNullOrWhiteSpace(input.text) && string.IsNullOrEmpty(input.audioUrl) && string.IsNullOrEmpty(input.imageUrl) && (input.mediaUrls == null || input.mediaUrls.Count == 0)))
             {
-                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Message text, audio, or image required\"}");
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Message text, poll, audio, or image required\"}");
                 return;
             }
 
             ChatMessage newMsg = new ChatMessage();
             newMsg.id = Guid.NewGuid().ToString("N");
-            newMsg.user = string.IsNullOrWhiteSpace(input.user) ? "Employee" : input.user.Trim();
+            
+            // Anti-Impersonation Check: protect 'Admin', 'Host', etc.
+            string author = string.IsNullOrWhiteSpace(input.user) ? "Employee" : input.user.Trim();
+            if (IsReservedName(author) && !req.IsLocalhost && !IsAdmin(req))
+            {
+                string ipTail = !string.IsNullOrEmpty(req.ClientIp) ? req.ClientIp.Replace(".", "").Replace(":", "") : "Client";
+                author = "Employee_" + (ipTail.Length > 3 ? ipTail.Substring(ipTail.Length - 3) : ipTail);
+            }
+            newMsg.user = author;
             newMsg.userId = string.IsNullOrWhiteSpace(input.userId) ? "" : input.userId.Trim();
             newMsg.text = input.text != null ? input.text.Trim() : "";
             newMsg.type = string.IsNullOrEmpty(input.type) ? "text" : input.type;
@@ -1772,6 +1809,20 @@ namespace ZoneHub
             newMsg.isPrivate = input.isPrivate;
             newMsg.recipientId = input.recipientId != null ? input.recipientId.Trim() : "";
             newMsg.recipientUser = input.recipientUser != null ? input.recipientUser.Trim() : "";
+
+            // Poll message configuration
+            if (input.isPoll)
+            {
+                newMsg.isPoll = true;
+                newMsg.type = "poll";
+                newMsg.pollQuestion = !string.IsNullOrWhiteSpace(input.pollQuestion) ? input.pollQuestion.Trim() : (!string.IsNullOrWhiteSpace(newMsg.text) ? newMsg.text : "Team Poll");
+                newMsg.pollOptions = input.pollOptions != null ? input.pollOptions : new List<string>();
+                newMsg.pollVotes = new Dictionary<string, List<string>>();
+                for (int i = 0; i < newMsg.pollOptions.Count; i++)
+                {
+                    newMsg.pollVotes[i.ToString()] = new List<string>();
+                }
+            }
 
             if (input.mediaUrls != null && input.mediaUrls.Count > 0)
             {
@@ -2009,6 +2060,148 @@ namespace ZoneHub
                 }
             }
             SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Message not found\"}");
+        }
+
+        public static bool IsReservedName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            string n = name.Trim().ToLowerInvariant();
+            string[] reserved = new string[] {
+                "admin", "administrator", "host", "host pc", "system", "server", "zonehub", 
+                "moderator", "root", "owner", "superuser", "boss"
+            };
+            foreach (var r in reserved)
+            {
+                if (n == r || n.StartsWith(r + " ") || n.EndsWith(" " + r) || n.Contains(" " + r + " ") || n.StartsWith(r + "_") || n.EndsWith("_" + r))
+                    return true;
+            }
+            return false;
+        }
+
+        private static void HandleVotePoll(NetworkStream stream, RequestContext req)
+        {
+            string body = ReadBodyString(stream, req);
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            Dictionary<string, object> input = null;
+            try
+            {
+                input = js.Deserialize<Dictionary<string, object>>(body);
+            }
+            catch {}
+
+            if (input == null || !input.ContainsKey("messageId") || !input.ContainsKey("optionIndex"))
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"messageId and optionIndex required\"}");
+                return;
+            }
+
+            string msgId = input["messageId"] != null ? input["messageId"].ToString() : "";
+            string optIdx = input["optionIndex"] != null ? input["optionIndex"].ToString() : "";
+            string voterId = input.ContainsKey("userId") && input["userId"] != null ? input["userId"].ToString() : "";
+            if (string.IsNullOrEmpty(voterId)) voterId = req.ClientIp ?? "user";
+
+            lock (MessagesLock)
+            {
+                var list = LoadMessages();
+                var target = list.FirstOrDefault(m => m.id == msgId && !m.deleted);
+                if (target == null || !target.isPoll)
+                {
+                    SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"Poll message not found\"}");
+                    return;
+                }
+
+                if (target.pollVotes == null) target.pollVotes = new Dictionary<string, List<string>>();
+
+                // If already voted for this option, unvote (toggle). If voted for another option, switch vote.
+                bool wasThisOption = false;
+                foreach (var k in target.pollVotes.Keys.ToList())
+                {
+                    if (target.pollVotes[k] != null && target.pollVotes[k].Contains(voterId))
+                    {
+                        if (k == optIdx) wasThisOption = true;
+                        target.pollVotes[k].Remove(voterId);
+                    }
+                }
+
+                if (!wasThisOption)
+                {
+                    if (!target.pollVotes.ContainsKey(optIdx)) target.pollVotes[optIdx] = new List<string>();
+                    target.pollVotes[optIdx].Add(voterId);
+                }
+
+                SaveMessages(list);
+                Console.WriteLine("[POLL VOTE] " + voterId + " voted option " + optIdx + " on poll " + msgId);
+                SendJsonResponse(stream, 200, "{\"success\":true,\"pollVotes\":" + js.Serialize(target.pollVotes) + "}");
+            }
+        }
+
+        private static void HandleSaveFile(NetworkStream stream, RequestContext req)
+        {
+            string body = ReadBodyString(stream, req);
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            Dictionary<string, object> input = null;
+            try
+            {
+                input = js.Deserialize<Dictionary<string, object>>(body);
+            }
+            catch {}
+
+            if (input == null || !input.ContainsKey("path") || !input.ContainsKey("content"))
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"path and content required\"}");
+                return;
+            }
+
+            string relPath = input["path"] != null ? input["path"].ToString().Trim() : "";
+            string content = input["content"] != null ? input["content"].ToString() : "";
+
+            if (string.IsNullOrEmpty(relPath) || relPath.Contains("..") || relPath.Contains(":") || Path.IsPathRooted(relPath))
+            {
+                SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Invalid file path\"}");
+                return;
+            }
+
+            string baseDir = GetConfiguredStorageDirectory();
+            string fullPath = Path.Combine(baseDir, relPath);
+            if (!File.Exists(fullPath))
+            {
+                SendJsonResponse(stream, 404, "{\"success\":false,\"error\":\"File not found on server\"}");
+                return;
+            }
+
+            // Security check: Only Admin or original uploader can edit and save
+            bool isAdmin = IsAdmin(req);
+            if (!isAdmin)
+            {
+                var meta = LoadFileMetadata();
+                string uploader = "";
+                string normKey = relPath.Replace('\\', '/');
+                if (meta.ContainsKey(normKey)) uploader = meta[normKey].uploader ?? "";
+                else if (meta.ContainsKey(Path.GetFileName(relPath))) uploader = meta[Path.GetFileName(relPath)].uploader ?? "";
+
+                string curUser = "";
+                if (req.Headers.ContainsKey("x-user-name")) curUser = Uri.UnescapeDataString(req.Headers["x-user-name"]).Trim();
+                if (string.IsNullOrEmpty(uploader) || !string.Equals(uploader, curUser, StringComparison.OrdinalIgnoreCase))
+                {
+                    SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Permission Denied: Only Admin or the original creator can edit this file.\"}");
+                    return;
+                }
+            }
+
+            try
+            {
+                File.WriteAllText(fullPath, content, Encoding.UTF8);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("[FILE SAVED] " + relPath + (isAdmin ? " by Admin" : " by user"));
+                Console.ResetColor();
+
+                long newLen = new FileInfo(fullPath).Length;
+                SendJsonResponse(stream, 200, "{\"success\":true,\"size\":" + newLen + "}");
+            }
+            catch (Exception ex)
+            {
+                SendJsonResponse(stream, 500, "{\"success\":false,\"error\":\"" + JsonEscape(ex.Message) + "\"}");
+            }
         }
 
         private static void SendJsonResponse(NetworkStream stream, int statusCode, string json)
@@ -2301,9 +2494,17 @@ namespace ZoneHub
             }
 
             string ext = Path.GetExtension(safeName).ToLowerInvariant();
-            if (ext == ".exe" || ext == ".bat" || ext == ".cmd" || ext == ".ps1" || ext == ".vbs")
+            bool isAdmin = IsAdmin(req);
+            string[] blockedExts = new string[] {
+                ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".msi", ".scr", ".sh", ".reg", ".com", ".hta", ".cpl", ".pif", ".jar"
+            };
+            if (!isAdmin && Array.IndexOf(blockedExts, ext) >= 0)
             {
-                safeName += ".txt";
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("[SECURITY BLOCKED] Disallowed executable upload attempt: " + safeName + " from " + req.ClientIp);
+                Console.ResetColor();
+                SendJsonResponse(stream, 403, "{\"success\":false,\"error\":\"Security Policy: Executable files and scripts (" + ext + ") are blocked for network protection.\"}");
+                return;
             }
 
             // Determine target subfolder

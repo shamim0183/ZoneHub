@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261102f">
+    <link rel="stylesheet" href="/css/style.css?v=20261102g">
 </head>
 <body>
     <div class="container">
@@ -203,6 +203,11 @@
                 Team Chat
                 <span class="badge-counter" id="chatCountBadge">0</span>
                 <span class="badge-counter" id="chatUnreadBadge" style="display:none;background:var(--accent-rose);color:#fff;font-weight:700;">0</span>
+            </button>
+            <button class="tab-btn" id="tabP2pBtn" onclick="switchView('p2p')">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                AirDrop Beam
+                <span class="badge-counter" id="p2pPeersCountBadge" style="display:none;background:#06b6d4;color:#fff;">0</span>
             </button>
         </div>
 
@@ -530,6 +535,11 @@
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
                         </button>
 
+                        <!-- Team Poll / Vote Button -->
+                        <button type="button" onclick="openCreatePollModal()" class="action-tool-btn" id="createPollBtn" title="Create a Poll / ভোট বা মতামত নিন">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        </button>
+
                         <!-- Voice Message Button -->
                         <button type="button" id="voiceRecBtn" onclick="toggleVoiceRecording()" class="action-tool-btn" title="Record Voice Message">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
@@ -539,6 +549,43 @@
                         <button onclick="sendMessage()" class="btn btn-primary" style="height:38px;padding:0 14px;">
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Third Column/View: AirDrop Beam (P2P Direct Transfer) -->
+            <div id="p2pSectionWrapper" class="p2p-section-wrapper" style="display:none;">
+                <div class="p2p-radar-header-card">
+                    <div class="p2p-radar-wave-box">
+                        <div class="p2p-radar-circle wave-1"></div>
+                        <div class="p2p-radar-circle wave-2"></div>
+                        <div class="p2p-radar-circle wave-3"></div>
+                        <div class="p2p-radar-center-icon">⚡</div>
+                    </div>
+                    <div class="p2p-radar-info">
+                        <div class="p2p-radar-title">⚡ AirDrop Beam • Direct Device-to-Device</div>
+                        <div class="p2p-radar-desc">
+                            Send unlimited gigabytes directly from phone to PC, PC to phone, or between coworkers at full Wi-Fi speed (500+ Mbps).
+                            <strong style="color:#38bdf8;">0% Host Storage Used</strong> — files transfer straight between devices without touching the server hard drive!
+                        </div>
+                        <div class="p2p-radar-stats">
+                            <span class="badge-radar-online">🟢 Radar Active: <strong id="p2pOnlineCount">0</strong> Connected Devices</span>
+                            <span class="badge-radar-identity">Your Device: <strong id="p2pMyNameDisplay">You</strong></span>
+                            <button type="button" class="btn btn-secondary btn-icon-sm" onclick="refreshPeersList()" title="Scan for devices">🔄 Scan Now</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Online Peers Grid -->
+                <div class="p2p-grid-container">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                        <h3 style="font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin:0;">
+                            <span>📡</span> Nearby Discovered Devices
+                        </h3>
+                        <span style="font-size:12px;color:var(--text-muted);">Tap "⚡ Send File" or "📁 Send Folder" on any device to beam instantly</span>
+                    </div>
+                    <div id="p2pPeersGrid" class="p2p-peers-grid">
+                        <!-- Populated dynamically by js/p2p.js -->
                     </div>
                 </div>
             </div>
@@ -653,6 +700,12 @@
             <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
                 <span id="qrUrlDisplay" style="font-size:12px;font-family:monospace;color:#38bdf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">http://{{LOCAL_IP}}:8080</span>
                 <button type="button" onclick="copyFullShareUrl()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;">Copy</button>
+            </div>
+            <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:10px;margin-top:12px;font-size:11.5px;color:#e2e8f0;text-align:left;line-height:1.45;">
+                <div style="font-weight:700;color:#38bdf8;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                    <span>📌</span> IP পরিবর্তন হওয়া স্থায়ীভাবে বন্ধ করবেন কীভাবে?
+                </div>
+                <span>রাউটার যেন প্রতিদিন IP পরিবর্তন না করে, সেজন্য হোস্ট পিসির <code>tools\Make-IP-Permanent.bat</code> ডাবল-ক্লিক করে চালান। একবার চালালেই এই IP স্থায়ীভাবে ফিক্সড (Static) হয়ে যাবে!</span>
             </div>
         </div>
     </div>
@@ -1161,14 +1214,103 @@
         </div>
     </div>
 
+    <!-- Create Team Poll Modal -->
+    <div class="modal-overlay" id="createPollModal" onclick="closeCreatePollModal(event)" style="display:none;">
+        <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:460px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <h3 style="font-size:16px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin:0;">
+                    <span>📊</span> Create Team Poll / ভোট বা মতামত
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closeCreatePollModal()">✕</button>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.4;">
+                Ask your office team a question. Members can vote with 1 click and view live percentages.
+            </p>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700;">Poll Question / প্রশ্ন:</label>
+                <input type="text" id="pollQuestionInput" class="chat-input" placeholder="e.g. আজকের লাঞ্চে কী খাবেন? or Meeting at 3pm or 5pm?" style="width:100%;height:38px;padding:0 10px;font-size:13px;box-sizing:border-box;" />
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700;">Options / অপশনসমূহ (At least 2):</label>
+                <div id="pollOptionsList" style="display:flex;flex-direction:column;gap:8px;">
+                    <div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 1 (e.g. Burger / ৩টা)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>
+                    <div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 2 (e.g. Biryani / ৫টা)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>
+                </div>
+                <button type="button" onclick="addPollOption()" class="btn btn-secondary" style="margin-top:8px;font-size:11.5px;padding:5px 10px;gap:6px;width:100%;justify-content:center;">
+                    <span>+ Add Another Option</span>
+                </button>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                <button type="button" onclick="closeCreatePollModal()" class="btn btn-secondary">Cancel</button>
+                <button type="button" onclick="submitCreatePoll()" class="btn btn-primary" style="padding:0 18px;height:38px;">
+                    <span>📊 Launch Poll</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-Browser Document & Code Viewer / Editor Modal -->
+    <div class="modal-overlay" id="docViewerModal" onclick="closeDocViewerModal(event)" style="display:none;">
+        <div class="modal-content doc-viewer-content" onclick="event.stopPropagation()">
+            <div class="modal-header doc-viewer-header">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
+                    <span id="docViewerIcon" style="font-size:22px;flex-shrink:0;">📑</span>
+                    <div style="min-width:0;">
+                        <div id="docViewerTitle" style="font-weight:800;font-size:15px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">document.csv</div>
+                        <div id="docViewerMeta" style="font-size:11px;color:var(--text-muted);">Spreadsheet Grid • 10 Rows, 4 Columns</div>
+                    </div>
+                </div>
+                <div class="doc-viewer-actions">
+                    <input type="text" id="docViewerSearchInput" placeholder="🔍 Search in file..." oninput="filterDocViewerContent(this.value)" style="height:32px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;padding:0 8px;font-size:11.5px;display:none;" />
+                    <button type="button" id="docEditToggleBtn" onclick="toggleDocEditMode()" class="btn btn-secondary" style="height:32px;font-size:11.5px;padding:0 10px;display:none;" title="Edit this file">✏️ Edit</button>
+                    <button type="button" id="docSaveBtn" onclick="saveDocEditorContent()" class="btn btn-primary" style="height:32px;font-size:11.5px;padding:0 12px;display:none;background:#10b981;border-color:#10b981;" title="Save changes to server">💾 Save</button>
+                    <button type="button" id="docDownloadBtn" onclick="downloadCurrentDocFile()" class="btn btn-secondary" style="height:32px;font-size:11.5px;padding:0 10px;" title="Download file">⬇️ Download</button>
+                    <button class="modal-close-btn" onclick="closeDocViewerModal()">✕</button>
+                </div>
+            </div>
+            <div id="docViewerBody" class="doc-viewer-body">
+                <!-- Dynamic CSV Table or Code Editor injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Incoming AirDrop Transfer Request Modal -->
+    <div class="modal-overlay" id="incomingAirDropModal" style="display:none;z-index:999999;">
+        <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:400px;text-align:center;">
+            <div style="font-size:42px;margin-bottom:8px;animation:pwaGlowPulse 2s infinite;">⚡</div>
+            <h3 style="font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;">Incoming AirDrop Transfer</h3>
+            <div style="font-size:13px;color:#a5b4fc;margin-bottom:12px;" id="airDropSenderText">Colleague wants to send you:</div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:14px;text-align:left;">
+                <div style="font-weight:700;font-size:13px;color:#fff;display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    <span>📄</span> <span id="airDropFileName">project.zip</span>
+                </div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;display:flex;justify-content:space-between;">
+                    <span id="airDropFileSize">25.4 MB</span>
+                    <span style="color:#38bdf8;font-weight:700;">Direct LAN P2P</span>
+                </div>
+            </div>
+            <p style="font-size:11px;color:var(--text-muted);margin-bottom:16px;line-height:1.4;">
+                This file transfers directly between your devices at full Wi-Fi speed. 0 bytes saved on Host PC.
+            </p>
+            <div style="display:flex;gap:10px;justify-content:center;">
+                <button type="button" onclick="declineIncomingAirDrop()" class="btn btn-secondary" style="flex:1;height:40px;justify-content:center;font-weight:700;">
+                    ✕ Decline
+                </button>
+                <button type="button" onclick="acceptIncomingAirDrop()" class="btn btn-primary" style="flex:1;height:40px;justify-content:center;font-weight:700;background:linear-gradient(135deg,#38bdf8,#6366f1);border:none;">
+                    ⚡ Accept &amp; Receive
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/i18n.js?v=20261102f"></script>
-    <script src="/js/qrcode.js?v=20261102f"></script>
-    <script src="/js/screenshare.js?v=20261102f"></script>
-    <script src="/js/app.js?v=20261102f"></script>
-    <script src="/js/media.js?v=20261102f"></script>
-    <script src="/js/chat.js?v=20261102f"></script>
-    <script src="/js/p2p.js?v=20261102f"></script>
-    <script src="/js/dashboard.js?v=20261102f"></script>
+    <script src="/js/i18n.js?v=20261102g"></script>
+    <script src="/js/qrcode.js?v=20261102g"></script>
+    <script src="/js/screenshare.js?v=20261102g"></script>
+    <script src="/js/app.js?v=20261102g"></script>
+    <script src="/js/media.js?v=20261102g"></script>
+    <script src="/js/chat.js?v=20261102g"></script>
+    <script src="/js/p2p.js?v=20261102g"></script>
+    <script src="/js/dashboard.js?v=20261102g"></script>
 </body>
 </html>

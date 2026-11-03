@@ -161,7 +161,15 @@ function updateUserDisplay() {
 function promptChangeName() {
     const newName = prompt('আপনার নাম পরিবর্তন করুন (Enter your name for Team Chat):', currentUserName);
     if (newName && newName.trim().length > 0) {
-        currentUserName = newName.trim();
+        const trimmed = newName.trim();
+        const lower = trimmed.toLowerCase();
+        const reserved = ['admin', 'administrator', 'host', 'host pc', 'system', 'server', 'zonehub', 'moderator', 'root', 'owner', 'boss'];
+        const isReserved = reserved.some(r => lower === r || lower.startsWith(r + ' ') || lower.endsWith(' ' + r) || lower.includes(' ' + r + ' ') || lower.startsWith(r + '_') || lower.endsWith('_' + r));
+        if (isReserved && !isCurrentHost && !isAdmin) {
+            alert('🚫 সিকিউরিটি সতর্কতা: "' + trimmed + '" নামটি সিস্টেম ও অ্যাডমিনদের জন্য সংরক্ষিত। অনুগ্রহ করে আপনার ব্যক্তিগত নাম লিখুন।');
+            return;
+        }
+        currentUserName = trimmed;
         localStorage.setItem('zonehub_user_name', currentUserName);
         updateUserDisplay();
         showToast('Name updated to: ' + currentUserName);
@@ -872,18 +880,18 @@ function updateChatUnreadBadge() {
     }
 }
 
-// Layout Switching (Files & Chat tabs)
+// Layout Switching (Files, Chat & AirDrop Beam tabs)
 function switchView(view) {
     const container = document.getElementById('mainContainer');
     const filesWrapper = document.getElementById('filesSectionWrapper');
     const chatWrapper = document.getElementById('chatSectionWrapper');
+    const p2pWrapper = document.getElementById('p2pSectionWrapper');
     const tabMediaBtn = document.getElementById('tabMediaBtn');
     const tabFilesOnlyBtn = document.getElementById('tabFilesOnlyBtn');
     const tabChatOnlyBtn = document.getElementById('tabChatOnlyBtn');
+    const tabP2pBtn = document.getElementById('tabP2pBtn');
 
     if (!container || !filesWrapper || !chatWrapper) return;
-
-    if (view === 'p2p') view = 'chat';
 
     // On mobile devices, split view is not allowed
     if (window.innerWidth < 768 && view === 'split') {
@@ -899,6 +907,9 @@ function switchView(view) {
     if (tabMediaBtn) tabMediaBtn.classList.remove('active');
     if (tabFilesOnlyBtn) tabFilesOnlyBtn.classList.remove('active');
     if (tabChatOnlyBtn) tabChatOnlyBtn.classList.remove('active');
+    if (tabP2pBtn) tabP2pBtn.classList.remove('active');
+
+    if (p2pWrapper) p2pWrapper.style.display = 'none';
 
     if (view === 'split') {
         container.className = 'split-view';
@@ -917,6 +928,15 @@ function switchView(view) {
         if (tabChatOnlyBtn) tabChatOnlyBtn.classList.add('active');
         if (typeof scrollChatToBottom === 'function') {
             scrollChatToBottom(true);
+        }
+    } else if (view === 'p2p') {
+        container.className = 'content-grid';
+        filesWrapper.style.display = 'none';
+        chatWrapper.style.display = 'none';
+        if (p2pWrapper) p2pWrapper.style.display = 'block';
+        if (tabP2pBtn) tabP2pBtn.classList.add('active');
+        if (typeof refreshPeersList === 'function') {
+            refreshPeersList();
         }
     }
 }

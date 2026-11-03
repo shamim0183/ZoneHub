@@ -5196,3 +5196,526 @@
                 margin-top: -16px !important;
             }
         }
+
+        /* ============================================================= */
+        /* Feature 1: AirDrop Beam Radar & Device Grid                   */
+        /* ============================================================= */
+        .p2p-section-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .p2p-radar-header-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 16px;
+            padding: 24px 20px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(12px);
+        }
+
+        .p2p-radar-wave-box {
+            position: relative;
+            width: 72px;
+            height: 72px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .p2p-radar-circle {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid rgba(56, 189, 248, 0.4);
+            animation: radarPulse 2.8s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+        }
+        .p2p-radar-circle.wave-1 { width: 100%; height: 100%; animation-delay: 0s; }
+        .p2p-radar-circle.wave-2 { width: 100%; height: 100%; animation-delay: 0.9s; }
+        .p2p-radar-circle.wave-3 { width: 100%; height: 100%; animation-delay: 1.8s; }
+
+        @keyframes radarPulse {
+            0% { transform: scale(0.3); opacity: 0.9; }
+            50% { opacity: 0.4; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        .p2p-radar-center-icon {
+            position: relative;
+            z-index: 2;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0284c7, #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        .p2p-radar-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .p2p-radar-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .p2p-radar-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .p2p-radar-stats {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .badge-radar-online {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .badge-radar-identity {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #e2e8f0;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .p2p-grid-container {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .p2p-peers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .p2p-peer-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .p2p-peer-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .p2p-peer-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .p2p-peer-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .p2p-peer-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .p2p-host-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            margin-left: 4px;
+        }
+
+        .p2p-peer-meta {
+            font-size: 11.5px;
+            color: #34d399;
+            margin-top: 2px;
+        }
+
+        .p2p-peer-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-p2p-send {
+            flex: 1;
+            height: 34px;
+            font-size: 11.5px;
+            justify-content: center;
+            padding: 0 8px;
+        }
+
+        .p2p-empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        /* ============================================================= */
+        /* Feature 2: Team Chat Polls & Voting                           */
+        /* ============================================================= */
+        .chat-poll-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 14px;
+            padding: 14px;
+            margin-top: 4px;
+            width: 100%;
+            max-width: 420px;
+            box-sizing: border-box;
+        }
+
+        .chat-poll-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .chat-poll-badge {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+
+        .chat-poll-total {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .chat-poll-question {
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .chat-poll-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .poll-option-item {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .poll-option-item:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .poll-option-item.is-voted {
+            border-color: rgba(56, 189, 248, 0.6);
+            background: rgba(56, 189, 248, 0.08);
+        }
+
+        .poll-option-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.35));
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .poll-option-item.is-voted .poll-option-fill {
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.4), rgba(99, 102, 241, 0.5));
+        }
+
+        .poll-option-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 12px;
+            gap: 10px;
+        }
+
+        .poll-option-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .poll-radio-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .poll-check-icon {
+            color: #38bdf8;
+            font-weight: 900;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .poll-option-stats {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .poll-pct {
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #38bdf8;
+        }
+
+        .poll-count {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .chat-poll-footer {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: right;
+            font-style: italic;
+        }
+
+        /* ============================================================= */
+        /* Feature 3: In-Browser Document & Code Viewer / Editor         */
+        /* ============================================================= */
+        .doc-viewer-content {
+            max-width: 1040px !important;
+            width: 96% !important;
+            height: 88vh;
+            display: flex;
+            flex-direction: column;
+            background: #090d16 !important;
+            border: 1px solid rgba(56, 189, 248, 0.35) !important;
+            border-radius: 16px;
+            overflow: hidden;
+            padding: 0 !important;
+        }
+
+        .doc-viewer-header {
+            padding: 12px 18px;
+            background: #0f172a;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .doc-viewer-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .doc-viewer-body {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            background: #060911;
+        }
+
+        /* CSV Table Grid */
+        .csv-table-wrapper {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+        }
+
+        .csv-grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            color: #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .csv-grid-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #111827;
+            color: #38bdf8;
+            font-weight: 700;
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 2px solid rgba(56, 189, 248, 0.4);
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .csv-col-letter {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-right: 6px;
+            font-weight: 800;
+        }
+
+        .csv-row-num-cell {
+            background: #0b1120 !important;
+            color: var(--text-muted) !important;
+            font-weight: 700;
+            width: 44px;
+            min-width: 44px;
+            text-align: center !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+            user-select: none;
+        }
+
+        .csv-grid-table tbody td {
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .csv-grid-table tbody tr:hover td {
+            background: rgba(56, 189, 248, 0.06);
+        }
+
+        /* Code & Text Viewer / Editor */
+        .doc-code-editor-wrap {
+            display: flex;
+            min-height: 100%;
+            font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .doc-line-numbers {
+            width: 52px;
+            min-width: 52px;
+            background: #0b1120;
+            color: #475569;
+            padding: 14px 8px;
+            text-align: right;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            user-select: none;
+            box-sizing: border-box;
+            white-space: pre;
+        }
+
+        .doc-code-pre {
+            flex: 1;
+            margin: 0;
+            padding: 14px 18px;
+            overflow: auto;
+            color: #e2e8f0;
+            background: transparent;
+        }
+
+        .doc-code-textarea {
+            flex: 1;
+            margin: 0;
+            padding: 14px 18px;
+            background: transparent;
+            color: #38bdf8;
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: inherit;
+            box-sizing: border-box;
+            white-space: pre;
+        }
+
+        @media (max-width: 768px) {
+            .p2p-radar-header-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 14px;
+            }
+            .p2p-radar-stats {
+                justify-content: center;
+            }
+            .doc-viewer-content {
+                width: 100% !important;
+                height: 94vh !important;
+            }
+            .doc-viewer-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .doc-viewer-actions {
+                width: 100%;
+                justify-content: space-between;
+                overflow-x: auto;
+            }
+        }
