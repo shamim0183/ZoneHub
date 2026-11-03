@@ -40,69 +40,85 @@
         }
 
         async function extractDroppedFiles(dataTransfer) {
-            const result = [];
-            if (dataTransfer.items && dataTransfer.items.length > 0) {
-                let hasEntryApi = false;
-                try {
-                    for (let i = 0; i < dataTransfer.items.length; i++) {
-                        const item = dataTransfer.items[i];
-                        if (item.kind === 'file') {
-                            const entry = (typeof item.webkitGetAsEntry === 'function') ? item.webkitGetAsEntry() : null;
-                            if (entry) {
-                                hasEntryApi = true;
-                                await scanFileEntry(entry, '', result);
-                            } else {
-                                const f = item.getAsFile();
-                                if (f) result.push(f);
-                            }
-                        }
+            if (!dataTransfer) return [];
+
+            // Check if any dropped item is a directory
+            let hasDirectory = false;
+            if (dataTransfer.items && dataTransfer.items.length > 0 && typeof dataTransfer.items[0].webkitGetAsEntry === 'function') {
+                for (let i = 0; i < dataTransfer.items.length; i++) {
+                    const entry = dataTransfer.items[i].webkitGetAsEntry ? dataTransfer.items[i].webkitGetAsEntry() : null;
+                    if (entry && entry.isDirectory) {
+                        hasDirectory = true;
+                        break;
                     }
-                } catch (err) {
-                    console.warn('Folder entry scan error, falling back:', err);
-                }
-                if (hasEntryApi && result.length > 0) {
-                    return result;
                 }
             }
+
+            // Direct sync path for regular files (images, videos, documents, zips)
+            if (!hasDirectory && dataTransfer.files && dataTransfer.files.length > 0) {
+                return Array.from(dataTransfer.files);
+            }
+
+            // Recursive scan path for directories
+            const result = [];
+            if (dataTransfer.items && dataTransfer.items.length > 0) {
+                for (let i = 0; i < dataTransfer.items.length; i++) {
+                    const item = dataTransfer.items[i];
+                    if (item.kind === 'file') {
+                        const entry = (typeof item.webkitGetAsEntry === 'function') ? item.webkitGetAsEntry() : null;
+                        if (entry) {
+                            await scanFileEntry(entry, '', result);
+                        } else {
+                            const f = item.getAsFile();
+                            if (f) result.push(f);
+                        }
+                    }
+                }
+            }
+
             if (result.length === 0 && dataTransfer.files && dataTransfer.files.length > 0) {
                 return Array.from(dataTransfer.files);
             }
             return result;
         }
 
+        function setDropZoneActive(active) {
+            const dz = document.getElementById('dropZone');
+            if (!dz) return;
+            if (active) {
+                dz.classList.add('dragover');
+            } else {
+                dz.classList.remove('dragover');
+            }
+        }
+
         if (dropZone) {
             dropZone.addEventListener('dragenter', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                dropZoneDragDepth++;
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                dropZone.classList.add('dragover');
+                setDropZoneActive(true);
             }, false);
 
             dropZone.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                if (!dropZone.classList.contains('dragover')) {
-                    dropZone.classList.add('dragover');
-                }
+                setDropZoneActive(true);
             }, false);
 
             dropZone.addEventListener('dragleave', (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                dropZoneDragDepth--;
-                if (dropZoneDragDepth <= 0) {
-                    dropZoneDragDepth = 0;
-                    dropZone.classList.remove('dragover');
+                const rect = dropZone.getBoundingClientRect();
+                if (e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom) {
+                    setDropZoneActive(false);
                 }
             }, false);
 
             dropZone.addEventListener('drop', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                dropZoneDragDepth = 0;
-                dropZone.classList.remove('dragover');
+                setDropZoneActive(false);
 
                 if (!e.dataTransfer) return;
                 const files = await extractDroppedFiles(e.dataTransfer);
@@ -115,41 +131,32 @@
             }, false);
         }
 
-        // Entire Files Section Drag & Drop Catchment (Seamless Drop Anywhere in Files Column)
+        // Entire Files Section Drag Catchment
         if (filesSection) {
-            let filesSectionDragDepth = 0;
-
             filesSection.addEventListener('dragenter', (e) => {
                 e.preventDefault();
-                filesSectionDragDepth++;
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                if (dropZone) dropZone.classList.add('dragover');
+                setDropZoneActive(true);
             }, false);
 
             filesSection.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                if (dropZone && !dropZone.classList.contains('dragover')) {
-                    dropZone.classList.add('dragover');
-                }
+                setDropZoneActive(true);
             }, false);
 
             filesSection.addEventListener('dragleave', (e) => {
-                filesSectionDragDepth--;
-                if (filesSectionDragDepth <= 0) {
-                    filesSectionDragDepth = 0;
-                    if (dropZoneDragDepth <= 0 && dropZone) {
-                        dropZone.classList.remove('dragover');
-                    }
+                e.preventDefault();
+                const rect = filesSection.getBoundingClientRect();
+                if (e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom) {
+                    setDropZoneActive(false);
                 }
             }, false);
 
             filesSection.addEventListener('drop', async (e) => {
-                if (e.target.closest('#dropZone')) return; // Let dropZone handler handle direct drops
+                if (e.target.closest('#dropZone')) return; // dropZone handler handles direct drops
                 e.preventDefault();
-                filesSectionDragDepth = 0;
-                dropZoneDragDepth = 0;
-                if (dropZone) dropZone.classList.remove('dragover');
+                setDropZoneActive(false);
 
                 if (!e.dataTransfer) return;
                 const files = await extractDroppedFiles(e.dataTransfer);
@@ -165,9 +172,17 @@
         // Prevent accidental tab navigation if user drops file outside any dropzone
         window.addEventListener('dragover', (e) => {
             e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        }, false);
+
+        window.addEventListener('dragleave', (e) => {
+            if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+                setDropZoneActive(false);
+            }
         }, false);
 
         window.addEventListener('drop', (e) => {
+            setDropZoneActive(false);
             if (!e.target.closest('#dropZone') && !e.target.closest('#filesSectionWrapper') && !e.target.closest('#chatSectionWrapper')) {
                 e.preventDefault();
             }

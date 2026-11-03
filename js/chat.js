@@ -75,13 +75,13 @@
             };
         }
 
-        async function loadMessages() {
+        async function loadMessages(forceRender = false) {
             try {
                 const myId = (typeof myUserId !== 'undefined' ? myUserId : localStorage.getItem('zonehub_user_id')) || '';
                 const myName = (typeof currentUserName !== 'undefined' ? currentUserName : (localStorage.getItem('zonehub_user_name') || localStorage.getItem('skycommerce_user_name') || '')) || '';
                 const res = await fetch('/api/messages?userId=' + encodeURIComponent(myId) + '&user=' + encodeURIComponent(myName) + '&t=' + Date.now());
                 const messages = await res.json();
-                renderMessages(messages);
+                renderMessages(messages, forceRender);
             } catch (err) {
                 console.error('Error fetching messages:', err);
             }
@@ -196,7 +196,9 @@
                 ch: currentChatChannel,
                 dm: currentDmUser ? currentDmUser.userId : null,
                 len: messages ? messages.length : 0,
-                last: (messages && messages.length > 0) ? messages[messages.length - 1].id : 0
+                last: (messages && messages.length > 0) ? messages[messages.length - 1].id : 0,
+                delCount: messages ? messages.filter(m => m.deleted).length : 0,
+                pinCount: messages ? messages.filter(m => m.isPinned).length : 0
             });
             if (!forceRender && lastRenderedState === currentState) return;
             lastRenderedState = currentState;
@@ -1660,8 +1662,20 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        showToast('Message deleted');
-                        await loadMessages();
+                        showToast('🗑️ Message deleted');
+                        // Instant local optimistic update:
+                        const msgObj = currentMessages.find(m => String(m.id) === String(id));
+                        if (msgObj) {
+                            msgObj.deleted = true;
+                            msgObj.deletedBy = currentUserName;
+                            msgObj.text = '🚫 এই মেসেজটি মুছে ফেলা হয়েছে (' + currentUserName + ' deleted this message)';
+                            msgObj.audioUrl = null;
+                            msgObj.imageUrl = null;
+                            msgObj.mediaUrls = [];
+                            msgObj.reactions = {};
+                        }
+                        renderMessages(currentMessages, true);
+                        await loadMessages(true);
                     } else {
                         showToast(data.error || 'You can only delete your own message!');
                     }
