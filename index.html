@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261103h">
+    <link rel="stylesheet" href="/css/style.css?v=20261103i">
 </head>
 <body>
     <div class="container">
@@ -1323,6 +1323,30 @@
         </div>
     </div>
 
+    <!-- New Custom Folder Creation Modal -->
+    <div class="modal-overlay" id="newFolderModal" onclick="closeNewFolderModal(event)" style="display:none;z-index:999999;">
+        <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:380px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <span style="font-size:24px;">📁</span>
+                <h3 style="font-size:16px;font-weight:800;color:#fff;margin:0;">Create New Folder</h3>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.4;">
+                Enter a folder name to organize your shared media and files.
+            </p>
+            <form onsubmit="submitCreateNewFolder(event)">
+                <div style="margin-bottom:16px;">
+                    <input type="text" id="newFolderNameInput" class="chat-input" placeholder="e.g. Marketing, Project_Alpha, Raw_Clips" style="width:100%;height:40px;padding:0 12px;font-size:13px;box-sizing:border-box;border-radius:8px;" autocomplete="off" />
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;">
+                    <button type="button" onclick="closeNewFolderModal()" class="btn btn-secondary" style="height:38px;padding:0 14px;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="height:38px;padding:0 18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;font-weight:700;">
+                        📁 Create Folder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- In-Browser Document & Code Viewer / Editor Modal -->
     <div class="modal-overlay" id="docViewerModal" onclick="closeDocViewerModal(event)" style="display:none;">
         <div class="modal-content doc-viewer-content" onclick="event.stopPropagation()">
@@ -1378,13 +1402,13 @@
     </div>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/i18n.js?v=20261103h"></script>
-    <script src="/js/qrcode.js?v=20261103h"></script>
-    <script src="/js/screenshare.js?v=20261103h"></script>
-    <script src="/js/media.js?v=20261103h"></script>
-    <script src="/js/chat.js?v=20261103h"></script>
-    <script src="/js/p2p.js?v=20261103h"></script>
-    <script src="/js/dashboard.js?v=20261103h"></script>
-    <script src="/js/app.js?v=20261103h"></script>
+    <script src="/js/i18n.js?v=20261103i"></script>
+    <script src="/js/qrcode.js?v=20261103i"></script>
+    <script src="/js/screenshare.js?v=20261103i"></script>
+    <script src="/js/media.js?v=20261103i"></script>
+    <script src="/js/chat.js?v=20261103i"></script>
+    <script src="/js/p2p.js?v=20261103i"></script>
+    <script src="/js/dashboard.js?v=20261103i"></script>
+    <script src="/js/app.js?v=20261103i"></script>
 </body>
 </html>

@@ -1099,8 +1099,11 @@ function expandToFullView() {
 // ==========================================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('PWA ServiceWorker registered with scope:', reg.scope))
+        navigator.serviceWorker.register('/sw.js?v=20261103h')
+            .then(reg => {
+                if (reg.update) reg.update();
+                console.log('PWA ServiceWorker registered with scope:', reg.scope);
+            })
             .catch(err => console.warn('PWA ServiceWorker registration note:', err));
     });
 }

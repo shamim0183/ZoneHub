@@ -237,25 +237,25 @@
 
         function handleFileSelect(e) {
             const files = Array.from(e.target.files || []);
-            e.target.value = '';
             if (files && files.length > 0) {
                 if (typeof showToast === 'function') {
                     showToast('📤 Preparing ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' for upload...');
                 }
                 uploadFilesQueue(files);
             }
+            setTimeout(() => { try { e.target.value = ''; } catch(err) {} }, 1000);
         }
         window.handleFileSelect = handleFileSelect;
 
         function handleFolderSelect(e) {
             const files = Array.from(e.target.files || []);
-            e.target.value = '';
             if (files && files.length > 0) {
                 if (typeof showToast === 'function') {
                     showToast('📁 Uploading folder with ' + files.length + ' files...');
                 }
                 uploadFilesQueue(files);
             }
+            setTimeout(() => { try { e.target.value = ''; } catch(err) {} }, 1000);
         }
         window.handleFolderSelect = handleFolderSelect;
 
@@ -413,10 +413,25 @@
 
             // Refresh UI once for the entire batch
             await loadFoldersList();
+            await loadFileList();
+
             if (selectedFolderId) {
                 openFolder(selectedFolderId);
-            } else {
-                await loadFileList();
+            } else if (targetFolder && targetFolder !== 'auto') {
+                openFolder(targetFolder);
+            } else if (fileList.length > 0) {
+                // If auto-sort was used, auto-navigate to the folder where the first file went!
+                const firstExt = (fileList[0].name.split('.').pop() || '').toLowerCase();
+                if (['mp4', 'mov', 'webm', 'mkv', 'avi'].includes(firstExt)) {
+                    openFolder('Videos');
+                    showToast('🎥 File uploaded to Videos folder!');
+                } else if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp'].includes(firstExt)) {
+                    openFolder('Pictures');
+                    showToast('🖼️ File uploaded to Pictures folder!');
+                } else {
+                    switchViewMode('all');
+                    showToast('📄 Upload completed!');
+                }
             }
         }
 
@@ -471,26 +486,60 @@
             }
         }
 
-        async function promptCreateNewFolder() {
-            const name = prompt('নতুন ফোল্ডারের নাম লিখুন (Enter new folder name):');
-            if (!name || !name.trim()) return;
+        function promptCreateNewFolder() {
+            const modal = document.getElementById('newFolderModal');
+            const input = document.getElementById('newFolderNameInput');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                if (input) {
+                    input.value = '';
+                    setTimeout(() => input.focus(), 100);
+                }
+            } else {
+                const name = prompt('নতুন ফোল্ডারের নাম লিখুন (Enter new folder name):');
+                if (name && name.trim()) doCreateFolder(name.trim());
+            }
+        }
+        window.promptCreateNewFolder = promptCreateNewFolder;
 
+        function closeNewFolderModal(e) {
+            if (e && e.target && e.target.id !== 'newFolderModal' && !e.target.classList.contains('btn-secondary')) return;
+            const modal = document.getElementById('newFolderModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+            }
+        }
+        window.closeNewFolderModal = closeNewFolderModal;
+
+        async function submitCreateNewFolder(e) {
+            if (e) e.preventDefault();
+            const input = document.getElementById('newFolderNameInput');
+            const name = input ? input.value.trim() : '';
+            if (!name) return;
+            closeNewFolderModal();
+            await doCreateFolder(name);
+        }
+        window.submitCreateNewFolder = submitCreateNewFolder;
+
+        async function doCreateFolder(name) {
             try {
-                const res = await fetch('/api/folders/create?name=' + encodeURIComponent(name.trim()), {
+                const res = await fetch('/api/folders/create?name=' + encodeURIComponent(name), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name.trim() })
+                    body: JSON.stringify({ name: name })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast('Folder created: ' + data.name);
+                    showToast('📁 Folder created: ' + data.name);
                     await loadFoldersList();
                     openFolder(data.name);
                 } else {
-                    showToast(data.error || 'Failed to create folder');
+                    showToast('⚠️ ' + (data.error || 'Failed to create folder'));
                 }
             } catch (err) {
-                showToast('Error creating folder');
+                showToast('⚠️ Error creating folder');
             }
         }
 
@@ -1667,6 +1716,8 @@
         window.switchViewMode = switchViewMode;
         window.setFilter = setFilter;
         window.promptCreateNewFolder = promptCreateNewFolder;
+        window.closeNewFolderModal = closeNewFolderModal;
+        window.submitCreateNewFolder = submitCreateNewFolder;
         window.onUploadFolderChanged = onUploadFolderChanged;
         window.deleteActiveFolderPrompt = deleteActiveFolderPrompt;
         window.downloadActiveFolderAll = downloadActiveFolderAll;
