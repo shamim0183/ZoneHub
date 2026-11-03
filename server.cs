@@ -3755,7 +3755,28 @@ namespace ZoneHub
                 }
             }
 
-            FileInfo fi = new FileInfo(fullPath);
+            FileStream fs = null;
+            FileInfo fi;
+            try
+            {
+                fi = new FileInfo(fullPath);
+                if (!fi.Exists)
+                {
+                    SendError(stream, 404, "File Not Found");
+                    return;
+                }
+                if (!headOnly)
+                {
+                    fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                }
+            }
+            catch
+            {
+                if (fs != null) { try { fs.Close(); } catch {} }
+                SendError(stream, 500, "File Access Error");
+                return;
+            }
+
             long fileLength = fi.Length;
             string contentType = GetMimeType(fi.Extension);
 
@@ -3821,6 +3842,18 @@ namespace ZoneHub
             res.Append("Access-Control-Allow-Origin: *\r\n");
             res.Append("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD\r\n");
             res.Append("Access-Control-Allow-Headers: *\r\n");
+
+            // Attach download disposition for executables, archives, or download requests
+            if (fi.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) || 
+                fi.Extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) ||
+                headers.ContainsKey("x-download") ||
+                headers.ContainsKey("download") ||
+                relativePath.IndexOf("download", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                string safeName = Uri.EscapeDataString(fi.Name);
+                res.Append("Content-Disposition: attachment; filename=\"" + fi.Name + "\"; filename*=UTF-8''" + safeName + "\r\n");
+            }
+
             if (fi.Extension.Equals(".js", StringComparison.OrdinalIgnoreCase) || 
                 fi.Extension.Equals(".css", StringComparison.OrdinalIgnoreCase) ||
                 fi.Extension.Equals(".html", StringComparison.OrdinalIgnoreCase) ||
@@ -3830,18 +3863,18 @@ namespace ZoneHub
             }
             res.Append("Connection: close\r\n\r\n");
 
-            byte[] headerBytes = Encoding.UTF8.GetBytes(res.ToString());
-            stream.Write(headerBytes, 0, headerBytes.Length);
-
-            if (headOnly)
+            try
             {
-                stream.Flush();
-                return;
-            }
+                byte[] headerBytes = Encoding.UTF8.GetBytes(res.ToString());
+                stream.Write(headerBytes, 0, headerBytes.Length);
 
-            using (FileStream fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
-                if (start > 0)
+                if (headOnly)
+                {
+                    stream.Flush();
+                    return;
+                }
+
+                if (start > 0 && fs != null)
                 {
                     fs.Seek(start, SeekOrigin.Begin);
                 }
@@ -3849,7 +3882,7 @@ namespace ZoneHub
                 byte[] buffer = new byte[64 * 1024];
                 long remaining = contentLength;
 
-                while (remaining > 0)
+                while (remaining > 0 && fs != null)
                 {
                     int toRead = (int)Math.Min(buffer.Length, remaining);
                     int read = fs.Read(buffer, 0, toRead);
@@ -3859,8 +3892,16 @@ namespace ZoneHub
                     TrackBytesSent(read);
                     remaining -= read;
                 }
+                stream.Flush();
             }
-            stream.Flush();
+            finally
+            {
+                if (fs != null)
+                {
+                    try { fs.Close(); } catch {}
+                    try { fs.Dispose(); } catch {}
+                }
+            }
         }
 
         #region WebRTC P2P Methods
