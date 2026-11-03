@@ -1,25 +1,12 @@
         // Drag & Drop Upload Logic (Files & Folders)
         const dropZone = document.getElementById('dropZone');
+        const filesSection = document.getElementById('filesSectionWrapper');
         const progressContainer = document.getElementById('progressContainer');
         const progressFileName = document.getElementById('progressFileName');
         const progressPercent = document.getElementById('progressPercent');
         const progressBarFill = document.getElementById('progressBarFill');
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropZone.classList.add('dragover');
-            }, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropZone.classList.remove('dragover');
-            }, false);
-        });
+        let dropZoneDragDepth = 0;
 
         async function scanFileEntry(item, pathSoFar, outList) {
             pathSoFar = pathSoFar || '';
@@ -52,31 +39,141 @@
             }
         }
 
-        dropZone.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.remove('dragover');
+        async function extractDroppedFiles(dataTransfer) {
+            const result = [];
+            if (dataTransfer.items && dataTransfer.items.length > 0) {
+                let hasEntryApi = false;
+                try {
+                    for (let i = 0; i < dataTransfer.items.length; i++) {
+                        const item = dataTransfer.items[i];
+                        if (item.kind === 'file') {
+                            const entry = (typeof item.webkitGetAsEntry === 'function') ? item.webkitGetAsEntry() : null;
+                            if (entry) {
+                                hasEntryApi = true;
+                                await scanFileEntry(entry, '', result);
+                            } else {
+                                const f = item.getAsFile();
+                                if (f) result.push(f);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Folder entry scan error, falling back:', err);
+                }
+                if (hasEntryApi && result.length > 0) {
+                    return result;
+                }
+            }
+            if (result.length === 0 && dataTransfer.files && dataTransfer.files.length > 0) {
+                return Array.from(dataTransfer.files);
+            }
+            return result;
+        }
 
-            const items = e.dataTransfer.items;
-            if (items && items.length > 0 && items[0].webkitGetAsEntry) {
-                const collected = [];
-                for (let i = 0; i < items.length; i++) {
-                    const entry = items[i].webkitGetAsEntry();
-                    if (entry) {
-                        await scanFileEntry(entry, '', collected);
+        if (dropZone) {
+            dropZone.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZoneDragDepth++;
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                dropZone.classList.add('dragover');
+            }, false);
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                if (!dropZone.classList.contains('dragover')) {
+                    dropZone.classList.add('dragover');
+                }
+            }, false);
+
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZoneDragDepth--;
+                if (dropZoneDragDepth <= 0) {
+                    dropZoneDragDepth = 0;
+                    dropZone.classList.remove('dragover');
+                }
+            }, false);
+
+            dropZone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZoneDragDepth = 0;
+                dropZone.classList.remove('dragover');
+
+                if (!e.dataTransfer) return;
+                const files = await extractDroppedFiles(e.dataTransfer);
+                if (files && files.length > 0) {
+                    if (typeof showToast === 'function') {
+                        showToast('📥 Received ' + files.length + ' dropped file' + (files.length > 1 ? 's' : '') + ', uploading...');
+                    }
+                    uploadFilesQueue(files);
+                }
+            }, false);
+        }
+
+        // Entire Files Section Drag & Drop Catchment
+        if (filesSection) {
+            let filesSectionDragDepth = 0;
+
+            filesSection.addEventListener('dragenter', (e) => {
+                if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+                    filesSectionDragDepth++;
+                    if (dropZone) dropZone.classList.add('dragover');
+                }
+            }, false);
+
+            filesSection.addEventListener('dragover', (e) => {
+                if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    if (dropZone && !dropZone.classList.contains('dragover')) {
+                        dropZone.classList.add('dragover');
                     }
                 }
-                if (collected.length > 0) {
-                    uploadFilesQueue(collected);
-                    return;
-                }
-            }
+            }, false);
 
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                uploadFilesQueue(Array.from(files));
+            filesSection.addEventListener('dragleave', (e) => {
+                filesSectionDragDepth--;
+                if (filesSectionDragDepth <= 0) {
+                    filesSectionDragDepth = 0;
+                    if (dropZoneDragDepth <= 0 && dropZone) {
+                        dropZone.classList.remove('dragover');
+                    }
+                }
+            }, false);
+
+            filesSection.addEventListener('drop', async (e) => {
+                if (e.target.closest('#dropZone')) return; // Let dropZone handler handle direct drops
+                e.preventDefault();
+                filesSectionDragDepth = 0;
+                dropZoneDragDepth = 0;
+                if (dropZone) dropZone.classList.remove('dragover');
+
+                if (!e.dataTransfer) return;
+                const files = await extractDroppedFiles(e.dataTransfer);
+                if (files && files.length > 0) {
+                    if (typeof showToast === 'function') {
+                        showToast('📥 Received ' + files.length + ' dropped file' + (files.length > 1 ? 's' : '') + ', uploading...');
+                    }
+                    uploadFilesQueue(files);
+                }
+            }, false);
+        }
+
+        // Prevent accidental tab navigation if user drops file outside any dropzone
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        }, false);
+
+        window.addEventListener('drop', (e) => {
+            if (!e.target.closest('#dropZone') && !e.target.closest('#filesSectionWrapper') && !e.target.closest('#chatSectionWrapper')) {
+                e.preventDefault();
             }
-        });
+        }, false);
 
         function handleFileSelect(e) {
             const files = e.target.files;
