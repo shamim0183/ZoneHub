@@ -78,9 +78,15 @@
             const data = await res.json();
             if (data && data.success && Array.isArray(data.peers)) {
                 const myNameNorm = myName.trim().toLowerCase();
+                const isHostCurrent = (typeof isCurrentHost !== 'undefined' && isCurrentHost);
                 window.__p2pOnlinePeers = data.peers.filter(p => {
                     const pNorm = (p.userName || '').trim().toLowerCase();
-                    return pNorm !== myNameNorm && p.userId !== myId;
+                    if (pNorm === myNameNorm || p.userId === myId) return false;
+                    // Exclude raw IP dummy names (e.g. 127.0.0.1, 192.168.0.114)
+                    if (/^(\d{1,3}\.){3}\d{1,3}$/.test((p.userName || '').trim()) || p.userName === '::1') return false;
+                    // If browsing from Host PC, do not show other host aliases of the same machine
+                    if (isHostCurrent && p.isHost) return false;
+                    return true;
                 });
                 if (typeof updateDmUsersMenu === 'function') {
                     updateDmUsersMenu();

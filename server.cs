@@ -4021,6 +4021,9 @@ namespace ZoneHub
                 // NOTE: Do NOT merge DeviceNameCache here — it creates ghost offline entries
                 // causing duplicate/offline users in the DM list. Only real heartbeat peers are returned.
 
+                string localHostIp = GetCurrentLocalIp();
+                bool requesterIsHost = req.IsLocalhost || (!string.IsNullOrEmpty(req.ClientIp) && (req.ClientIp == "127.0.0.1" || req.ClientIp == "::1" || req.ClientIp == localHostIp));
+
                 foreach (var kvp in uniqueUsers)
                 {
                     var p = kvp.Value;
@@ -4028,6 +4031,17 @@ namespace ZoneHub
                         continue;
                     if (!string.IsNullOrEmpty(excludeUser) && string.Equals(p.userName, excludeUser, StringComparison.OrdinalIgnoreCase))
                         continue;
+
+                    // Filter out raw IP dummy names created by general HTTP requests
+                    string uTrim = (p.userName ?? "").Trim();
+                    IPAddress dummyIp;
+                    if (uTrim == "127.0.0.1" || uTrim == "::1" || uTrim == localHostIp || IPAddress.TryParse(uTrim, out dummyIp))
+                        continue;
+
+                    // If requester is on the Host PC, do not show other host aliases of the same machine
+                    if (requesterIsHost && p.isHost)
+                        continue;
+
                     list.Add(p);
                 }
             }
