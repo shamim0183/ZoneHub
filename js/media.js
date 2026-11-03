@@ -139,6 +139,9 @@
             }
         }
 
+        // Track if a drop just happened to prevent onclick from opening file picker
+        let _dropJustHappened = false;
+
         if (dropZone) {
             dropZone.addEventListener('dragenter', (e) => {
                 e.preventDefault();
@@ -165,20 +168,22 @@
             dropZone.addEventListener('drop', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                _dropJustHappened = true;
+                setTimeout(() => { _dropJustHappened = false; }, 600);
                 setDropZoneActive(false);
 
                 if (!e.dataTransfer) return;
                 const files = await extractDroppedFiles(e.dataTransfer);
                 if (files && files.length > 0) {
-                    if (typeof showToast === 'function') {
-                        showToast('📥 Received ' + files.length + ' dropped file' + (files.length > 1 ? 's' : '') + ', uploading...');
-                    }
+                    showToast('📥 Received ' + files.length + ' dropped file' + (files.length > 1 ? 's' : '') + ', uploading...');
                     uploadFilesQueue(files);
+                } else {
+                    showToast('⚠️ No files detected in drop. Try again.');
                 }
-            }, false);
+            }, true); // use capture so it fires before any parent handlers
         }
 
-        // Entire Files Section Drag Catchment
+        // Entire Files Section Drag Catchment — captures drops anywhere on the files panel
         if (filesSection) {
             filesSection.addEventListener('dragenter', (e) => {
                 e.preventDefault();
@@ -201,22 +206,22 @@
             }, false);
 
             filesSection.addEventListener('drop', async (e) => {
-                if (e.target.closest('#dropZone')) return; // dropZone handler handles direct drops
+                // Always preventDefault first to stop browser navigation
                 e.preventDefault();
                 setDropZoneActive(false);
+                // If drop landed inside the dropZone, the dropZone capture handler already handled it
+                if (e.target.closest('#dropZone')) return;
 
                 if (!e.dataTransfer) return;
                 const files = await extractDroppedFiles(e.dataTransfer);
                 if (files && files.length > 0) {
-                    if (typeof showToast === 'function') {
-                        showToast('📥 Received ' + files.length + ' dropped file' + (files.length > 1 ? 's' : '') + ', uploading...');
-                    }
+                    showToast('📥 Received ' + files.length + ' dropped file' + (files.length > 1 ? 's' : '') + ', uploading...');
                     uploadFilesQueue(files);
                 }
             }, false);
         }
 
-        // Prevent accidental tab navigation if user drops file outside any dropzone
+        // Global safety net: prevent browser from navigating when file dropped outside any zone
         window.addEventListener('dragover', (e) => {
             e.preventDefault();
             if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
@@ -229,23 +234,44 @@
         }, false);
 
         window.addEventListener('drop', (e) => {
+            // Always prevent browser navigation on any drop
+            e.preventDefault();
             setDropZoneActive(false);
-            if (!e.target.closest('#dropZone') && !e.target.closest('#filesSectionWrapper') && !e.target.closest('#chatSectionWrapper')) {
-                e.preventDefault();
-            }
+            // If drop is inside the filesSection or chatSection, those handlers will take care of it
         }, false);
 
         function handleFileSelect(e) {
             const files = Array.from(e.target.files || []);
             if (files && files.length > 0) {
-                if (typeof showToast === 'function') {
-                    showToast('📤 Preparing ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' for upload...');
-                }
+                showToast('📤 Preparing ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' for upload...');
                 uploadFilesQueue(files);
             }
             setTimeout(() => { try { e.target.value = ''; } catch(err) {} }, 1000);
         }
         window.handleFileSelect = handleFileSelect;
+
+        // Robust folder picker trigger — works around Chrome/Windows issue where
+        // calling .click() on a stale input does nothing after value was cleared
+        function triggerFolderUpload() {
+            const container = document.getElementById('dropZone') || document.body;
+            // Remove old input
+            const old = document.getElementById('folderInput');
+            if (old) old.parentNode.removeChild(old);
+            // Create fresh input with webkitdirectory
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.id = 'folderInput';
+            inp.className = 'file-input-hidden';
+            inp.setAttribute('webkitdirectory', '');
+            inp.setAttribute('directory', '');
+            inp.multiple = true;
+            inp.style.display = 'none';
+            inp.addEventListener('change', handleFolderSelect);
+            container.appendChild(inp);
+            // Small timeout ensures DOM attachment before click
+            setTimeout(() => inp.click(), 50);
+        }
+        window.triggerFolderUpload = triggerFolderUpload;
 
         function handleFolderSelect(e) {
             const files = Array.from(e.target.files || []);
@@ -504,12 +530,15 @@
         window.promptCreateNewFolder = promptCreateNewFolder;
 
         function closeNewFolderModal(e) {
-            if (e && e.target && e.target.id !== 'newFolderModal' && !e.target.classList.contains('btn-secondary')) return;
+            // If called with an event, only close if clicking the backdrop or Cancel button
+            if (e && e.target && e.target.id !== 'newFolderModal' && !e.target.classList.contains('btn-secondary') && e.target.tagName !== 'BUTTON') return;
             const modal = document.getElementById('newFolderModal');
             if (modal) {
                 modal.style.display = 'none';
                 modal.classList.remove('active');
             }
+            const inp = document.getElementById('newFolderNameInput');
+            if (inp) inp.value = '';
         }
         window.closeNewFolderModal = closeNewFolderModal;
 
