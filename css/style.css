@@ -1759,35 +1759,62 @@
             background: rgba(244, 63, 94, 0.15);
         }
 
-        /* Chat Input Bar */
+        /* Chat Header & Quick Actions */
+        .chat-header-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .chat-hdr-btn {
+            font-size: 11px !important;
+            padding: 4px 8px !important;
+            gap: 4px !important;
+            height: 28px !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+            white-space: nowrap !important;
+            display: inline-flex !important;
+            align-items: center !important;
+        }
+
+        /* Modern 2-Tier Chat Input Bar (Slack / Discord Style) */
         .chat-input-bar {
-            padding: 12px 14px;
-            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 14px;
+            background: rgba(11, 15, 25, 0.75);
             border-top: 1px solid var(--border-color);
             display: flex;
+            flex-direction: column;
             gap: 8px;
-            align-items: center;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        .chat-input-field-wrap {
+            width: 100%;
+            position: relative;
         }
 
         .chat-input {
-            flex: 1;
+            width: 100%;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-color);
             border-radius: 10px;
-            padding: 9px 12px;
+            padding: 10px 14px;
             color: #fff;
-            font-size: 13px;
-            line-height: 1.4;
-            height: 40px;
-            min-height: 40px;
-            max-height: 100px;
+            font-size: 13.5px;
+            line-height: 1.45;
+            height: 44px;
+            min-height: 44px;
+            max-height: 140px;
             box-sizing: border-box;
             font-family: inherit;
             outline: none;
             resize: none;
             overflow-y: auto;
             scrollbar-width: none;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .chat-input::-webkit-scrollbar {
@@ -1797,27 +1824,54 @@
         }
 
         .chat-input:focus {
-            border-color: var(--primary);
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        /* Bottom Toolbar: Attachment Tools & Send */
+        .chat-input-tools-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .chat-input-tools-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .chat-input-tools-right {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
         }
 
         .action-tool-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
             flex-shrink: 0;
+            padding: 0;
         }
 
         .action-tool-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.12);
             color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.3);
+            transform: translateY(-1px);
         }
 
         .action-tool-btn.recording {
@@ -1825,6 +1879,24 @@
             border-color: var(--accent-rose);
             color: var(--accent-rose);
             animation: pulseRec 1.5s infinite;
+        }
+
+        .chat-send-btn {
+            height: 34px !important;
+            padding: 0 14px !important;
+            font-size: 12.5px !important;
+            font-weight: 700 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            border-radius: 8px !important;
+            background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+            box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35) !important;
+        }
+
+        .chat-send-btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
         }
 
         @keyframes pulseRec {
@@ -2762,20 +2834,38 @@
                 overflow: hidden !important;
             }
 
-            /* Chat Input Bar on Mobile */
+            /* Chat Header & Input Bar on Mobile */
+            .chat-header {
+                padding: 10px 12px !important;
+            }
+            .chat-hdr-label {
+                display: none !important;
+            }
+            .chat-hdr-name-btn {
+                display: none !important;
+            }
+            .chat-hdr-btn {
+                padding: 4px 6px !important;
+                height: 26px !important;
+            }
+
             .chat-input-bar {
-                padding: 6px 8px !important;
-                gap: 4px !important;
+                padding: 8px 10px !important;
+                gap: 6px !important;
                 width: 100% !important;
                 box-sizing: border-box !important;
             }
             .chat-input {
-                font-size: 12.5px !important;
+                font-size: 13px !important;
                 padding: 8px 10px !important;
-                height: 38px !important;
-                min-height: 38px !important;
+                height: 40px !important;
+                min-height: 40px !important;
                 line-height: 1.35 !important;
+                width: 100% !important;
                 box-sizing: border-box !important;
+            }
+            .chat-input-tools-bar {
+                gap: 6px !important;
             }
             .action-tool-btn {
                 width: 32px !important;
@@ -2784,13 +2874,16 @@
                 padding: 0 !important;
             }
             .action-tool-btn svg {
-                width: 16px !important;
-                height: 16px !important;
+                width: 15px !important;
+                height: 15px !important;
             }
-            .chat-input-bar .btn-primary {
+            .chat-send-btn {
                 height: 32px !important;
                 padding: 0 10px !important;
                 flex-shrink: 0 !important;
+            }
+            .chat-send-btn-label {
+                display: none !important;
             }
 
             /* Download Widget on Mobile */
@@ -4312,17 +4405,6 @@
 
 
 
-
-        /* ============================================================
-           ZoneHub v2 Hotfix — Force-hide legacy P2P tab if cached HTML shows it
-           ============================================================ */
-        /* Hide the old "Live P2P Drop" tab button by its known text/class pattern */
-        .tab-btn[onclick*="p2p"],
-        .tab-btn[onclick*="P2P"],
-        button[onclick*="switchView('p2p')"],
-        #tabP2pBtn {
-            display: none !important;
-        }
 
         /* Ensure chat-attach popup is never shown (legacy removal) */
         .chat-attach-popup {

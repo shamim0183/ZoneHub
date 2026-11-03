@@ -551,15 +551,18 @@ function playProfessionalChime() {
 function updateAlertsButtonDisplay() {
     const btn = document.getElementById('notifToggleBtn');
     const txt = document.getElementById('notifStatusText');
+    const ico = document.getElementById('notifIconSpan');
     if (!btn || !txt) return;
 
     if (!('Notification' in window)) {
-        txt.innerText = 'Alerts: Unsupported';
+        if (ico) ico.innerText = '🔕';
+        txt.innerText = 'Unsupported';
         return;
     }
 
     if (Notification.permission === 'denied') {
-        txt.innerText = 'Alerts: Blocked';
+        if (ico) ico.innerText = '🔕';
+        txt.innerText = 'Blocked';
         btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
         btn.style.color = '#f87171';
         btn.title = 'Notifications are blocked in your browser settings. Click the lock icon near URL to allow notifications.';
@@ -567,7 +570,8 @@ function updateAlertsButtonDisplay() {
     }
 
     if (Notification.permission === 'default') {
-        txt.innerText = '🔔 Enable Alerts';
+        if (ico) ico.innerText = '🔔';
+        txt.innerText = 'Alerts';
         btn.style.borderColor = 'rgba(245, 158, 11, 0.5)';
         btn.style.color = '#fbbf24';
         btn.title = 'Click to enable Desktop & Sound alerts when working in other apps/tabs';
@@ -575,12 +579,14 @@ function updateAlertsButtonDisplay() {
     }
 
     if (alertsEnabled) {
+        if (ico) ico.innerText = '🔔';
         txt.innerText = 'Alerts: On';
         btn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
         btn.style.color = '#34d399';
         btn.title = 'Desktop notifications & sound are active even in other apps';
     } else {
-        txt.innerText = 'Alerts: Off';
+        if (ico) ico.innerText = '🔕';
+        txt.innerText = 'Muted';
         btn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
         btn.style.color = 'var(--text-muted)';
         btn.title = 'Notifications muted';

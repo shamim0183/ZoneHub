@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261102g">
+    <link rel="stylesheet" href="/css/style.css?v=20261103a">
 </head>
 <body>
     <div class="container">
@@ -206,7 +206,7 @@
             </button>
             <button class="tab-btn" id="tabP2pBtn" onclick="switchView('p2p')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                AirDrop Beam
+                ⚡ AirDrop Beam
                 <span class="badge-counter" id="p2pPeersCountBadge" style="display:none;background:#06b6d4;color:#fff;">0</span>
             </button>
         </div>
@@ -389,20 +389,20 @@
                     <div class="chat-header">
                         <div class="chat-title">
                             <span class="chat-status-indicator"></span>
-                            Team Chat
+                            <span>Team Chat</span>
                         </div>
-                        <div style="display:flex;gap:6px;align-items:center;">
-                            <button id="notifToggleBtn" onclick="toggleDesktopNotifications()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;gap:4px;" title="Desktop Notifications &amp; Sound">
-                                🔔 <span id="notifStatusText">Alerts: On</span>
+                        <div class="chat-header-actions">
+                            <button id="notifToggleBtn" onclick="toggleDesktopNotifications()" class="btn btn-secondary chat-hdr-btn" title="Desktop Notifications & Sound">
+                                <span id="notifIconSpan">🔔</span> <span id="notifStatusText" class="chat-hdr-label">Alerts: On</span>
                             </button>
-                            <button onclick="testChimeSound()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;gap:4px;" title="Test Professional Chime Sound">
-                                🔊 Test
+                            <button onclick="testChimeSound()" class="btn btn-secondary chat-hdr-btn" title="Test Professional Chime Sound">
+                                🔊 <span class="chat-hdr-label">Test</span>
                             </button>
-                            <button onclick="promptChangeName()" class="btn btn-secondary" style="font-size:11px;padding:4px 10px;">
-                                Name
+                            <button onclick="promptChangeName()" class="btn btn-secondary chat-hdr-btn chat-hdr-name-btn" title="Change Display Name">
+                                ✏️ <span class="chat-hdr-label">Name</span>
                             </button>
-                            <button type="button" onclick="toggleScreenShare()" id="screenShareBtn" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;gap:4px;" title="Share Screen live with team (WebRTC)">
-                                🖥️ <span class="hide-mobile-text">Screen</span>
+                            <button type="button" onclick="toggleScreenShare()" id="screenShareBtn" class="btn btn-secondary chat-hdr-btn" title="Share Screen live with team (WebRTC)">
+                                🖥️ <span class="chat-hdr-label">Screen</span>
                             </button>
                         </div>
                     </div>
@@ -513,42 +513,53 @@
                             </div>
                         </div>
 
-                        <textarea id="chatInput" class="chat-input" placeholder="Type a message or paste images..." rows="1" onkeydown="handleChatKeyDown(event)" oninput="autoResizeChatInput(this)"></textarea>
+                        <!-- Top: Full-Width Expanding Message Box -->
+                        <div class="chat-input-field-wrap">
+                            <textarea id="chatInput" class="chat-input" placeholder="Type a message, paste images (Ctrl+V), or drag & drop..." rows="1" onkeydown="handleChatKeyDown(event)" oninput="autoResizeChatInput(this)"></textarea>
+                        </div>
 
-                        <!-- Send Picture / Video Album Button -->
-                        <button type="button" onclick="document.getElementById('chatPhotoInput').click()" class="action-tool-btn" title="Send Picture or Video (Multi-Select)">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        </button>
+                        <!-- Bottom: Action Tools Toolbar & Send Button -->
+                        <div class="chat-input-tools-bar">
+                            <div class="chat-input-tools-left">
+                                <!-- Send Picture / Video Album Button -->
+                                <button type="button" onclick="document.getElementById('chatPhotoInput').click()" class="action-tool-btn" title="Send Picture or Video (Multi-Select)">
+                                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                </button>
 
-                        <!-- Direct Attach Any File Button (No broken popup!) -->
-                        <button type="button" onclick="document.getElementById('chatGenericFileInput').click()" class="action-tool-btn" id="chatAttachBtn" title="Send Any File (PDF, DOCX, ZIP, etc.)">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                        </button>
+                                <!-- Direct Attach Any File Button -->
+                                <button type="button" onclick="document.getElementById('chatGenericFileInput').click()" class="action-tool-btn" id="chatAttachBtn" title="Send Any File (PDF, DOCX, ZIP, etc.)">
+                                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                </button>
 
-                        <!-- Direct Attach Entire Folder Button -->
-                        <button type="button" onclick="document.getElementById('chatFolderInput').click()" class="action-tool-btn" id="chatFolderBtn" title="Send Entire Folder (Uploads &amp; downloads intact as ZIP)">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-                        </button>
+                                <!-- Direct Attach Entire Folder Button -->
+                                <button type="button" onclick="document.getElementById('chatFolderInput').click()" class="action-tool-btn" id="chatFolderBtn" title="Send Entire Folder (Uploads & downloads intact as ZIP)">
+                                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                                </button>
 
-                        <!-- Code Snippet / Formatted Note Button -->
-                        <button type="button" onclick="openCodeSnippetModal()" class="action-tool-btn" id="codeSnippetBtn" title="Share Code Snippet or Formatted Note">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
-                        </button>
+                                <!-- Code Snippet / Formatted Note Button -->
+                                <button type="button" onclick="openCodeSnippetModal()" class="action-tool-btn" id="codeSnippetBtn" title="Share Code Snippet or Formatted Note">
+                                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                                </button>
 
-                        <!-- Team Poll / Vote Button -->
-                        <button type="button" onclick="openCreatePollModal()" class="action-tool-btn" id="createPollBtn" title="Create a Poll / ভোট বা মতামত নিন">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                        </button>
+                                <!-- Team Poll / Vote Button -->
+                                <button type="button" onclick="openCreatePollModal()" class="action-tool-btn" id="createPollBtn" title="Create a Poll / ভোট বা মতামত নিন">
+                                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                </button>
 
-                        <!-- Voice Message Button -->
-                        <button type="button" id="voiceRecBtn" onclick="toggleVoiceRecording()" class="action-tool-btn" title="Record Voice Message">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
-                        </button>
+                                <!-- Voice Message Button -->
+                                <button type="button" id="voiceRecBtn" onclick="toggleVoiceRecording()" class="action-tool-btn" title="Record Voice Message">
+                                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                                </button>
+                            </div>
 
-                        <!-- Send Text Button -->
-                        <button onclick="sendMessage()" class="btn btn-primary" style="height:38px;padding:0 14px;">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                        </button>
+                            <div class="chat-input-tools-right">
+                                <!-- Send Text Button -->
+                                <button onclick="sendMessage()" class="btn btn-primary chat-send-btn" title="Send Message (Enter)">
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                    <span class="chat-send-btn-label">Send</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1304,13 +1315,13 @@
     </div>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/i18n.js?v=20261102g"></script>
-    <script src="/js/qrcode.js?v=20261102g"></script>
-    <script src="/js/screenshare.js?v=20261102g"></script>
-    <script src="/js/app.js?v=20261102g"></script>
-    <script src="/js/media.js?v=20261102g"></script>
-    <script src="/js/chat.js?v=20261102g"></script>
-    <script src="/js/p2p.js?v=20261102g"></script>
-    <script src="/js/dashboard.js?v=20261102g"></script>
+    <script src="/js/i18n.js?v=20261103a"></script>
+    <script src="/js/qrcode.js?v=20261103a"></script>
+    <script src="/js/screenshare.js?v=20261103a"></script>
+    <script src="/js/app.js?v=20261103a"></script>
+    <script src="/js/media.js?v=20261103a"></script>
+    <script src="/js/chat.js?v=20261103a"></script>
+    <script src="/js/p2p.js?v=20261103a"></script>
+    <script src="/js/dashboard.js?v=20261103a"></script>
 </body>
 </html>
