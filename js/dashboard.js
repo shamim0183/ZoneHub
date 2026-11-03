@@ -109,7 +109,33 @@
                 if (data.devices.peers.length === 0) {
                     peersList.innerHTML = '<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:12px;">No colleagues currently active</div>';
                 } else {
-                    peersList.innerHTML = data.devices.peers.map(p => {
+                    const myNameNorm = (typeof currentUserName !== 'undefined' && currentUserName ? currentUserName : (localStorage.getItem('zonehub_user_name') || '')).trim().toLowerCase();
+                    const isHostCurrent = (typeof isCurrentHost !== 'undefined' && isCurrentHost);
+
+                    // Sort to prefer LAN IPs over loopback (127.0.0.1)
+                    const sortedPeers = [...data.devices.peers].sort((a, b) => {
+                        const aLoop = (a.ip === '127.0.0.1' || a.ip === '::1');
+                        const bLoop = (b.ip === '127.0.0.1' || b.ip === '::1');
+                        if (aLoop && !bLoop) return 1;
+                        if (!aLoop && bLoop) return -1;
+                        return 0;
+                    });
+
+                    const seenKeys = new Set();
+                    const uniquePeers = [];
+
+                    for (const p of sortedPeers) {
+                        const rawName = (p.name || '').trim();
+                        if (!rawName) continue;
+                        const normName = rawName.toLowerCase();
+                        // Deduplicate host aliases (e.g. 127.0.0.1 vs LAN IP) so Host PC only shows once
+                        const dedupeKey = p.isHost ? 'host_machine_single' : normName;
+                        if (seenKeys.has(dedupeKey)) continue;
+                        seenKeys.add(dedupeKey);
+                        uniquePeers.push(p);
+                    }
+
+                    peersList.innerHTML = uniquePeers.map(p => {
                         const isHost = p.isHost;
                         const icon = p.icon || (isHost ? '💻' : '📱');
                         const hostBadge = isHost ? '<span class="peer-host-badge">Host</span>' : '';
@@ -117,8 +143,19 @@
                         const devType = p.deviceType || (p.isMobile ? 'Mobile' : 'PC');
                         const lastSeen = p.lastSeen || 'Just now';
                         const name = p.name || 'Anonymous';
+                        const isSelf = myNameNorm && (name.toLowerCase() === myNameNorm || (isHostCurrent && isHost));
+
+                        const clickHandler = isSelf 
+                            ? '' 
+                            : `onclick="openPrivateChatWithDevice('${escapeHtml(name)}', '${escapeHtml(p.userId || '')}')"`;
+                        const rowClass = isSelf ? 'active-peer-row' : 'active-peer-row is-clickable';
+                        const rowTitle = isSelf ? 'Your current device' : `Click to open private 1-on-1 chat with ${escapeHtml(name)}`;
+                        const actionBadge = isSelf
+                            ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;font-weight:600;">(You)</span>`
+                            : `<span class="peer-chat-action-badge">💬 Chat &amp; Share</span>`;
+
                         return `
-                            <div class="active-peer-row">
+                            <div class="${rowClass}" ${clickHandler} title="${rowTitle}">
                                 <div class="peer-avatar-wrap">
                                     <span class="peer-avatar-icon">${icon}</span>
                                     <span class="peer-status-dot"></span>
@@ -127,6 +164,7 @@
                                     <div class="peer-name-line">
                                         <span class="peer-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
                                         ${hostBadge}
+                                        ${actionBadge}
                                     </div>
                                     <div class="peer-meta-line">
                                         ${ipText}<span>${escapeHtml(devType)}</span> • <span class="peer-time">${escapeHtml(lastSeen)}</span>

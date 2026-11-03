@@ -1334,6 +1334,13 @@ namespace ZoneHub
                 }
 
                 // Handle file serving (GET / HEAD)
+                if (req.Url != null && (req.Url.IndexOf("download=", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    req.Url.IndexOf("download=1", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    req.Url.IndexOf("download", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    req.Url.IndexOf("dl=1", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    req.Headers["download"] = "1";
+                }
                 ServeFile(stream, decodedPath, req.Headers, req.Method == "HEAD");
             }
             catch

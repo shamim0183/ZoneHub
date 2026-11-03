@@ -1,3 +1,50 @@
+        // Safe Helpers for Modular Architecture
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        window.escapeHtml = window.escapeHtml || escapeHtml;
+
+        function escapeQuotes(text) {
+            if (!text) return '';
+            return String(text).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+        window.escapeQuotes = window.escapeQuotes || escapeQuotes;
+
+        function showToast(msg) {
+            if (typeof window.showToast === 'function' && window.showToast !== showToast) {
+                return window.showToast(msg);
+            }
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.innerText = msg;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+        }
+
+        function checkIsAdmin() {
+            return (typeof window.isAdmin !== 'undefined' && window.isAdmin) || 
+                   (typeof isAdmin !== 'undefined' && isAdmin);
+        }
+
+        function getCurrentUserName() {
+            return (typeof window.currentUserName !== 'undefined' && window.currentUserName) || 
+                   (typeof currentUserName !== 'undefined' && currentUserName) || 
+                   localStorage.getItem('zonehub_user_name') || 
+                   localStorage.getItem('skycommerce_user_name') || 'Employee';
+        }
+
+        function checkIsHost() {
+            return (typeof window.isCurrentHost !== 'undefined' && window.isCurrentHost) || 
+                   (typeof isCurrentHost !== 'undefined' && isCurrentHost);
+        }
+
         // Drag & Drop Upload Logic (Files & Folders)
         const dropZone = document.getElementById('dropZone');
         const filesSection = document.getElementById('filesSectionWrapper');
@@ -231,7 +278,7 @@
                 const dotIdx = f.name.lastIndexOf('.');
                 const ext = dotIdx >= 0 ? f.name.substring(dotIdx).toLowerCase() : '';
                 const isBlocked = blockedExts.includes(ext);
-                if (isBlocked && (typeof isAdmin === 'undefined' || !isAdmin) && (typeof isCurrentHost === 'undefined' || !isCurrentHost)) {
+                if (isBlocked && !checkIsAdmin() && !checkIsHost()) {
                     blockedCount++;
                 } else {
                     safeList.push(f);
@@ -303,7 +350,7 @@
                     xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
                     xhr.setRequestHeader('X-Folder', encodeURIComponent(fileTargetFolder));
                     xhr.setRequestHeader('X-Expiry', encodeURIComponent(expiryVal));
-                    xhr.setRequestHeader('X-Uploader', encodeURIComponent(currentUserName || 'Employee'));
+                    xhr.setRequestHeader('X-Uploader', encodeURIComponent(getCurrentUserName()));
                     if (isZip) xhr.setRequestHeader('X-Auto-Extract', 'true');
 
                     xhr.upload.onprogress = function(e) {
@@ -429,7 +476,7 @@
             if (!name || !name.trim()) return;
 
             try {
-                const res = await fetch('/api/folders/create', {
+                const res = await fetch('/api/folders/create?name=' + encodeURIComponent(name.trim()), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: name.trim() })
@@ -457,7 +504,7 @@
                 card.className = 'folder-card color-' + (folder.color || 'indigo');
                 card.onclick = () => openFolder(folder.id);
 
-                const deleteBtnHtml = (!folder.isSystem && isAdmin)
+                const deleteBtnHtml = (!folder.isSystem && checkIsAdmin())
                     ? '<button onclick="event.stopPropagation(); deleteFolderPrompt(\'' + escapeQuotes(folder.id) + '\', ' + folder.fileCount + ')" class="folder-del-btn" title="Delete Folder">🗑️</button>'
                     : '';
 
@@ -507,7 +554,7 @@
         }
 
         async function deleteFolderPrompt(folderId, fileCount) {
-            if (!isAdmin) {
+            if (!checkIsAdmin()) {
                 if (typeof openAdminModal === 'function') openAdminModal();
                 showToast('Admin permission required to delete folder.');
                 return;
@@ -673,7 +720,7 @@
                     const isCustom = folderObj ? !folderObj.isSystem : true;
 
                     const delActiveBtn = document.getElementById('deleteActiveFolderBtn');
-                    if (delActiveBtn) delActiveBtn.style.display = (isAdmin && isCustom) ? 'inline-flex' : 'none';
+                    if (delActiveBtn) delActiveBtn.style.display = (checkIsAdmin() && isCustom) ? 'inline-flex' : 'none';
 
                     document.getElementById('activeFolderNameText').innerHTML = (folderObj ? folderObj.icon + ' ' : '📁 ') + escapeHtml(folderName);
                     document.getElementById('activeFolderStatsText').innerText = folderFiles.length + ' ' + (folderFiles.length === 1 ? 'file' : 'files') + ' • ' + (folderObj ? folderObj.sizeFormatted : '');
@@ -862,7 +909,7 @@
                 const isChecked = selectedFilesMap.has(fileUrl);
                 const checkboxHtml = '<input type="checkbox" class="file-select-checkbox" ' + (isChecked ? 'checked' : '') + ' onchange="onFileCheckboxChanged(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', this)" onclick="event.stopPropagation()" title="Select to batch download" />';
 
-                const canDeleteFile = isAdmin || (file.uploader && file.uploader.toLowerCase() === (currentUserName || '').toLowerCase());
+                const canDeleteFile = checkIsAdmin() || (file.uploader && file.uploader.toLowerCase() === getCurrentUserName().toLowerCase());
                 const deleteFileBtnHtml = canDeleteFile
                     ? '<button onclick="deleteFilePrompt(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" class="btn btn-icon delete-file-btn" title="Delete File">🗑️</button>'
                     : '';
@@ -913,7 +960,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Admin-Token': adminToken,
-                        'X-Uploader': encodeURIComponent(currentUserName || '')
+                        'X-Uploader': encodeURIComponent(getCurrentUserName())
                     }
                 });
                 const data = await res.json();
@@ -1081,6 +1128,29 @@
 
         // Tracked Download Manager (Live Speed & Progress)
         function triggerDownloadTracked(url, filename, postData = null) {
+            if (!url) return;
+            const cleanName = filename || decodeURIComponent(url.split('/').pop().split('?')[0]) || 'download';
+
+            // Direct native stream download for all GET file/video downloads:
+            // This prevents allocating 600MB+ in JavaScript memory which crashes browser tabs,
+            // while streaming at maximum hardware speed with browser's native download manager!
+            if (!postData) {
+                const dlUrl = url + (url.includes('?') ? '&' : '?') + 'download=1';
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = dlUrl;
+                a.download = cleanName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    if (a.parentNode) document.body.removeChild(a);
+                }, 1000);
+                if (typeof showToast === 'function') {
+                    showToast('⬇️ Starting download: ' + cleanName);
+                }
+                return;
+            }
+
             const widget = document.getElementById('downloadWidget');
             const nameEl = document.getElementById('dlFileName');
             const pctEl = document.getElementById('dlPercent');
@@ -1088,12 +1158,12 @@
             const transEl = document.getElementById('dlTransferred');
             const speedEl = document.getElementById('dlSpeed');
 
-            nameEl.innerText = filename;
-            pctEl.innerText = '0%';
-            fillEl.style.width = '0%';
-            transEl.innerText = 'Starting...';
-            speedEl.innerText = postData ? 'Preparing ZIP...' : 'Calculating...';
-            widget.style.display = 'block';
+            if (nameEl) nameEl.innerText = filename;
+            if (pctEl) pctEl.innerText = '0%';
+            if (fillEl) fillEl.style.width = '0%';
+            if (transEl) transEl.innerText = 'Starting...';
+            if (speedEl) speedEl.innerText = postData ? 'Preparing ZIP...' : 'Calculating...';
+            if (widget) widget.style.display = 'block';
 
             let startTime = Date.now();
             let lastLoaded = 0;
@@ -1604,6 +1674,8 @@
         window.selectAllVisibleFiles = selectAllVisibleFiles;
         window.clearFileSelection = clearFileSelection;
         window.downloadSelectedFiles = downloadSelectedFiles;
+        window.triggerDownloadTracked = triggerDownloadTracked;
+        window.downloadMediaFile = triggerDownloadTracked;
 
         // Auto-run on load
         if (typeof loadFoldersList === 'function') loadFoldersList();

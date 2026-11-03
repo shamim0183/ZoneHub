@@ -367,6 +367,10 @@
                     if (mediaList.length === 1) {
                         const singleUrl = mediaList[0];
                         const isVid = /\.(mp4|webm|mov|mkv|avi)$/i.test(singleUrl.split('?')[0]);
+                        const urlFilePart = singleUrl.split('/').pop().split('?')[0];
+                        const realFileName = (msg.text && /\.[a-z0-9]{2,5}$/i.test(msg.text.trim())) 
+                            ? msg.text.trim() 
+                            : (decodeURIComponent(urlFilePart) || (isVid ? 'chat_video.mp4' : 'chat_photo.jpg'));
                         contentHtml = 
                             '<div class="chat-photo-wrapper">' +
                                 (isVid 
@@ -374,7 +378,7 @@
                                     : '<img src="' + singleUrl + '" class="chat-inline-photo" loading="lazy" onclick="previewMedia(\'' + escapeQuotes(singleUrl) + '\', \'Picture from ' + escapeQuotes(msg.user) + '\', \'image\')" title="Click for Fullscreen View" onload="scrollChatToBottom()" />'
                                 ) +
                                 '<div class="chat-photo-overlay">' +
-                                    '<button onclick="triggerDownloadTracked(\'' + escapeQuotes(singleUrl) + '\', \'' + (isVid ? 'chat_video.mp4' : 'chat_photo.jpg') + '\')" class="chat-photo-dl-btn" title="Download to PC">' +
+                                    '<button type="button" onclick="triggerDownloadTracked(\'' + escapeQuotes(singleUrl) + '\', \'' + escapeQuotes(realFileName) + '\')" class="chat-photo-dl-btn" title="Download to PC">' +
                                         '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Download' +
                                     '</button>' +
                                 '</div>' +

@@ -1,9 +1,29 @@
 // ============================================================================
 // ZoneHub - WebRTC Peer-to-Peer (P2P) Direct Drop Engine (0 Host Storage Used)
+// Large File (1GB+) Resilient Streaming with Backpressure Flow Control
 // ============================================================================
 
 (function() {
     'use strict';
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function formatBytes(bytes) {
+        if (typeof window.formatBytes === 'function') return window.formatBytes(bytes);
+        if (!bytes || isNaN(bytes) || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 
     const STUN_CONFIG = {
         iceServers: [
@@ -14,8 +34,10 @@
         ]
     };
 
-    const CHUNK_SIZE = 64 * 1024; // 64 KB chunks for smooth WebRTC SCTP streaming
-    const BUFFER_LIMIT = 16 * 1024 * 1024; // 16 MB buffer ceiling
+    // Safe SCTP chunk size for Mac Safari, iOS, Chrome, Edge & Firefox (RFC 8831)
+    const CHUNK_SIZE = 16384; // 16 KB
+    const HIGH_WATER_MARK = 1024 * 1024; // 1 MB high-water mark to prevent browser buffer overflow
+    const LOW_WATER_MARK = 256 * 1024;   // 256 KB low-water mark for continuous streaming
 
     let activePeerConnections = new Map(); // targetPeerId -> RTCPeerConnection
     let activeDataChannels = new Map();    // targetPeerId -> RTCDataChannel
@@ -211,9 +233,12 @@
             name: offer.fileName,
             size: offer.meta.size || 0,
             mime: offer.meta.mime || 'application/octet-stream',
-            chunks: [],
+            blobParts: [],
+            tempBatch: [],
+            batchBytes: 0,
             receivedBytes: 0,
-            startTime: Date.now()
+            startTime: Date.now(),
+            lastUiUpdate: 0
         };
 
         showP2PProgressCard('Receiving: ' + offer.fileName, 0, 0, offer.meta.size || 0);
@@ -246,15 +271,34 @@
             }
         };
 
+        pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === 'failed' && typeof pc.restartIce === 'function') {
+                pc.restartIce();
+            }
+        };
+
         const dc = pc.createDataChannel('zonehub_p2p', { ordered: true });
         activeDataChannels.set(toId, dc);
 
         dc.binaryType = 'arraybuffer';
-        dc.onbufferedamountlow = () => {};
+        dc.bufferedAmountLowThreshold = LOW_WATER_MARK;
+
+        dc.onmessage = (msgEvent) => {
+            handleDataChannelMessage(msgEvent.data, dc);
+        };
+
+        dc.onerror = (err) => {
+            console.error('[P2P] Sender DataChannel error:', err);
+        };
 
         dc.onopen = async () => {
-            showToast('⚡ P2P Direct connection established! Streaming ' + file.name + '...');
-            await streamFileOverDataChannel(dc, file);
+            showToast('⚡ Direct connection active! Streaming ' + file.name + ' (' + formatBytes(file.size) + ')...');
+            try {
+                await streamFileOverDataChannel(dc, file);
+            } catch (err) {
+                console.error('[P2P] Streaming failed:', err);
+                showToast('❌ Transfer interrupted: ' + (err.message || 'Connection lost'));
+            }
         };
 
         const offer = await pc.createOffer();
@@ -275,13 +319,24 @@
             }
         };
 
+        pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === 'failed' && typeof pc.restartIce === 'function') {
+                pc.restartIce();
+            }
+        };
+
         pc.ondatachannel = (e) => {
             const dc = e.channel;
             activeDataChannels.set(fromId, dc);
             dc.binaryType = 'arraybuffer';
+            dc.bufferedAmountLowThreshold = LOW_WATER_MARK;
 
             dc.onmessage = (msgEvent) => {
-                handleDataChannelMessage(msgEvent.data);
+                handleDataChannelMessage(msgEvent.data, dc);
+            };
+
+            dc.onerror = (err) => {
+                console.error('[P2P] Receiver DataChannel error:', err);
             };
         };
 
@@ -311,12 +366,46 @@
     }
 
     // -------------------------------------------------------------
-    // File Chunk Streaming (Sender)
+    // WebRTC Backpressure Flow Control Helper
+    // -------------------------------------------------------------
+    function waitForDrain(dc) {
+        if (!dc || dc.readyState !== 'open') {
+            return Promise.resolve();
+        }
+        if (dc.bufferedAmount <= LOW_WATER_MARK) {
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+            let timer = null;
+            const onLow = () => {
+                try { dc.removeEventListener('bufferedamountlow', onLow); } catch (e) {}
+                if (timer) clearTimeout(timer);
+                resolve();
+            };
+
+            try {
+                dc.addEventListener('bufferedamountlow', onLow);
+            } catch (e) {
+                onLow();
+                return;
+            }
+
+            // Safety timeout: poll every 40ms in case the browser misses the bufferedamountlow event
+            timer = setTimeout(() => {
+                try { dc.removeEventListener('bufferedamountlow', onLow); } catch (e) {}
+                resolve();
+            }, 40);
+        });
+    }
+
+    // -------------------------------------------------------------
+    // File Chunk Streaming (Sender with Backpressure)
     // -------------------------------------------------------------
     async function streamFileOverDataChannel(dc, file) {
         showP2PProgressCard('Sending: ' + file.name, 0, 0, file.size);
 
-        // Send metadata first
+        // Send metadata header first
         dc.send(JSON.stringify({
             type: 'meta',
             name: file.name,
@@ -326,44 +415,77 @@
 
         const totalBytes = file.size;
         let offset = 0;
+        let lastUiUpdate = 0;
         const startTime = Date.now();
 
         while (offset < totalBytes) {
-            if (dc.bufferedAmount > BUFFER_LIMIT) {
-                await new Promise((resolve) => {
-                    dc.onbufferedamountlow = () => {
-                        dc.onbufferedamountlow = null;
-                        resolve();
-                    };
-                });
+            if (dc.readyState !== 'open') {
+                throw new Error('Connection closed by peer');
+            }
+
+            // Flow control: If internal SCTP queue exceeds 1MB, wait for it to drain to 256KB
+            if (dc.bufferedAmount >= HIGH_WATER_MARK) {
+                await waitForDrain(dc);
+                continue;
             }
 
             const slice = file.slice(offset, offset + CHUNK_SIZE);
             const buffer = await slice.arrayBuffer();
-            dc.send(buffer);
-            offset += buffer.byteLength;
 
-            const pct = Math.min(99, Math.round((offset / totalBytes) * 100));
-            const elapsed = Math.max(0.1, (Date.now() - startTime) / 1000);
-            const speedBytesPerSec = offset / elapsed;
+            // Resilient send with retry to prevent QuotaExceededError crashes
+            let sent = false;
+            let retries = 0;
+            while (!sent && retries < 50) {
+                if (dc.readyState !== 'open') throw new Error('DataChannel closed unexpectedly');
+                try {
+                    dc.send(buffer);
+                    sent = true;
+                    offset += buffer.byteLength;
+                } catch (err) {
+                    retries++;
+                    console.warn('[P2P] Send buffer high, throttling...', err);
+                    await waitForDrain(dc);
+                    await new Promise(r => setTimeout(r, 40));
+                }
+            }
 
-            updateP2PProgress(pct, offset, totalBytes, speedBytesPerSec);
+            if (!sent) {
+                throw new Error('Transfer stalled: buffer did not drain');
+            }
+
+            // Throttle UI DOM updates to every 100ms for smooth 60fps rendering
+            const now = Date.now();
+            if (now - lastUiUpdate > 100 || offset >= totalBytes) {
+                lastUiUpdate = now;
+                const pct = Math.min(99, Math.round((offset / totalBytes) * 100));
+                const elapsed = Math.max(0.1, (now - startTime) / 1000);
+                const speedBytesPerSec = offset / elapsed;
+                updateP2PProgress(pct, offset, totalBytes, speedBytesPerSec);
+            }
         }
 
-        // Send completion footer
-        dc.send(JSON.stringify({ type: 'done' }));
+        // Wait until all remaining bytes have left the host machine's SCTP buffer
+        while (dc.bufferedAmount > 0 && dc.readyState === 'open') {
+            await waitForDrain(dc);
+        }
+
+        // Send completion signal
+        if (dc.readyState === 'open') {
+            dc.send(JSON.stringify({ type: 'done', name: file.name, size: totalBytes }));
+        }
+
         updateP2PProgress(100, totalBytes, totalBytes, 0);
         showToast('🎉 Sent ' + file.name + ' via direct P2P successfully (0 host storage used)!');
+
         if (typeof window.onP2PTransferCompleted === 'function') {
-            try { window.onP2PTransferCompleted(file); } catch(e) {}
+            try { window.onP2PTransferCompleted(file); } catch (e) {}
         }
-        resetTransferState();
     }
 
     // -------------------------------------------------------------
-    // Incoming Message Handler (Receiver)
+    // Incoming Message Handler (Receiver with Batched Blob Allocation)
     // -------------------------------------------------------------
-    function handleDataChannelMessage(data) {
+    function handleDataChannelMessage(data, dc) {
         if (typeof data === 'string') {
             try {
                 const msg = JSON.parse(data);
@@ -373,14 +495,26 @@
                             name: msg.name,
                             size: msg.size,
                             mime: msg.mime,
-                            chunks: [],
+                            blobParts: [],
+                            tempBatch: [],
+                            batchBytes: 0,
                             receivedBytes: 0,
-                            startTime: Date.now()
+                            startTime: Date.now(),
+                            lastUiUpdate: 0
                         };
+                    } else {
+                        if (msg.name) currentIncomingTransfer.name = msg.name;
+                        if (msg.size) currentIncomingTransfer.size = msg.size;
+                        if (msg.mime) currentIncomingTransfer.mime = msg.mime;
                     }
-                    showP2PProgressCard('Receiving: ' + msg.name, 0, 0, msg.size);
+                    showP2PProgressCard('Receiving: ' + currentIncomingTransfer.name, 0, 0, currentIncomingTransfer.size);
                 } else if (msg.type === 'done') {
-                    finalizeIncomingTransfer();
+                    finalizeIncomingTransfer(dc);
+                } else if (msg.type === 'ack') {
+                    // Confirmation that recipient saved file to disk
+                    showToast('🎉 ' + (msg.name || 'File') + ' delivered directly to peer successfully!');
+                    updateP2PProgress(100, 100, 100, 0);
+                    resetTransferState();
                 }
             } catch (e) {}
             return;
@@ -388,47 +522,82 @@
 
         // Binary ArrayBuffer chunk
         if (data instanceof ArrayBuffer && currentIncomingTransfer) {
-            currentIncomingTransfer.chunks.push(data);
+            currentIncomingTransfer.tempBatch.push(data);
+            currentIncomingTransfer.batchBytes += data.byteLength;
             currentIncomingTransfer.receivedBytes += data.byteLength;
 
-            const total = currentIncomingTransfer.size || 1;
-            const received = currentIncomingTransfer.receivedBytes;
-            const pct = Math.min(99, Math.round((received / total) * 100));
-            const elapsed = Math.max(0.1, (Date.now() - currentIncomingTransfer.startTime) / 1000);
-            const speedBytes = received / elapsed;
+            // Memory optimization for 1GB+ files: Batch chunks into Blobs every 8MB
+            // This prevents holding 65,000 separate ArrayBuffer references in Safari / Mac RAM
+            if (currentIncomingTransfer.batchBytes >= 8 * 1024 * 1024) {
+                currentIncomingTransfer.blobParts.push(new Blob(currentIncomingTransfer.tempBatch));
+                currentIncomingTransfer.tempBatch = [];
+                currentIncomingTransfer.batchBytes = 0;
+            }
 
-            updateP2PProgress(pct, received, total, speedBytes);
+            const now = Date.now();
+            if (now - currentIncomingTransfer.lastUiUpdate > 100 || currentIncomingTransfer.receivedBytes >= currentIncomingTransfer.size) {
+                currentIncomingTransfer.lastUiUpdate = now;
+                const total = currentIncomingTransfer.size || 1;
+                const received = currentIncomingTransfer.receivedBytes;
+                const pct = Math.min(99, Math.round((received / total) * 100));
+                const elapsed = Math.max(0.1, (now - currentIncomingTransfer.startTime) / 1000);
+                const speedBytes = received / elapsed;
+                updateP2PProgress(pct, received, total, speedBytes);
+            }
         }
     }
 
-    function finalizeIncomingTransfer() {
+    function finalizeIncomingTransfer(dc) {
         if (!currentIncomingTransfer) return;
 
         updateP2PProgress(100, currentIncomingTransfer.size, currentIncomingTransfer.size, 0);
 
-        const blob = new Blob(currentIncomingTransfer.chunks, {
+        // Flush any remaining chunks in the temporary batch
+        if (currentIncomingTransfer.tempBatch.length > 0) {
+            currentIncomingTransfer.blobParts.push(new Blob(currentIncomingTransfer.tempBatch));
+            currentIncomingTransfer.tempBatch = [];
+        }
+
+        const fileName = currentIncomingTransfer.name || 'p2p_file.dat';
+        const finalBlob = new Blob(currentIncomingTransfer.blobParts, {
             type: currentIncomingTransfer.mime || 'application/octet-stream'
         });
 
-        // Trigger browser instant download to user's disk
+        const url = URL.createObjectURL(finalBlob);
+
+        // Send delivery ACK back to sender over WebRTC
+        if (dc && dc.readyState === 'open') {
+            try {
+                dc.send(JSON.stringify({ type: 'ack', name: fileName }));
+            } catch (e) {}
+        }
+
+        // Trigger automatic instant download
         const a = document.createElement('a');
-        const url = URL.createObjectURL(blob);
         a.href = url;
-        a.download = currentIncomingTransfer.name || 'p2p_file.dat';
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+        // Keep card visible with direct manual click link in case Mac Safari popup blocker blocks auto-click
+        const card = document.getElementById('p2pTransferCard');
+        const titleEl = document.getElementById('p2pTransferTitle');
+        const statsEl = document.getElementById('p2pTransferStats');
+        if (titleEl) titleEl.innerHTML = '🎉 Download Ready: ' + escapeHtml(fileName);
+        if (statsEl) {
+            statsEl.innerHTML = '<a href="' + url + '" download="' + escapeHtml(fileName) + '" style="color:#38bdf8;font-weight:700;text-decoration:underline;">Click here to save file</a>';
+        }
 
         if (typeof playProfessionalChime === 'function') {
             playProfessionalChime();
         }
-        showToast('🎉 Received "' + currentIncomingTransfer.name + '" directly via P2P! Saved to your PC.');
+        showToast('🎉 Received "' + fileName + '" directly via P2P! Saved to your device.');
 
         setTimeout(() => {
-            const card = document.getElementById('p2pTransferCard');
             if (card) card.style.display = 'none';
-        }, 3000);
+            URL.revokeObjectURL(url);
+        }, 15000);
 
         currentIncomingTransfer = null;
     }
@@ -439,7 +608,7 @@
         setTimeout(() => {
             const card = document.getElementById('p2pTransferCard');
             if (card) card.style.display = 'none';
-        }, 3000);
+        }, 4000);
     }
 
     // -------------------------------------------------------------
@@ -599,13 +768,9 @@
         const files = Array.from(e.target.files || []);
         if (files.length === 0 || !targetPeerForTransfer) return;
 
-        // If multiple files selected in folder, alert that we package or send root folder
         const firstFile = files[0];
-        const folderName = (firstFile.webkitRelativePath ? firstFile.webkitRelativePath.split('/')[0] : 'Folder') + '.zip';
-
-        showToast('📦 Packaging folder with ' + files.length + ' files for direct P2P...');
-        // For clean browser P2P, we can offer the files or single file
-        window.handleP2PFileSelected({ target: { files: [files[0]] } });
+        showToast('📦 Sending ' + firstFile.name + ' via direct P2P...');
+        window.handleP2PFileSelected({ target: { files: [firstFile] } });
     };
 
     // -------------------------------------------------------------
@@ -628,4 +793,3 @@
         initP2P();
     }
 })();
-
