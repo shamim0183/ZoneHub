@@ -493,16 +493,36 @@
             }
         }
 
+        function classifyFileType(f) {
+            if (!f) return 'document';
+            const name = (f.name || '').toLowerCase();
+            const type = (f.type || '').toLowerCase();
+            if (type === 'video' || name.match(/\.(mp4|webm|mkv|mov|avi)$/i)) return 'video';
+            if (type === 'image' || type === 'gif' || name.match(/\.(png|jpg|jpeg|webp|svg|bmp|gif)$/i)) return 'image';
+            if (type === 'audio' || name.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i)) return 'audio';
+            if (type === 'archive' || name.match(/\.(zip|rar|7z|tar|gz|iso|apk)$/i)) return 'archive';
+            return 'document';
+        }
+
         function updateCounts(files) {
-            document.getElementById('fileCountBadge').innerText = files.length;
-            document.getElementById('allFilesCountBadge').innerText = files.length;
-            document.getElementById('countAll').innerText = files.length;
-            document.getElementById('countVideos').innerText = files.filter(f => f.type === 'video').length;
-            document.getElementById('countImages').innerText = files.filter(f => f.type === 'image').length;
-            document.getElementById('countGifs').innerText = files.filter(f => f.type === 'gif').length;
-            if (document.getElementById('countDocuments')) {
-                document.getElementById('countDocuments').innerText = files.filter(f => f.type === 'document').length;
-            }
+            const list = files || [];
+            const badge1 = document.getElementById('fileCountBadge');
+            const badge2 = document.getElementById('allFilesCountBadge');
+            const cAll = document.getElementById('countAll');
+            const cVid = document.getElementById('countVideos');
+            const cImg = document.getElementById('countImages');
+            const cAud = document.getElementById('countAudio');
+            const cDoc = document.getElementById('countDocuments');
+            const cArc = document.getElementById('countArchives');
+
+            if (badge1) badge1.innerText = list.length;
+            if (badge2) badge2.innerText = list.length;
+            if (cAll) cAll.innerText = list.length;
+            if (cVid) cVid.innerText = list.filter(f => classifyFileType(f) === 'video').length;
+            if (cImg) cImg.innerText = list.filter(f => classifyFileType(f) === 'image').length;
+            if (cAud) cAud.innerText = list.filter(f => classifyFileType(f) === 'audio').length;
+            if (cDoc) cDoc.innerText = list.filter(f => classifyFileType(f) === 'document').length;
+            if (cArc) cArc.innerText = list.filter(f => classifyFileType(f) === 'archive').length;
         }
 
         function updateViewDisplay() {
@@ -558,29 +578,100 @@
             }
         }
 
+        let currentActiveFiles = [];
+        let currentSortMode = 'newest';
+        let currentSearchQuery = '';
+
+        function onFileSortChange() {
+            const sel = document.getElementById('fileSortSelect');
+            if (sel) currentSortMode = sel.value;
+            renderFiles(currentActiveFiles);
+        }
+
+        function onFileSearchInput(val) {
+            currentSearchQuery = (val || '').trim().toLowerCase();
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) {
+                clearBtn.style.display = currentSearchQuery ? 'inline-flex' : 'none';
+            }
+            renderFiles(currentActiveFiles);
+        }
+
+        function clearFileSearch() {
+            const input = document.getElementById('searchInput');
+            if (input) input.value = '';
+            currentSearchQuery = '';
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) clearBtn.style.display = 'none';
+            renderFiles(currentActiveFiles);
+        }
+
         function renderFiles(files) {
+            currentActiveFiles = files || [];
             const listEl = document.getElementById('filesList');
             listEl.innerHTML = '';
 
-            let filtered = files;
+            let filtered = currentActiveFiles.slice();
             if (currentViewMode === 'all' && currentFilter !== 'all') {
-                filtered = files.filter(f => f.type === currentFilter);
+                filtered = filtered.filter(f => classifyFileType(f) === currentFilter);
+            }
+
+            if (currentSearchQuery) {
+                filtered = filtered.filter(f => {
+                    const name = (f.name || '').toLowerCase();
+                    const folder = (f.folder || '').toLowerCase();
+                    const uploader = (f.uploader || '').toLowerCase();
+                    const type = classifyFileType(f).toLowerCase();
+                    return name.includes(currentSearchQuery) || folder.includes(currentSearchQuery) || uploader.includes(currentSearchQuery) || type.includes(currentSearchQuery);
+                });
+            }
+
+            filtered.sort((a, b) => {
+                if (currentSortMode === 'name_asc') {
+                    return (a.name || '').localeCompare(b.name || '');
+                } else if (currentSortMode === 'name_desc') {
+                    return (b.name || '').localeCompare(a.name || '');
+                } else if (currentSortMode === 'size_desc') {
+                    return (b.size || 0) - (a.size || 0);
+                } else if (currentSortMode === 'size_asc') {
+                    return (a.size || 0) - (b.size || 0);
+                } else if (currentSortMode === 'oldest') {
+                    const timeA = a.timestamp || (a.date ? new Date(a.date).getTime() : 0);
+                    const timeB = b.timestamp || (b.date ? new Date(b.date).getTime() : 0);
+                    return timeA - timeB;
+                } else {
+                    // Newest first
+                    const timeA = a.timestamp || (a.date ? new Date(a.date).getTime() : 0);
+                    const timeB = b.timestamp || (b.date ? new Date(b.date).getTime() : 0);
+                    return timeB - timeA;
+                }
+            });
+
+            const statsCountEl = document.getElementById('filterStatsCount');
+            if (statsCountEl) {
+                if (currentSearchQuery || (currentViewMode === 'all' && currentFilter !== 'all')) {
+                    statsCountEl.innerHTML = `Showing <strong style="color:#38bdf8;">${filtered.length}</strong> of ${currentActiveFiles.length} files`;
+                } else {
+                    statsCountEl.innerHTML = `<strong style="color:#94a3b8;">${filtered.length}</strong> files`;
+                }
             }
 
             if (filtered.length === 0) {
-                listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">No files found in this folder/category.</div>';
+                listEl.innerHTML = '<div style="text-align:center;padding:35px 20px;color:var(--text-muted);font-size:13px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);border-radius:12px;margin:10px 0;">🔍 No files match your current search or filter criteria.</div>';
+                updateMultiSelectBar();
                 return;
             }
 
             filtered.forEach(file => {
                 const fileUrl = file.url || ('/' + encodeURIComponent(file.name));
                 const fileType = file.type;
+                const classified = classifyFileType(file);
 
                 // Real Thumbnail Rendering!
                 let thumbHtml = '';
                 let reviewBtn = '';
 
-                if (fileType === 'video') {
+                if (fileType === 'video' || classified === 'video') {
                     thumbHtml = 
                         '<div class="file-thumb-box">' +
                             '<video src="' + fileUrl + '#t=0.5" preload="metadata" muted playsinline webkit-playsinline class="file-thumb-media"></video>' +
@@ -593,7 +684,7 @@
 
                     reviewBtn = '<button onclick="playVideo(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" class="btn btn-primary" title="Review & Watch in Browser">' +
                         '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg> Review</button>';
-                } else if (fileType === 'image' || fileType === 'gif') {
+                } else if (fileType === 'image' || fileType === 'gif' || classified === 'image') {
                     thumbHtml = 
                         '<div class="file-thumb-box" onclick="previewMedia(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', \'' + fileType + '\')" style="cursor:pointer;" title="Click to view full preview">' +
                             '<img src="' + fileUrl + '" class="file-thumb-media" loading="lazy" alt="Thumbnail" />' +
@@ -601,6 +692,18 @@
 
                     reviewBtn = '<button onclick="previewMedia(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', \'' + fileType + '\')" class="btn ' + (fileType === 'gif' ? 'btn-amber' : 'btn-cyan') + '" title="Review in Browser">' +
                         '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Review</button>';
+                } else if (classified === 'audio') {
+                    thumbHtml = 
+                        '<div class="file-thumb-box" style="background:rgba(236,72,153,0.12);color:#f472b6;">' +
+                            '<span style="font-size:22px;">🎵</span>' +
+                        '</div>';
+                    reviewBtn = '<a href="' + fileUrl + '" target="_blank" class="btn btn-secondary" style="border-color:rgba(244,114,182,0.4);color:#f472b6;" title="Listen to Audio in Browser">' +
+                        '▶️ Play</a>';
+                } else if (classified === 'archive') {
+                    thumbHtml = 
+                        '<div class="file-thumb-box" style="background:rgba(245,158,11,0.12);color:#fbbf24;">' +
+                            '<span style="font-size:22px;">📦</span>' +
+                        '</div>';
                 } else if (file.name.match(/\.(csv|tsv)$/i)) {
                     thumbHtml = 
                         '<div class="file-thumb-box" onclick="openCsvViewer(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" style="background:rgba(16,185,129,0.12);color:#34d399;cursor:pointer;" title="Click to View Spreadsheet Grid">' +
@@ -667,7 +770,10 @@
                         '<button onclick="triggerDownloadTracked(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\')" class="btn btn-secondary" title="Download to My PC">' +
                             '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Download' +
                         '</button>' +
-                        '<button onclick="copyLink(\'' + escapeQuotes(fileUrl) + '\')" class="btn btn-icon" title="Copy Link">' +
+                        '<button type="button" onclick="openFileQrModal(\'' + escapeQuotes(fileUrl) + '\', \'' + escapeQuotes(file.name) + '\', \'' + escapeQuotes(file.sizeFormatted || '') + '\')" class="btn btn-icon btn-file-qr" title="Instant QR Code (Scan with phone camera to download)">' +
+                            '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>' +
+                        '</button>' +
+                        '<button onclick="copyLink(\'' + escapeQuotes(fileUrl) + '\')" class="btn btn-icon" title="Copy Direct Link">' +
                             '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>' +
                         '</button>' +
                         deleteFileBtnHtml +
@@ -676,7 +782,8 @@
                 listEl.appendChild(card);
             });
 
-            filterFiles();
+            updateMultiSelectBar();
+        }
             updateMultiSelectBar();
         }
 
@@ -787,12 +894,72 @@
         }
 
         function filterFiles() {
-            const q = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.querySelectorAll('.file-card');
-            cards.forEach(card => {
-                const name = card.getAttribute('data-filename').toLowerCase();
-                card.style.display = name.includes(q) ? 'flex' : 'none';
-            });
+            renderFiles(currentActiveFiles);
+        }
+
+        // 1-Click Instant File QR Modal Handlers
+        let activeFileQrUrl = '';
+
+        function openFileQrModal(fileUrl, fileName, fileSizeFormatted) {
+            const modal = document.getElementById('fileQrModal');
+            const container = document.getElementById('fileQrSvgContainer');
+            const nameEl = document.getElementById('fileQrNameDisplay');
+            const sizeEl = document.getElementById('fileQrSizeBadge');
+            const urlInput = document.getElementById('fileQrUrlInput');
+            if (!modal) return;
+
+            // Resolve shareable Wi-Fi URL:
+            const shareLink = document.getElementById('networkShareLink');
+            let baseOrigin = (shareLink && shareLink.href) ? shareLink.href.replace(/\/$/, '') : window.location.origin;
+            if (baseOrigin.includes('localhost') || baseOrigin.includes('127.0.0.1')) {
+                if (shareLink && shareLink.href && !shareLink.href.includes('localhost') && !shareLink.href.includes('127.0.0.1')) {
+                    baseOrigin = shareLink.href.replace(/\/$/, '');
+                }
+            }
+
+            const cleanRel = fileUrl.startsWith('/') ? fileUrl : ('/' + fileUrl);
+            activeFileQrUrl = baseOrigin + cleanRel;
+
+            if (nameEl) nameEl.innerText = fileName || 'File';
+            if (sizeEl) sizeEl.innerText = fileSizeFormatted || 'Shared File';
+            if (urlInput) urlInput.value = activeFileQrUrl;
+
+            modal.style.display = 'flex';
+
+            if (typeof window.renderQRToSvg === 'function' && container) {
+                window.renderQRToSvg(activeFileQrUrl, container, 220);
+            }
+        }
+
+        function closeFileQrModal(e) {
+            if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('modal-close-btn')) return;
+            const modal = document.getElementById('fileQrModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function copyFileQrUrl() {
+            if (!activeFileQrUrl) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(activeFileQrUrl).then(() => {
+                    if (typeof showToast === 'function') showToast('📋 Direct file link copied!');
+                }).catch(() => fallbackCopy(activeFileQrUrl));
+            } else {
+                fallbackCopy(activeFileQrUrl);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.opacity = '0';
+            document.body.appendChild(temp);
+            temp.select();
+            try {
+                document.execCommand('copy');
+                if (typeof showToast === 'function') showToast('📋 Direct file link copied!');
+            } catch (err) {}
+            document.body.removeChild(temp);
         }
 
         // Tracked Download Manager (Live Speed & Progress)
@@ -1298,4 +1465,10 @@
             }
         }
         window.closeDocViewerModal = closeDocViewerModal;
+        window.openFileQrModal = openFileQrModal;
+        window.closeFileQrModal = closeFileQrModal;
+        window.copyFileQrUrl = copyFileQrUrl;
+        window.onFileSortChange = onFileSortChange;
+        window.onFileSearchInput = onFileSearchInput;
+        window.clearFileSearch = clearFileSearch;
 

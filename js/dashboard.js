@@ -44,6 +44,29 @@
                     diskBar.classList.add('warning');
                 }
             }
+
+            // Storage Warning Banner Logic
+            const warnBanner = document.getElementById('storageWarningBanner');
+            const warnDrive = document.getElementById('storageWarnDrive');
+            const warnPct = document.getElementById('storageWarnPct');
+            const warnFree = document.getElementById('storageWarnFree');
+            const warnManageBtn = document.getElementById('storageWarnManageBtn');
+            if (warnBanner) {
+                const isCritical = data.storage.isLowSpace || (usedPct >= 90);
+                const isDismissed = sessionStorage.getItem('zonehub_storage_warn_dismissed') === 'true';
+                if (isCritical && !isDismissed) {
+                    warnBanner.style.display = 'flex';
+                    if (warnDrive) warnDrive.innerText = data.storage.drive || 'C:';
+                    if (warnPct) warnPct.innerText = `${usedPct}% full`;
+                    if (warnFree) warnFree.innerText = `${data.storage.freeFormatted || '0 GB'} free`;
+                    if (warnManageBtn) {
+                        warnManageBtn.style.display = (typeof isAdmin !== 'undefined' && isAdmin) ? 'inline-block' : 'none';
+                    }
+                } else if (!isCritical) {
+                    warnBanner.style.display = 'none';
+                    sessionStorage.removeItem('zonehub_storage_warn_dismissed');
+                }
+            }
         }
 
         // 2. Real-time LAN Speed & Traffic Metric
@@ -492,7 +515,14 @@
         }
     }
 
+    function dismissStorageWarning() {
+        const warnBanner = document.getElementById('storageWarningBanner');
+        if (warnBanner) warnBanner.style.display = 'none';
+        sessionStorage.setItem('zonehub_storage_warn_dismissed', 'true');
+    }
+
     // Expose Global Handlers
+    window.dismissStorageWarning = dismissStorageWarning;
     window.toggleGlobalTunnel = toggleGlobalTunnel;
     window.copyGlobalLink = copyGlobalLink;
     window.openGlobalQrModal = openGlobalQrModal;

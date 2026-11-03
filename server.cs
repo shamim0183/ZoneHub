@@ -1106,7 +1106,7 @@ namespace ZoneHub
                 }
 
                 // Host Stats & System Monitor
-                if (req.Method == "GET" && decodedPath.Equals("/api/stats", StringComparison.OrdinalIgnoreCase))
+                if (req.Method == "GET" && (decodedPath.Equals("/api/stats", StringComparison.OrdinalIgnoreCase) || decodedPath.Equals("/api/host-stats", StringComparison.OrdinalIgnoreCase)))
                 {
                     ServeHostStats(stream, req);
                     return;
@@ -3344,8 +3344,9 @@ namespace ZoneHub
                 if (ext == ".mp4" || ext == ".webm" || ext == ".mkv" || ext == ".mov" || ext == ".avi") fileType = "video";
                 else if (ext == ".gif") fileType = "gif";
                 else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".svg" || ext == ".bmp") fileType = "image";
-                else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".m4a" || ext == ".aac") fileType = "audio";
-                else if (ext == ".pdf" || ext == ".docx" || ext == ".doc" || ext == ".xlsx" || ext == ".xls" || ext == ".pptx" || ext == ".txt" || ext == ".zip" || ext == ".rar") fileType = "document";
+                else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".m4a" || ext == ".aac" || ext == ".flac") fileType = "audio";
+                else if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz" || ext == ".iso" || ext == ".apk") fileType = "archive";
+                else if (ext == ".pdf" || ext == ".docx" || ext == ".doc" || ext == ".xlsx" || ext == ".xls" || ext == ".pptx" || ext == ".txt" || ext == ".md" || ext == ".csv" || ext == ".json" || ext == ".js" || ext == ".py" || ext == ".cs") fileType = "document";
 
                 string rel = f.FullName.Substring(RootDirectory.Length).TrimStart('\\', '/').Replace('\\', '/');
                 string folderName = "Root";
@@ -3396,6 +3397,7 @@ namespace ZoneHub
                 sb.Append("\"size\":" + f.Length + ",");
                 sb.Append("\"sizeFormatted\":\"" + JsonEscape(FormatBytes(f.Length)) + "\",");
                 sb.Append("\"date\":\"" + JsonEscape(f.LastWriteTime.ToString("MMM dd, yyyy - hh:mm tt")) + "\",");
+                sb.Append("\"timestamp\":" + (long)(f.LastWriteTimeUtc.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds + ",");
                 sb.Append("\"type\":\"" + fileType + "\",");
                 sb.Append("\"uploader\":\"" + JsonEscape(uploader) + "\",");
                 sb.Append("\"expiresAt\":\"" + JsonEscape(expiresAt) + "\",");
@@ -3404,6 +3406,8 @@ namespace ZoneHub
                 sb.Append("\"isVideo\":" + (fileType == "video" ? "true" : "false") + ",");
                 sb.Append("\"isImage\":" + (fileType == "image" ? "true" : "false") + ",");
                 sb.Append("\"isGif\":" + (fileType == "gif" ? "true" : "false") + ",");
+                sb.Append("\"isAudio\":" + (fileType == "audio" ? "true" : "false") + ",");
+                sb.Append("\"isArchive\":" + (fileType == "archive" ? "true" : "false") + ",");
                 sb.Append("\"isDocument\":" + (fileType == "document" ? "true" : "false"));
                 sb.Append("}");
                 if (i < allFiles.Count - 1) sb.Append(",");

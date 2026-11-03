@@ -5801,3 +5801,132 @@
                 overflow-x: auto;
             }
         }
+
+        /* Auto Storage Warning & Disk Health Alert Banner */
+        .storage-warning-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 16px;
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.16) 0%, rgba(245, 158, 11, 0.12) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);
+            animation: alertGlow 3s ease-in-out infinite alternate;
+        }
+        @keyframes alertGlow {
+            0% { border-color: rgba(239, 68, 68, 0.35); box-shadow: 0 2px 10px rgba(239, 68, 68, 0.1); }
+            100% { border-color: rgba(239, 68, 68, 0.65); box-shadow: 0 4px 22px rgba(239, 68, 68, 0.25); }
+        }
+        .storage-warning-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #fee2e2;
+        }
+        .storage-warning-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .storage-warning-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .storage-warn-btn {
+            background: rgba(239, 68, 68, 0.25) !important;
+            border-color: rgba(239, 68, 68, 0.5) !important;
+            color: #fca5a5 !important;
+            font-size: 11.5px !important;
+            font-weight: 700 !important;
+            padding: 4px 10px !important;
+            border-radius: 8px !important;
+        }
+        .storage-warn-btn:hover {
+            background: rgba(239, 68, 68, 0.45) !important;
+            color: #fff !important;
+        }
+        .btn-micro-close {
+            background: transparent;
+            border: none;
+            color: #fca5a5;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .btn-micro-close:hover {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fff;
+        }
+
+        /* Advanced Search, Sort & Category Controls */
+        .search-clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+            padding: 2px 5px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .search-clear-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+        .file-sort-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 6px 10px;
+            color: var(--text-main);
+            font-size: 12px;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+            height: 35px;
+            transition: all 0.2s;
+        }
+        .file-sort-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+        .filter-pills-left {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .filter-stats-right {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            margin-left: auto;
+        }
+
+        /* 1-Click QR Code per File */
+        .btn-file-qr {
+            color: #38bdf8 !important;
+            background: rgba(56, 189, 248, 0.08) !important;
+            border-color: rgba(56, 189, 248, 0.25) !important;
+        }
+        .btn-file-qr:hover {
+            background: rgba(56, 189, 248, 0.2) !important;
+            border-color: rgba(56, 189, 248, 0.5) !important;
+            color: #7dd3fc !important;
+            transform: translateY(-1px);
+        }
+        .file-qr-modal-box {
+            animation: modalFadeIn 0.25s ease-out;
+        }

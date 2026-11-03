@@ -969,6 +969,8 @@ namespace ZoneHub {
         }
 
         private int consecutivePollFails = 0;
+        private int storagePollCounter = 0;
+        private bool storageAlertShown = false;
 
         private void PollServer() {
             ThreadPool.QueueUserWorkItem(state => {
@@ -984,6 +986,11 @@ namespace ZoneHub {
                             }
                             consecutivePollFails = 0;
                             UpdateConnectionIndicator(true);
+                            storagePollCounter++;
+                            if (storagePollCounter >= 12) {
+                                storagePollCounter = 0;
+                                CheckHostStorageAlert();
+                            }
                             return;
                         }
                     }
@@ -1014,6 +1021,52 @@ namespace ZoneHub {
 
                     UpdateConnectionIndicator(false);
                 }
+            });
+        }
+
+        private void CheckHostStorageAlert() {
+            ThreadPool.QueueUserWorkItem(s => {
+                try {
+                    string statsUrl = serverUrl + "/api/stats?t=" + DateTime.Now.Ticks;
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(statsUrl);
+                    req.Timeout = 2000;
+                    using (HttpWebResponse res = (HttpWebResponse)req.GetResponse()) {
+                        if (res.StatusCode == HttpStatusCode.OK) {
+                            using (StreamReader r = new StreamReader(res.GetResponseStream(), Encoding.UTF8)) {
+                                string json = r.ReadToEnd();
+                                int lowIdx = json.IndexOf("\"isLowSpace\":");
+                                bool isLow = false;
+                                if (lowIdx >= 0) {
+                                    string val = json.Substring(lowIdx + 13, Math.Min(5, json.Length - (lowIdx + 13))).ToLowerInvariant();
+                                    isLow = val.StartsWith("true");
+                                }
+                                int pctIdx = json.IndexOf("\"usedPercent\":");
+                                string pct = "";
+                                if (pctIdx >= 0) {
+                                    int endComma = json.IndexOfAny(new char[] { ',', '}' }, pctIdx + 14);
+                                    if (endComma > pctIdx) pct = json.Substring(pctIdx + 14, endComma - (pctIdx + 14)).Trim();
+                                }
+                                int freeIdx = json.IndexOf("\"freeFormatted\":\"");
+                                string free = "";
+                                if (freeIdx >= 0) {
+                                    int endQ = json.IndexOf('"', freeIdx + 17);
+                                    if (endQ > freeIdx) free = json.Substring(freeIdx + 17, endQ - (freeIdx + 17));
+                                }
+
+                                if (isLow) {
+                                    if (!storageAlertShown) {
+                                        storageAlertShown = true;
+                                        Dispatcher.BeginInvoke(new Action(() => {
+                                            ShowDesktopTeaser("Disk Space Critical ⚠️", "Host drive is " + pct + "% full (" + free + " free)! Please free up storage.");
+                                        }));
+                                    }
+                                } else {
+                                    storageAlertShown = false;
+                                }
+                            }
+                        }
+                    }
+                } catch { }
             });
         }
 
