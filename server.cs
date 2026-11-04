@@ -4171,7 +4171,7 @@ namespace ZoneHub
                 case ".jpeg": return "image/jpeg";
                 case ".gif": return "image/gif";
                 case ".webp": return "image/webp";
-                case ".svg": return "image/svg+xml";
+                case ".svg": return "image/svg+xml; charset=utf-8";
                 case ".bmp": return "image/bmp";
                 case ".ico": return "image/x-icon";
                 case ".mp3": return "audio/mpeg";
@@ -4180,9 +4180,9 @@ namespace ZoneHub
                 case ".pdf": return "application/pdf";
                 case ".zip": return "application/zip";
                 case ".html": return "text/html; charset=utf-8";
-                case ".css": return "text/css";
-                case ".js": return "application/javascript";
-                case ".json": return "application/json";
+                case ".css": return "text/css; charset=utf-8";
+                case ".js": return "application/javascript; charset=utf-8";
+                case ".json": return "application/json; charset=utf-8";
                 case ".txt": return "text/plain; charset=utf-8";
                 default: return "application/octet-stream";
             }

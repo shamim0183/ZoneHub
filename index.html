@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261103j">
+    <link rel="stylesheet" href="/css/style.css?v=20261103k">
 </head>
 <body>
     <div class="container">
@@ -55,22 +55,22 @@
                             <span>Rename Hub</span>
                         </button>
                     </div>
-                    <p class="brand-sub">Connected Network Zone â€¢ Shared Files, Voice Notes &amp; Real-time Team Chat</p>
+                    <p class="brand-sub">Connected Network Zone • Shared Files, Voice Notes &amp; Real-time Team Chat</p>
                 </div>
             </div>
             <div class="header-actions">
                 <div class="lang-selector-wrap">
-                    <select id="langSelect" class="btn btn-secondary lang-select-pill" onchange="changeLanguage(this.value)" title="Change Language / à¦­à¦¾à¦·à¦¾ à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨" style="padding:6px 10px;font-size:12px;font-weight:700;color-scheme:dark;background:#1e293b;color:#f8fafc;cursor:pointer;">
-                        <option value="en" style="background:#0f172a;color:#fff;">ðŸŒ English</option>
-                        <option value="bn" style="background:#0f172a;color:#fff;">ðŸ‡§ðŸ‡© à¦¬à¦¾à¦‚à¦²à¦¾</option>
-                        <option value="es" style="background:#0f172a;color:#fff;">ðŸ‡ªðŸ‡¸ EspaÃ±ol</option>
-                        <option value="ar" style="background:#0f172a;color:#fff;">ðŸ‡¸ðŸ‡¦ Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©</option>
+                    <select id="langSelect" class="btn btn-secondary lang-select-pill" onchange="changeLanguage(this.value)" title="Change Language / ভাষা পরিবর্তন" style="padding:6px 10px;font-size:12px;font-weight:700;color-scheme:dark;background:#1e293b;color:#f8fafc;cursor:pointer;">
+                        <option value="en" style="background:#0f172a;color:#fff;">🌐 English</option>
+                        <option value="bn" style="background:#0f172a;color:#fff;">🇧🇩 বাংলা</option>
+                        <option value="es" style="background:#0f172a;color:#fff;">🇪🇸 Español</option>
+                        <option value="ar" style="background:#0f172a;color:#fff;">🇸🇦 العربية</option>
                     </select>
                 </div>
-                <button id="pwaInstallBtn" onclick="triggerPwaInstall()" class="pwa-install-btn" style="display:none;" title="Install Hub App to your PC or Phone">ðŸ“² Install App</button>
+                <button id="pwaInstallBtn" onclick="triggerPwaInstall()" class="pwa-install-btn" style="display:none;" title="Install Hub App to your PC or Phone">📲 Install App</button>
                 <div class="admin-status-wrap" id="adminStatusWrap" style="display:none;">
                     <button id="adminLoginBtn" onclick="openAdminModal()" class="btn btn-secondary admin-toggle-btn" title="Admin Security &amp; Access">
-                        <span id="adminBtnIcon">ðŸ”’</span>
+                        <span id="adminBtnIcon">🔒</span>
                         <span id="adminBtnLabel">Admin</span>
                     </button>
                 </div>
@@ -80,13 +80,13 @@
                         <span class="user-badge-role" id="userBadgeRoleLabel">You:</span>
                         <span class="user-name-text" id="currentUserNameDisplay">Loading...</span>
                     </div>
-                    <span class="user-badge-edit-icon" title="Change Name">âœï¸</span>
+                    <span class="user-badge-edit-icon" title="Change Name">✏️</span>
                 </div>
                 <button onclick="toggleMiniDock()" class="btn btn-secondary btn-mini-dock" title="Open Floating Mini Dock in screen corner" style="font-weight:700;gap:6px;">
-                    ðŸ“Œ Mini Dock
+                    📌 Mini Dock
                 </button>
                 <a href="/ZoneHubBubble.exe" download="ZoneHubBubble.exe" onclick="handleDesktopBubbleClick(event)" class="btn btn-secondary btn-desktop-bubble" title="Download Floating Desktop Bubble for PC or Mac Guide" style="font-weight:700;gap:6px;text-decoration:none;">
-                    ðŸ–¥ï¸ Desktop Bubble
+                    🖥️ Desktop Bubble
                 </a>
                 <button onclick="copyFullShareUrl()" class="btn btn-primary">
                     <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
@@ -107,19 +107,19 @@
                     <a href="http://localhost:8080" class="link-value" target="_blank">http://localhost:8080</a>
                 </div>
                 <div class="link-group highlight-link" style="background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);display:flex;align-items:center;gap:6px;">
-                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">ðŸ“± Office Wi-Fi:</span>
+                    <span class="link-label" style="color:#7dd3fc;font-weight:700;">📱 Office Wi-Fi:</span>
                     <a href="http://{{LOCAL_IP}}:8080" id="networkShareLink" class="link-value" target="_blank" style="color:#38bdf8;font-weight:700;">http://{{LOCAL_IP}}:8080</a>
-                    <button type="button" onclick="openQrModal()" class="btn btn-secondary" style="font-size:11px;padding:2px 8px;font-weight:700;gap:4px;background:rgba(56,189,248,0.2);border-color:rgba(56,189,248,0.4);color:#38bdf8;margin-left:4px;" title="Scan with Phone Camera to Connect Instantly">ðŸ“± QR Code</button>
+                    <button type="button" onclick="openQrModal()" class="btn btn-secondary" style="font-size:11px;padding:2px 8px;font-weight:700;gap:4px;background:rgba(56,189,248,0.2);border-color:rgba(56,189,248,0.4);color:#38bdf8;margin-left:4px;" title="Scan with Phone Camera to Connect Instantly">📱 QR Code</button>
                 </div>
                 <div class="link-group pcname-link-group">
-                    <span class="link-label">ðŸ’» PC Name:</span>
+                    <span class="link-label">💻 PC Name:</span>
                     <a href="http://{{HOSTNAME}}:8080" class="link-value" target="_blank">http://{{HOSTNAME}}:8080</a>
                 </div>
                 <div id="globalTunnelLinkGroup" class="link-group" style="display:none;background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.3);display:flex;align-items:center;gap:6px;">
-                    <span class="link-label" style="color:#34d399;font-weight:700;">ðŸŒ Global Link:</span>
+                    <span class="link-label" style="color:#34d399;font-weight:700;">🌐 Global Link:</span>
                     <a href="#" id="globalShareLink" class="link-value" target="_blank" style="color:#10b981;font-weight:700;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">https://...</a>
-                    <button type="button" onclick="copyGlobalLink()" class="btn btn-secondary" style="font-size:11px;padding:2px 7px;font-weight:700;gap:4px;background:rgba(16,185,129,0.2);border-color:rgba(16,185,129,0.4);color:#34d399;" title="Copy Global Internet URL">ðŸ“‹ Copy</button>
-                    <button type="button" onclick="openGlobalQrModal()" class="btn btn-secondary" style="font-size:11px;padding:2px 7px;font-weight:700;gap:4px;background:rgba(16,185,129,0.2);border-color:rgba(16,185,129,0.4);color:#34d399;" title="Scan with Phone Camera from Outside Office">ðŸ“± QR</button>
+                    <button type="button" onclick="copyGlobalLink()" class="btn btn-secondary" style="font-size:11px;padding:2px 7px;font-weight:700;gap:4px;background:rgba(16,185,129,0.2);border-color:rgba(16,185,129,0.4);color:#34d399;" title="Copy Global Internet URL">📋 Copy</button>
+                    <button type="button" onclick="openGlobalQrModal()" class="btn btn-secondary" style="font-size:11px;padding:2px 7px;font-weight:700;gap:4px;background:rgba(16,185,129,0.2);border-color:rgba(16,185,129,0.4);color:#34d399;" title="Scan with Phone Camera from Outside Office">📱 QR</button>
                 </div>
             </div>
         </div>
@@ -127,25 +127,25 @@
         <!-- Auto Storage Warning & Disk Health Alert Banner -->
         <div id="storageWarningBanner" class="storage-warning-banner" style="display:none;">
             <div class="storage-warning-left">
-                <span class="storage-warning-icon">âš ï¸</span>
+                <span class="storage-warning-icon">⚠️</span>
                 <div class="storage-warning-text">
                     <strong>Disk Space Critical:</strong> Host storage drive <strong id="storageWarnDrive">C:</strong> is <span id="storageWarnPct" style="color:#f87171;font-weight:700;">92% full</span> (<span id="storageWarnFree">1.2 GB</span> free).
                 </div>
             </div>
             <div class="storage-warning-actions">
                 <button type="button" onclick="handleStorageMetricClick()" class="btn btn-secondary btn-sm storage-warn-btn" id="storageWarnManageBtn" style="display:none;">Switch Drive / Manage</button>
-                <button type="button" onclick="dismissStorageWarning()" class="btn-micro-close" title="Dismiss">âœ•</button>
+                <button type="button" onclick="dismissStorageWarning()" class="btn-micro-close" title="Dismiss">✕</button>
             </div>
         </div>
 
         <!-- Host PC Live System & Speed Dashboard -->
         <div class="host-live-dashboard" id="hostLiveDashboard">
             <div class="dashboard-metric metric-disk" id="metricDisk" onclick="handleStorageMetricClick()" style="cursor:pointer;" title="Host Storage Drive">
-                <div class="metric-icon">ðŸ’½</div>
+                <div class="metric-icon">💽</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_disk_storage">Host Storage</span>
-                        <span class="metric-devices-badge" id="hostStorageChangeBtn" style="white-space:nowrap;display:none;">Change â–¾</span>
+                        <span class="metric-devices-badge" id="hostStorageChangeBtn" style="white-space:nowrap;display:none;">Change ▾</span>
                     </div>
                     <span class="metric-value" id="diskFreeText" style="display:block;margin-bottom:3px;">Loading...</span>
                     <div class="disk-progress-bar-wrap" title="Storage Usage">
@@ -154,33 +154,33 @@
                 </div>
             </div>
             <div class="dashboard-metric metric-speed" id="metricSpeed">
-                <div class="metric-icon"><span class="pulse-indicator"></span>âš¡</div>
+                <div class="metric-icon"><span class="pulse-indicator"></span>⚡</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_lan_speed">Live LAN Speed</span>
-                        <span class="metric-sub" id="lanTrafficTotal" style="margin:0;font-size:10px;white-space:nowrap;">â†“ 0 B â€¢ â†‘ 0 B</span>
+                        <span class="metric-sub" id="lanTrafficTotal" style="margin:0;font-size:10px;white-space:nowrap;">↓ 0 B • ↑ 0 B</span>
                     </div>
-                    <span class="metric-value" id="lanSpeedText">â†“ 0 KB/s â†‘ 0 KB/s</span>
+                    <span class="metric-value" id="lanSpeedText">↓ 0 KB/s ↑ 0 KB/s</span>
                 </div>
             </div>
             <div class="dashboard-metric metric-devices" id="metricDevices" onclick="toggleActivePeersPopover(event)" tabindex="0">
-                <div class="metric-icon">ðŸ‘¥</div>
+                <div class="metric-icon">👥</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_active_devices">Active Devices</span>
-                        <span class="metric-devices-badge">Details â–¾</span>
+                        <span class="metric-devices-badge">Details ▾</span>
                     </div>
                     <span class="metric-value" id="activeDevicesText">1 Online</span>
                 </div>
             </div>
             <div class="dashboard-metric metric-remote" id="metricRemote" onclick="handleRemoteMetricClick()" style="cursor:pointer;" title="Remote Access Status">
-                <div class="metric-icon">ðŸŒ</div>
+                <div class="metric-icon">🌐</div>
                 <div class="metric-body">
                     <div class="metric-header">
                         <span class="metric-title" data-i18n="host_remote_status">Remote Access</span>
                         <button type="button" onclick="event.stopPropagation(); if(typeof isAdmin!=='undefined'&&isAdmin)openAdminModal();" class="btn-micro-toggle" id="remoteToggleQuickBtn" style="display:none;" title="Toggle Remote Access in Admin">Go Global</button>
                     </div>
-                    <span class="metric-value" id="remoteStatusText" style="display:block;font-size:13px;font-weight:800;color:var(--text-muted);">âšª Local Only</span>
+                    <span class="metric-value" id="remoteStatusText" style="display:block;font-size:13px;font-weight:800;color:var(--text-muted);">⚪ Local Only</span>
                 </div>
             </div>
         </div>
@@ -189,15 +189,15 @@
         <div class="active-peers-popover" id="activePeersPopover" onclick="event.stopPropagation()">
             <div class="active-peers-popover-header">
                 <div style="font-weight:800;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;">
-                    <span>ðŸ‘¥</span> Connected Devices
+                    <span>👥</span> Connected Devices
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span class="active-peers-count-tag" id="activePeersCountTag">1 Online</span>
-                    <button type="button" class="popover-close-btn" onclick="closeActivePeersPopover(event)" title="Close">âœ•</button>
+                    <button type="button" class="popover-close-btn" onclick="closeActivePeersPopover(event)" title="Close">✕</button>
                 </div>
             </div>
             <div style="padding:6px 12px;font-size:10.5px;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(99,102,241,0.06);display:flex;align-items:center;gap:6px;">
-                <span>ðŸ’¡</span> Click any colleague to start 1-on-1 private chat &amp; direct P2P transfer
+                <span>💡</span> Click any colleague to start 1-on-1 private chat &amp; direct P2P transfer
             </div>
             <div class="active-peers-list" id="activePeersList">
                 <div style="font-size:11px;color:var(--text-muted);text-align:center;padding:12px;">Loading active colleagues...</div>
@@ -223,7 +223,7 @@
             </button>
             <button class="tab-btn" id="tabP2pBtn" onclick="switchView('p2p')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                âš¡ AirDrop Beam
+                ⚡ AirDrop Beam
                 <span class="badge-counter" id="p2pPeersCountBadge" style="display:none;background:#06b6d4;color:#fff;">0</span>
             </button>
         </div>
@@ -239,24 +239,24 @@
                     <div class="upload-icon">
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                     </div>
-                    <div class="upload-title">à¦«à¦¾à¦‡à¦², à¦›à¦¬à¦¿, à¦­à¦¿à¦¡à¦¿à¦“ à¦¬à¦¾ à¦«à§‹à¦²à§à¦¡à¦¾à¦° à¦à¦–à¦¾à¦¨à§‡ à¦¡à§à¦°à¦ª à¦•à¦°à§à¦¨ à¦…à¦¥à¦¬à¦¾ à¦¸à¦¿à¦²à§‡à¦•à§à¦Ÿ à¦•à¦°à§à¦¨</div>
-                    <div class="upload-desc">à¦¯à§‡ à¦•à§‹à¦¨à§‹ à¦ªà¦¿à¦¸à¦¿/à¦®à§à¦¯à¦¾à¦•/à¦«à§‹à¦¨ à¦¥à§‡à¦•à§‡ à¦«à¦¾à¦‡à¦² à¦¬à¦¾ à¦¸à¦®à§à¦ªà§‚à¦°à§à¦£ à¦«à§‹à¦²à§à¦¡à¦¾à¦° à¦†à¦ªà¦²à§‹à¦¡ à¦•à¦°à§à¦¨ &bull; à¦¸à¦¾à¦‡à¦œ à¦²à¦¿à¦®à¦¿à¦Ÿ à¦¨à§‡à¦‡</div>
+                    <div class="upload-title">ফাইল, ছবি, ভিডিও বা ফোল্ডার এখানে ড্রপ করুন অথবা সিলেক্ট করুন</div>
+                    <div class="upload-desc">যে কোনো পিসি/ম্যাক/ফোন থেকে ফাইল বা সম্পূর্ণ ফোল্ডার আপলোড করুন &bull; সাইজ লিমিট নেই</div>
                     <div style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:11px;color:#a5b4fc;flex-wrap:wrap;" onclick="event.stopPropagation()">
-                        <span onclick="openNetworkStorageModal('storage')" style="cursor:pointer;text-decoration:underline;">ðŸ’¡ Host PC: Move files directly (0 duplicate memory)</span>
+                        <span onclick="openNetworkStorageModal('storage')" style="cursor:pointer;text-decoration:underline;">💡 Host PC: Move files directly (0 duplicate memory)</span>
                         <span>&bull;</span>
-                        <span onclick="openNetworkStorageModal('download')" style="cursor:pointer;text-decoration:underline;">ðŸ“¥ How to choose download folder</span>
+                        <span onclick="openNetworkStorageModal('download')" style="cursor:pointer;text-decoration:underline;">📥 How to choose download folder</span>
                     </div>
                     
                     <!-- Upload Destination Selector -->
                     <div class="upload-dest-row" onclick="event.stopPropagation()">
-                        <span style="color:var(--text-muted);font-weight:600;white-space:nowrap;" data-i18n="lbl_save_folder">ðŸ“‚ Save to Folder:</span>
+                        <span style="color:var(--text-muted);font-weight:600;white-space:nowrap;" data-i18n="lbl_save_folder">📂 Save to Folder:</span>
                         <div class="upload-dest-controls">
                             <select id="uploadFolderSelect" class="upload-folder-select" onchange="onUploadFolderChanged(this.value)" style="color-scheme:dark;background:#1e293b;color:#fff;cursor:pointer;">
-                                <option value="auto" style="background:#0f172a;color:#fff;">âš¡ Auto-Sort (à¦¸à§à¦¬à§Ÿà¦‚à¦•à§à¦°à¦¿à§Ÿ)</option>
-                                <option value="Videos" style="background:#0f172a;color:#fff;">ðŸŽ¥ Videos (à¦­à¦¿à¦¡à¦¿à¦“)</option>
-                                <option value="Pictures" style="background:#0f172a;color:#fff;">ðŸ–¼ï¸ Pictures (à¦›à¦¬à¦¿)</option>
-                                <option value="Chat_Media" style="background:#0f172a;color:#fff;">ðŸ’¬ Chat Media (à¦šà§à¦¯à¦¾à¦Ÿ à¦®à¦¿à¦¡à¦¿à§Ÿà¦¾)</option>
-                                <option value="Documents" style="background:#0f172a;color:#fff;">ðŸ“„ Documents (à¦¡à¦•à§à¦®à§‡à¦¨à§à¦Ÿà¦¸)</option>
+                                <option value="auto" style="background:#0f172a;color:#fff;">⚡ Auto-Sort (স্বয়ংক্রিয়)</option>
+                                <option value="Videos" style="background:#0f172a;color:#fff;">🎥 Videos (ভিডিও)</option>
+                                <option value="Pictures" style="background:#0f172a;color:#fff;">🖼️ Pictures (ছবি)</option>
+                                <option value="Chat_Media" style="background:#0f172a;color:#fff;">💬 Chat Media (চ্যাট মিডিয়া)</option>
+                                <option value="Documents" style="background:#0f172a;color:#fff;">📄 Documents (ডকুমেন্টস)</option>
                             </select>
                             <button type="button" onclick="promptCreateNewFolder()" class="btn btn-secondary btn-new-folder" title="Create Custom Folder">+ New Folder</button>
                         </div>
@@ -264,14 +264,14 @@
 
                     <!-- Upload Auto-Delete / Expiry Selector -->
                     <div class="upload-dest-row" onclick="event.stopPropagation()" style="margin-top:6px;">
-                        <span style="color:var(--text-muted);font-weight:600;white-space:nowrap;" data-i18n="lbl_auto_delete">â³ Auto-Delete:</span>
+                        <span style="color:var(--text-muted);font-weight:600;white-space:nowrap;" data-i18n="lbl_auto_delete">⏳ Auto-Delete:</span>
                         <div class="upload-dest-controls">
                             <select id="uploadExpirySelect" class="upload-folder-select" title="Files older than this duration will be automatically deleted to save host storage." style="color-scheme:dark;background:#1e293b;color:#fff;cursor:pointer;">
-                                <option value="15d" selected style="background:#0f172a;color:#fff;">â³ 15 Days (Auto-delete after 15 days) [à§§à§« à¦¦à¦¿à¦¨]</option>
-                                <option value="30d" style="background:#0f172a;color:#fff;">â³ 30 Days / 1 Month (Auto-delete after 1 month) [à§§ à¦®à¦¾à¦¸]</option>
-                                <option value="never" style="background:#0f172a;color:#fff;">â™¾ï¸ Keep Forever (No auto-delete) [à¦šà¦¿à¦°à¦¸à§à¦¥à¦¾à§Ÿà§€]</option>
-                                <option value="24h" style="background:#0f172a;color:#fff;">âš¡ 24 Hours (Temporary Quick Share) [à§¨à§ª à¦˜à¦£à§à¦Ÿà¦¾]</option>
-                                <option value="7d" style="background:#0f172a;color:#fff;">â³ 7 Days (1 Week) [à§§ à¦¸à¦ªà§à¦¤à¦¾à¦¹]</option>
+                                <option value="15d" selected style="background:#0f172a;color:#fff;">⏳ 15 Days (Auto-delete after 15 days) [১৫ দিন]</option>
+                                <option value="30d" style="background:#0f172a;color:#fff;">⏳ 30 Days / 1 Month (Auto-delete after 1 month) [১ মাস]</option>
+                                <option value="never" style="background:#0f172a;color:#fff;">♾️ Keep Forever (No auto-delete) [চিরস্থায়ী]</option>
+                                <option value="24h" style="background:#0f172a;color:#fff;">⚡ 24 Hours (Temporary Quick Share) [২৪ ঘণ্টা]</option>
+                                <option value="7d" style="background:#0f172a;color:#fff;">⏳ 7 Days (1 Week) [১ সপ্তাহ]</option>
                             </select>
                         </div>
                     </div>
@@ -283,7 +283,7 @@
                         </button>
                         <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); triggerFolderUpload()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 12px rgba(99,102,241,0.35);">
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-                            ðŸ“ Upload Entire Folder
+                            📁 Upload Entire Folder
                         </button>
                     </div>
 
@@ -325,25 +325,25 @@
                 <div class="folder-nav-bar">
                     <div class="view-mode-group">
                         <button id="viewModeFoldersBtn" class="view-mode-btn active" onclick="switchViewMode('folders')">
-                            ðŸ“ Folders (à¦«à§‹à¦²à§à¦¡à¦¾à¦°)
+                            📁 Folders (ফোল্ডার)
                         </button>
                         <button id="viewModeAllBtn" class="view-mode-btn" onclick="switchViewMode('all')">
-                            ðŸ“„ All Files (<span id="allFilesCountBadge">0</span>)
+                            📄 All Files (<span id="allFilesCountBadge">0</span>)
                         </button>
                     </div>
                     <div class="search-box">
                         <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         <input type="text" id="searchInput" placeholder="Search files by name, type, ext..." oninput="onFileSearchInput(this.value)">
-                        <button type="button" id="clearSearchBtn" onclick="clearFileSearch()" class="search-clear-btn" style="display:none;" title="Clear search">âœ•</button>
+                        <button type="button" id="clearSearchBtn" onclick="clearFileSearch()" class="search-clear-btn" style="display:none;" title="Clear search">✕</button>
                     </div>
                     <div class="sort-box">
                         <select id="fileSortSelect" class="chat-input file-sort-select" onchange="onFileSortChange()" title="Sort Files">
-                            <option value="newest">ðŸ“… Newest First</option>
-                            <option value="oldest">â³ Oldest First</option>
-                            <option value="name_asc">ðŸ”¤ Name (A â†’ Z)</option>
-                            <option value="name_desc">ðŸ”  Name (Z â†’ A)</option>
-                            <option value="size_desc">ðŸ’¾ Size (Largest)</option>
-                            <option value="size_asc">ðŸ“‰ Size (Smallest)</option>
+                            <option value="newest">📅 Newest First</option>
+                            <option value="oldest">⏳ Oldest First</option>
+                            <option value="name_asc">🔤 Name (A → Z)</option>
+                            <option value="name_desc">🔠 Name (Z → A)</option>
+                            <option value="size_desc">💾 Size (Largest)</option>
+                            <option value="size_asc">📉 Size (Smallest)</option>
                         </select>
                     </div>
                 </div>
@@ -352,7 +352,7 @@
                 <div id="foldersViewSection">
                     <div class="section-header">
                         <div class="section-title">
-                            ðŸ“ Media Folders (à¦•à§à¦¯à¦¾à¦Ÿà¦¾à¦—à¦°à¦¿ à¦«à§‹à¦²à§à¦¡à¦¾à¦°à¦¸à¦®à§‚à¦¹)
+                            📁 Media Folders (ক্যাটাগরি ফোল্ডারসমূহ)
                         </div>
                         <button onclick="promptCreateNewFolder()" class="btn btn-secondary" style="font-size:12px;padding:4px 10px;">
                             + New Folder
@@ -367,20 +367,20 @@
                 <div id="folderActiveBanner" class="folder-active-banner" style="display:none;">
                     <div class="breadcrumb-trail">
                         <span class="breadcrumb-crumb" onclick="backToAllFolders()">
-                            ðŸ  All Folders
+                            🏠 All Folders
                         </span>
                         <span style="color:var(--text-muted);">&rsaquo;</span>
                         <span class="breadcrumb-active" id="activeFolderNameText">
-                            ðŸ“ Folder
+                            📁 Folder
                         </span>
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <span id="activeFolderStatsText" class="folder-count-pill">0 files</span>
                         <button id="downloadActiveFolderBtn" onclick="downloadActiveFolderAll()" class="btn btn-primary" style="font-size:12px;padding:5px 12px;gap:6px;" title="Download all files in this folder as 1 ZIP file">
-                            ðŸ“¦ Download Folder ZIP
+                            📦 Download Folder ZIP
                         </button>
                         <button id="deleteActiveFolderBtn" onclick="deleteActiveFolderPrompt()" class="btn btn-danger" style="display:none;font-size:12px;padding:5px 12px;gap:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;" title="Delete this custom folder and all files inside">
-                            ðŸ—‘ï¸ Delete Folder
+                            🗑️ Delete Folder
                         </button>
                         <button onclick="backToAllFolders()" class="btn btn-secondary" style="font-size:12px;padding:5px 12px;">
                             &larr; Back to Folders
@@ -391,12 +391,12 @@
                 <!-- Advanced File Filters & Category Pills -->
                 <div class="filter-bar" id="allFilesFilterBar" style="display:none;">
                     <div class="filter-pills-left">
-                        <button class="filter-pill active" onclick="setFilter('all', this)">âœ¨ All (<span id="countAll">0</span>)</button>
-                        <button class="filter-pill" onclick="setFilter('video', this)">ðŸŽ¥ Videos (<span id="countVideos">0</span>)</button>
-                        <button class="filter-pill" onclick="setFilter('image', this)">ðŸ–¼ Pictures (<span id="countImages">0</span>)</button>
-                        <button class="filter-pill" onclick="setFilter('audio', this)">ðŸŽµ Audio (<span id="countAudio">0</span>)</button>
-                        <button class="filter-pill" onclick="setFilter('document', this)">ðŸ“„ Docs & Code (<span id="countDocuments">0</span>)</button>
-                        <button class="filter-pill" onclick="setFilter('archive', this)">ðŸ“¦ Archives (<span id="countArchives">0</span>)</button>
+                        <button class="filter-pill active" onclick="setFilter('all', this)">✨ All (<span id="countAll">0</span>)</button>
+                        <button class="filter-pill" onclick="setFilter('video', this)">🎥 Videos (<span id="countVideos">0</span>)</button>
+                        <button class="filter-pill" onclick="setFilter('image', this)">🖼 Pictures (<span id="countImages">0</span>)</button>
+                        <button class="filter-pill" onclick="setFilter('audio', this)">🎵 Audio (<span id="countAudio">0</span>)</button>
+                        <button class="filter-pill" onclick="setFilter('document', this)">📄 Docs & Code (<span id="countDocuments">0</span>)</button>
+                        <button class="filter-pill" onclick="setFilter('archive', this)">📦 Archives (<span id="countArchives">0</span>)</button>
                     </div>
                     <div class="filter-stats-right" id="filterStatsCount">
                         <!-- Dynamically filled: "Showing X files" -->
@@ -427,16 +427,16 @@
                         </div>
                         <div class="chat-header-actions">
                             <button id="notifToggleBtn" onclick="toggleDesktopNotifications()" class="btn btn-secondary chat-hdr-btn" title="Desktop Notifications & Sound">
-                                <span id="notifIconSpan">ðŸ””</span> <span id="notifStatusText" class="chat-hdr-label">Alerts: On</span>
+                                <span id="notifIconSpan">🔔</span> <span id="notifStatusText" class="chat-hdr-label">Alerts: On</span>
                             </button>
                             <button onclick="testChimeSound()" class="btn btn-secondary chat-hdr-btn" title="Test Professional Chime Sound">
-                                ðŸ”Š <span class="chat-hdr-label">Test</span>
+                                🔊 <span class="chat-hdr-label">Test</span>
                             </button>
                             <button onclick="promptChangeName()" class="btn btn-secondary chat-hdr-btn chat-hdr-name-btn" title="Change Display Name">
-                                âœï¸ <span class="chat-hdr-label">Name</span>
+                                ✏️ <span class="chat-hdr-label">Name</span>
                             </button>
                             <button type="button" onclick="toggleScreenShare()" id="screenShareBtn" class="btn btn-secondary chat-hdr-btn" title="Share Screen live with team (WebRTC)">
-                                ðŸ–¥ï¸ <span class="chat-hdr-label">Screen</span>
+                                🖥️ <span class="chat-hdr-label">Screen</span>
                             </button>
                         </div>
                     </div>
@@ -445,7 +445,7 @@
                     <div class="chat-channels-bar">
                         <div class="chat-channels-left">
                             <button class="channel-pill active" id="channelPublicBtn" onclick="switchChatChannel('public')">
-                                ðŸ“¢ #Team Chat
+                                📢 #Team Chat
                             </button>
                             
                             <!-- Open Colleague DM Tabs -->
@@ -453,7 +453,7 @@
 
                             <div class="channel-dm-wrapper">
                                 <button class="channel-pill btn-dm-add" id="channelDmsToggleBtn" onclick="toggleDmMenu(event)" title="Direct Message a Colleague">
-                                    <span>ðŸ’¬</span> Direct Message <span id="dmUnreadTotalBadge" class="badge-counter" style="display:none;background:var(--accent-rose);color:#fff;margin-left:4px;">0</span> â–¾
+                                    <span>💬</span> Direct Message <span id="dmUnreadTotalBadge" class="badge-counter" style="display:none;background:var(--accent-rose);color:#fff;margin-left:4px;">0</span> ▾
                                 </button>
                                 <div id="dmUserMenu" class="dm-users-popup" style="display:none;">
                                     <div class="dm-popup-header">
@@ -472,7 +472,7 @@
                             <svg class="chat-search-icon" width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             <input type="text" id="chatSearchInput" class="chat-search-input-field" placeholder="Search in chat..." oninput="handleChatSearchInput(this.value)" />
                             <span id="chatSearchCount" class="chat-search-count-pill" style="display:none;">0</span>
-                            <button type="button" id="chatSearchClearBtn" onclick="clearChatSearch()" class="chat-search-clear-btn" style="display:none;" title="Clear search">âœ•</button>
+                            <button type="button" id="chatSearchClearBtn" onclick="clearChatSearch()" class="chat-search-clear-btn" style="display:none;" title="Clear search">✕</button>
                         </div>
                     </div>
 
@@ -480,15 +480,15 @@
                     <div id="activeDmBanner" class="active-dm-banner" style="display:none;">
                         <div class="active-dm-banner-left">
                             <span class="active-dm-banner-dot online"></span>
-                            <span id="activeDmBannerText">ðŸ”’ Private Chat with Colleague</span>
+                            <span id="activeDmBannerText">🔒 Private Chat with Colleague</span>
                         </div>
-                        <button type="button" onclick="switchChatChannel('public')" class="btn-dm-back" title="Back to Team Chat">âœ• Back to #Team Chat</button>
+                        <button type="button" onclick="switchChatChannel('public')" class="btn-dm-back" title="Back to Team Chat">✕ Back to #Team Chat</button>
                     </div>
 
                     <!-- Drag & Drop Visual Overlay for Chat -->
                     <div id="chatDropOverlay" class="chat-drop-overlay" style="display:none;">
                         <div class="chat-drop-card">
-                            <div class="chat-drop-icon">ðŸ“¥</div>
+                            <div class="chat-drop-icon">📥</div>
                             <div class="chat-drop-title">Drop Files or Folders Here</div>
                             <div class="chat-drop-subtitle" id="chatDropTargetDesc">Send directly to #Team Chat</div>
                         </div>
@@ -497,7 +497,7 @@
                     <!-- Pinned Message Announcement Banner -->
                     <div id="pinnedMsgBanner" class="pinned-msg-banner" style="display:none;">
                         <div class="pinned-msg-left">
-                            <span class="pinned-icon">ðŸ“Œ</span>
+                            <span class="pinned-icon">📌</span>
                             <div class="pinned-content" onclick="jumpToPinnedMessage()">
                                 <div class="pinned-author" id="pinnedAuthorText">Pinned Notice</div>
                                 <div class="pinned-snippet" id="pinnedSnippetText">...</div>
@@ -505,7 +505,7 @@
                         </div>
                         <div class="pinned-msg-actions">
                             <button type="button" class="btn-pinned-jump" onclick="jumpToPinnedMessage()" title="Scroll to message">View</button>
-                            <button type="button" class="btn-pinned-unpin" onclick="unpinCurrentMessage()" title="Unpin notice">âœ•</button>
+                            <button type="button" class="btn-pinned-unpin" onclick="unpinCurrentMessage()" title="Unpin notice">✕</button>
                         </div>
                     </div>
 
@@ -539,11 +539,11 @@
                                 </div>
                             </div>
                             <div style="display:flex;gap:6px;align-items:center;">
-                                <button onclick="cancelVoiceRecording()" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" title="Cancel">âœ• Cancel</button>
-                                <button onclick="stopAndSendVoiceRecording()" class="btn btn-primary" style="padding:4px 10px;font-size:11px;" title="Send Voice">âœ“ Send</button>
+                                <button onclick="cancelVoiceRecording()" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" title="Cancel">✕ Cancel</button>
+                                <button onclick="stopAndSendVoiceRecording()" class="btn btn-primary" style="padding:4px 10px;font-size:11px;" title="Send Voice">✓ Send</button>
                             </div>
                             <div id="micSilentWarning" style="display:none;width:100%;color:#fca5a5;font-size:11px;margin-top:4px;text-align:left;">
-                                âš ï¸ à¦†à¦ªà¦¨à¦¾à¦° à¦ªà¦¿à¦¸à¦¿à¦° à¦®à¦¾à¦‡à¦•à§à¦°à§‹à¦«à§‹à¦¨à§‡ à¦•à§‹à¦¨à§‹ à¦¶à¦¬à§à¦¦ à¦ªà¦¾à¦“à§Ÿà¦¾ à¦¯à¦¾à¦šà§à¦›à§‡ à¦¨à¦¾! à¦‰à¦‡à¦¨à§à¦¡à§‹à¦œ Settings &gt; Sound à¦¥à§‡à¦•à§‡ Microphone à¦­à¦²à¦¿à¦‰à¦® à¦šà§‡à¦• à¦•à¦°à§à¦¨à¥¤
+                                ⚠️ আপনার পিসির মাইক্রোফোনে কোনো শব্দ পাওয়া যাচ্ছে না! উইন্ডোজ Settings &gt; Sound থেকে Microphone ভলিউম চেক করুন।
                             </div>
                         </div>
 
@@ -576,7 +576,7 @@
                                 </button>
 
                                 <!-- Team Poll / Vote Button -->
-                                <button type="button" onclick="openCreatePollModal()" class="action-tool-btn" id="createPollBtn" title="Create a Poll / à¦­à§‹à¦Ÿ à¦¬à¦¾ à¦®à¦¤à¦¾à¦®à¦¤ à¦¨à¦¿à¦¨">
+                                <button type="button" onclick="openCreatePollModal()" class="action-tool-btn" id="createPollBtn" title="Create a Poll / ভোট বা মতামত নিন">
                                     <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                                 </button>
 
@@ -605,18 +605,18 @@
                         <div class="p2p-radar-circle wave-1"></div>
                         <div class="p2p-radar-circle wave-2"></div>
                         <div class="p2p-radar-circle wave-3"></div>
-                        <div class="p2p-radar-center-icon">âš¡</div>
+                        <div class="p2p-radar-center-icon">⚡</div>
                     </div>
                     <div class="p2p-radar-info">
-                        <div class="p2p-radar-title">âš¡ AirDrop Beam â€¢ Direct Device-to-Device</div>
+                        <div class="p2p-radar-title">⚡ AirDrop Beam • Direct Device-to-Device</div>
                         <div class="p2p-radar-desc">
                             Send unlimited gigabytes directly from phone to PC, PC to phone, or between coworkers at full Wi-Fi speed (500+ Mbps).
-                            <strong style="color:#38bdf8;">0% Host Storage Used</strong> â€” files transfer straight between devices without touching the server hard drive!
+                            <strong style="color:#38bdf8;">0% Host Storage Used</strong> — files transfer straight between devices without touching the server hard drive!
                         </div>
                         <div class="p2p-radar-stats">
-                            <span class="badge-radar-online">ðŸŸ¢ Radar Active: <strong id="p2pOnlineCount">0</strong> Connected Devices</span>
+                            <span class="badge-radar-online">🟢 Radar Active: <strong id="p2pOnlineCount">0</strong> Connected Devices</span>
                             <span class="badge-radar-identity">Your Device: <strong id="p2pMyNameDisplay">You</strong></span>
-                            <button type="button" class="btn btn-secondary btn-icon-sm" onclick="refreshPeersList()" title="Scan for devices">ðŸ”„ Scan Now</button>
+                            <button type="button" class="btn btn-secondary btn-icon-sm" onclick="refreshPeersList()" title="Scan for devices">🔄 Scan Now</button>
                         </div>
                     </div>
                 </div>
@@ -625,9 +625,9 @@
                 <div class="p2p-grid-container">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                         <h3 style="font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin:0;">
-                            <span>ðŸ“¡</span> Nearby Discovered Devices
+                            <span>📡</span> Nearby Discovered Devices
                         </h3>
-                        <span style="font-size:12px;color:var(--text-muted);">Tap "âš¡ Send File" or "ðŸ“ Send Folder" on any device to beam instantly</span>
+                        <span style="font-size:12px;color:var(--text-muted);">Tap "⚡ Send File" or "📁 Send Folder" on any device to beam instantly</span>
                     </div>
                     <div id="p2pPeersGrid" class="p2p-peers-grid">
                         <!-- Populated dynamically by js/p2p.js -->
@@ -664,21 +664,21 @@
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <button id="modalDownloadAllBtn" onclick="downloadCurrentAlbumAll()" class="btn btn-secondary" style="display:none;font-size:12px;padding:4px 10px;gap:5px;">
-                        ðŸ“¥ Download All
+                        📥 Download All
                     </button>
                     <button id="modalDownloadBtn" onclick="triggerDownloadTracked(this.dataset.url, this.dataset.title)" class="btn btn-secondary">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Download
                     </button>
-                    <button class="modal-close-btn" onclick="closeMediaModal()">âœ•</button>
+                    <button class="modal-close-btn" onclick="closeMediaModal()">✕</button>
                 </div>
             </div>
             <div class="modal-body-container" style="position:relative;">
-                <button id="modalPrevBtn" class="modal-nav-arrow prev-arrow" onclick="navigateAlbum(-1)" title="Previous (Left Arrow)" style="display:none;">â®</button>
+                <button id="modalPrevBtn" class="modal-nav-arrow prev-arrow" onclick="navigateAlbum(-1)" title="Previous (Left Arrow)" style="display:none;">❮</button>
                 <div class="modal-body" id="modalBody">
                     <!-- Image or Video injected here -->
                 </div>
-                <button id="modalNextBtn" class="modal-nav-arrow next-arrow" onclick="navigateAlbum(1)" title="Next (Right Arrow)" style="display:none;">â¯</button>
+                <button id="modalNextBtn" class="modal-nav-arrow next-arrow" onclick="navigateAlbum(1)" title="Next (Right Arrow)" style="display:none;">❯</button>
             </div>
         </div>
     </div>
@@ -692,7 +692,7 @@
         </div>
         <button onclick="downloadSelectedFiles()" class="btn btn-primary" style="font-size:12px;padding:6px 14px;gap:6px;">
             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            ðŸ“¦ Download Selected ZIP (<span id="multiSelectDlCount">0</span>)
+            📦 Download Selected ZIP (<span id="multiSelectDlCount">0</span>)
         </button>
     </div>
 
@@ -726,7 +726,7 @@
             </div>
             <div class="corner-toast-text" id="toastPreview">Message preview</div>
         </div>
-        <button class="corner-toast-close" onclick="event.stopPropagation(); closeChatToast();">âœ•</button>
+        <button class="corner-toast-close" onclick="event.stopPropagation(); closeChatToast();">✕</button>
     </div>
 
     <!-- Mobile QR Quick Connect Modal -->
@@ -734,9 +734,9 @@
         <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:380px;text-align:center;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                 <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
-                    ðŸ“± Connect Mobile Phone
+                    📱 Connect Mobile Phone
                 </h3>
-                <button type="button" class="modal-close-btn" onclick="closeQrModal()">âœ•</button>
+                <button type="button" class="modal-close-btn" onclick="closeQrModal()">✕</button>
             </div>
             <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px;">
                 Point your iPhone or Android camera at this QR code to instantly open ZoneHub on Wi-Fi without typing:
@@ -748,9 +748,9 @@
             </div>
             <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:10px;margin-top:12px;font-size:11.5px;color:#e2e8f0;text-align:left;line-height:1.45;">
                 <div style="font-weight:700;color:#38bdf8;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
-                    <span>ðŸ“Œ</span> IP à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨ à¦¹à¦“à§Ÿà¦¾ à¦¸à§à¦¥à¦¾à§Ÿà§€à¦­à¦¾à¦¬à§‡ à¦¬à¦¨à§à¦§ à¦•à¦°à¦¬à§‡à¦¨ à¦•à§€à¦­à¦¾à¦¬à§‡?
+                    <span>📌</span> IP পরিবর্তন হওয়া স্থায়ীভাবে বন্ধ করবেন কীভাবে?
                 </div>
-                <span>à¦°à¦¾à¦‰à¦Ÿà¦¾à¦° à¦¯à§‡à¦¨ à¦ªà§à¦°à¦¤à¦¿à¦¦à¦¿à¦¨ IP à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨ à¦¨à¦¾ à¦•à¦°à§‡, à¦¸à§‡à¦œà¦¨à§à¦¯ à¦¹à§‹à¦¸à§à¦Ÿ à¦ªà¦¿à¦¸à¦¿à¦° <code>tools\Make-IP-Permanent.bat</code> à¦¡à¦¾à¦¬à¦²-à¦•à§à¦²à¦¿à¦• à¦•à¦°à§‡ à¦šà¦¾à¦²à¦¾à¦¨à¥¤ à¦à¦•à¦¬à¦¾à¦° à¦šà¦¾à¦²à¦¾à¦²à§‡à¦‡ à¦à¦‡ IP à¦¸à§à¦¥à¦¾à§Ÿà§€à¦­à¦¾à¦¬à§‡ à¦«à¦¿à¦•à§à¦¸à¦¡ (Static) à¦¹à§Ÿà§‡ à¦¯à¦¾à¦¬à§‡!</span>
+                <span>রাউটার যেন প্রতিদিন IP পরিবর্তন না করে, সেজন্য হোস্ট পিসির <code>tools\Make-IP-Permanent.bat</code> ডাবল-ক্লিক করে চালান। একবার চালালেই এই IP স্থায়ীভাবে ফিক্সড (Static) হয়ে যাবে!</span>
             </div>
         </div>
     </div>
@@ -760,9 +760,9 @@
         <div class="rename-modal-box file-qr-modal-box" onclick="event.stopPropagation()" style="max-width:390px;text-align:center;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                 <h3 style="font-size:16px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
-                    ðŸ“· Scan to Open / Download
+                    📷 Scan to Open / Download
                 </h3>
-                <button type="button" class="modal-close-btn" onclick="closeFileQrModal()">âœ•</button>
+                <button type="button" class="modal-close-btn" onclick="closeFileQrModal()">✕</button>
             </div>
             <div class="file-qr-details" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;margin-bottom:14px;text-align:left;">
                 <div id="fileQrNameDisplay" style="font-size:13px;font-weight:700;color:#f8fafc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px;">filename.ext</div>
@@ -773,12 +773,12 @@
             </div>
             <div id="fileQrSvgContainer" class="file-qr-svg-wrap" style="display:flex;justify-content:center;margin-bottom:12px;background:#fff;padding:12px;border-radius:12px;box-shadow:0 8px 25px rgba(0,0,0,0.4);width:fit-content;margin-left:auto;margin-right:auto;"></div>
             <p style="font-size:11.5px;color:var(--text-muted);line-height:1.45;margin-bottom:12px;">
-                à¦«à§‹à¦¨à§‡à¦° à¦•à§à¦¯à¦¾à¦®à§‡à¦°à¦¾ à¦¦à¦¿à§Ÿà§‡ à¦¸à¦°à¦¾à¦¸à¦°à¦¿ à¦¸à§à¦•à§à¦¯à¦¾à¦¨ à¦•à¦°à¦²à§‡à¦‡ à¦•à§‹à¦¨à§‹ à¦²à¦—à¦‡à¦¨ à¦›à¦¾à§œà¦¾ à¦«à¦¾à¦‡à¦²à¦Ÿà¦¿ à¦¤à§Žà¦•à§à¦·à¦£à¦¾à§Ž à¦“à¦ªà§‡à¦¨ à¦¬à¦¾ à¦¡à¦¾à¦‰à¦¨à¦²à§‹à¦¡ à¦¹à§Ÿà§‡ à¦¯à¦¾à¦¬à§‡à¥¤
+                ফোনের ক্যামেরা দিয়ে সরাসরি স্ক্যান করলেই কোনো লগইন ছাড়া ফাইলটি তৎক্ষণাৎ ওপেন বা ডাউনলোড হয়ে যাবে।
             </p>
             <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
                 <input type="text" id="fileQrUrlInput" readonly style="background:transparent;border:none;outline:none;font-size:11.5px;font-family:monospace;color:#38bdf8;width:100%;overflow:hidden;text-overflow:ellipsis;" value="" />
                 <button type="button" onclick="copyFileQrUrl()" class="btn btn-primary" style="font-size:11px;padding:4px 12px;white-space:nowrap;gap:4px;">
-                    ðŸ“‹ Copy
+                    📋 Copy
                 </button>
             </div>
         </div>
@@ -789,34 +789,34 @@
         <div class="rename-modal-box" onclick="event.stopPropagation()">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                 <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
-                    ðŸ·ï¸ Rename Media Hub
+                    🏷️ Rename Media Hub
                 </h3>
-                <button type="button" class="modal-close-btn" onclick="closeHubRenameModal()">âœ•</button>
+                <button type="button" class="modal-close-btn" onclick="closeHubRenameModal()">✕</button>
             </div>
             <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px;">
-                à¦à¦‡ à¦ªà§à¦°à¦œà§‡à¦•à§à¦Ÿà¦Ÿà¦¿ à¦¯à§‡ à¦•à¦®à§à¦ªà¦¿à¦‰à¦Ÿà¦¾à¦°à§‡ à¦‡à¦¨à¦¸à§à¦Ÿà¦² à¦•à¦°à¦¬à§‡à¦¨, à¦¸à§‡à¦‡ à¦•à¦®à§à¦ªà¦¿à¦‰à¦Ÿà¦¾à¦°à§‡à¦° à¦¨à¦¿à¦œà¦¸à§à¦¬ à¦¨à¦¾à¦® à¦…à¦¨à§à¦¯à¦¾à§Ÿà§€ à¦¬à¦¾ à¦†à¦ªà¦¨à¦¾à¦° à¦ªà¦›à¦¨à§à¦¦à§‡à¦° à¦¯à§‡ à¦•à§‹à¦¨à§‹ à¦¨à¦¾à¦®à§‡ à¦•à¦¾à¦¸à§à¦Ÿà¦®à¦¾à¦‡à¦œ à¦•à¦°à¦¤à§‡ à¦ªà¦¾à¦°à§‡à¦¨:
+                এই প্রজেক্টটি যে কম্পিউটারে ইনস্টল করবেন, সেই কম্পিউটারের নিজস্ব নাম অনুযায়ী বা আপনার পছন্দের যে কোনো নামে কাস্টমাইজ করতে পারেন:
             </p>
 
             <div style="font-size:11px;font-weight:700;color:#a5b4fc;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">
-                ðŸ’¡ 1-Click Dynamic Suggestions:
+                💡 1-Click Dynamic Suggestions:
             </div>
             <div class="suggestion-chips-grid">
                 <button type="button" class="suggestion-chip" id="chipUserHub" onclick="applySuggestedName(this.dataset.name)">
-                    <span id="chipUserHubText">ðŸ‘¤ User Account Media Hub</span>
+                    <span id="chipUserHubText">👤 User Account Media Hub</span>
                     <span class="chip-badge">User Account</span>
                 </button>
                 <button type="button" class="suggestion-chip" id="chipMachineHub" onclick="applySuggestedName(this.dataset.name)">
-                    <span id="chipMachineHubText">ðŸ’» Device Name Media Hub</span>
+                    <span id="chipMachineHubText">💻 Device Name Media Hub</span>
                     <span class="chip-badge">PC Device</span>
                 </button>
                 <button type="button" class="suggestion-chip" onclick="applySuggestedName('ZoneHub')">
-                    <span>ðŸŒ ZoneHub (Network Zone)</span>
+                    <span>🌐 ZoneHub (Network Zone)</span>
                     <span class="chip-badge">Official</span>
                 </button>
             </div>
 
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">
-                Custom Name (à¦•à¦¾à¦¸à§à¦Ÿà¦® à¦¨à¦¾à¦® à¦²à¦¿à¦–à§à¦¨):
+                Custom Name (কাস্টম নাম লিখুন):
             </div>
             <div style="display:flex;gap:8px;">
                 <input type="text" id="customHubNameInput" class="chat-input" style="height:42px;flex:1;" placeholder="Enter custom hub name..." />
@@ -832,9 +832,9 @@
         <div class="rename-modal-box admin-modal-box" onclick="event.stopPropagation()" style="max-width:440px;">
             <div class="admin-modal-sticky-header">
                 <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin:0;">
-                    <span id="adminModalIcon">ðŸ‘‘</span> <span id="adminModalTitle">Admin Security Control</span>
+                    <span id="adminModalIcon">👑</span> <span id="adminModalTitle">Admin Security Control</span>
                 </h3>
-                <button type="button" class="modal-close-btn" onclick="closeAdminModal()" title="Close">âœ•</button>
+                <button type="button" class="modal-close-btn" onclick="closeAdminModal()" title="Close">✕</button>
             </div>
             
             <div id="adminLockedView">
@@ -845,25 +845,25 @@
                     Admin PIN (Default: 1234):
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:10px;">
-                    <input type="password" id="adminPinInput" class="chat-input" style="height:42px;flex:1;letter-spacing:2px;font-size:16px;" placeholder="â€¢â€¢â€¢â€¢" maxlength="16" onkeyup="if(event.key==='Enter')submitAdminLogin()" />
+                    <input type="password" id="adminPinInput" class="chat-input" style="height:42px;flex:1;letter-spacing:2px;font-size:16px;" placeholder="••••" maxlength="16" onkeyup="if(event.key==='Enter')submitAdminLogin()" />
                     <button type="button" onclick="submitAdminLogin()" class="btn btn-primary" style="padding:0 16px;white-space:nowrap;font-weight:700;">
                         Unlock
                     </button>
                 </div>
                 <div id="adminLoginError" style="display:none;color:#f87171;font-size:12px;margin-bottom:8px;"></div>
                 <p style="font-size:11px;color:var(--text-muted);line-height:1.4;">
-                    ðŸ’¡ <em>Host PC is automatically Admin. Remote phones and laptops can unlock Admin mode using this PIN.</em><br>
+                    💡 <em>Host PC is automatically Admin. Remote phones and laptops can unlock Admin mode using this PIN.</em><br>
                     <span style="color:#a5b4fc;margin-top:4px;display:inline-block;">Forgot PIN? Open ZoneHub directly on the Host PC (Host is always Admin) or reset with <code>tools\Reset-Admin-PIN.bat</code>.</span>
                 </p>
                 <button type="button" onclick="closeAdminModal()" class="btn btn-secondary modal-bottom-close-btn" style="width:100%;justify-content:center;margin-top:14px;padding:9px;font-weight:700;font-size:12px;border-color:rgba(255,255,255,0.15);">
-                    âœ• Close
+                    ✕ Close
                 </button>
             </div>
 
             <div id="adminUnlockedView" style="display:none;">
                 <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px;margin-bottom:14px;">
                     <div style="color:#34d399;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;">
-                        <span>âœ…</span> Admin Mode Active
+                        <span>✅</span> Admin Mode Active
                     </div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:3px;" id="adminDeviceTypeLabel">
                         You have full administrative privileges to rename Hub and delete folders.
@@ -874,23 +874,23 @@
                 <div class="admin-feature-card">
                     <div class="admin-feature-card-header">
                         <span class="admin-feature-title">
-                            <span>ðŸŒ</span> Remote Access (Go Global)
+                            <span>🌐</span> Remote Access (Go Global)
                         </span>
-                        <span id="adminTunnelStatusBadge" class="admin-badge-status inactive">âšª Local LAN Only</span>
+                        <span id="adminTunnelStatusBadge" class="admin-badge-status inactive">⚪ Local LAN Only</span>
                     </div>
                     <p style="font-size:11px;color:var(--text-muted);line-height:1.4;margin-bottom:12px;">
-                        Cloudflare Tunnel-à¦à¦° à¦®à¦¾à¦§à§à¦¯à¦®à§‡ à¦¬à¦¿à¦¶à§à¦¬à§‡à¦° à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦ªà§à¦°à¦¾à¦¨à§à¦¤ à¦¥à§‡à¦•à§‡ à¦¨à¦¿à¦°à¦¾à¦ªà¦¦ HTTPS à¦²à¦¿à¦™à§à¦•à§‡ ZoneHub à¦…à§à¦¯à¦¾à¦•à§à¦¸à§‡à¦¸ à¦•à¦°à§à¦¨à¥¤ à¦•à§‹à¦¨à§‹ à¦ªà§‹à¦°à§à¦Ÿ à¦«à¦°à§‹à¦¯à¦¼à¦¾à¦°à§à¦¡à¦¿à¦‚ à¦¬à¦¾ à¦­à¦¿à¦ªà¦¿à¦à¦¨ à¦›à¦¾à§œà¦¾à¦‡ à¦¸à¦¹à¦•à¦°à§à¦®à§€à¦°à¦¾ à¦¬à¦¾à¦¸à¦¾ à¦¥à§‡à¦•à§‡ à¦«à¦¾à¦‡à¦² à¦¨à¦¿à¦¤à§‡ à¦ªà¦¾à¦°à¦¬à§‡à¥¤
+                        Cloudflare Tunnel-এর মাধ্যমে বিশ্বের যেকোনো প্রান্ত থেকে নিরাপদ HTTPS লিঙ্কে ZoneHub অ্যাক্সেস করুন। কোনো পোর্ট ফরোয়ার্ডিং বা ভিপিএন ছাড়াই সহকর্মীরা বাসা থেকে ফাইল নিতে পারবে।
                     </p>
                     <div id="adminTunnelUrlBox" style="display:none;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px;margin-bottom:10px;">
-                        <div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">ðŸŒ Worldwide Active Link:</div>
+                        <div style="font-size:11px;color:#34d399;font-weight:700;margin-bottom:4px;">🌐 Worldwide Active Link:</div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <a href="#" id="adminTunnelUrlLink" target="_blank" style="font-size:12px;font-weight:700;color:#10b981;word-break:break-all;flex:1;">https://...</a>
-                            <button type="button" onclick="copyGlobalLink()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;font-weight:700;white-space:nowrap;">ðŸ“‹ Copy</button>
-                            <button type="button" onclick="openGlobalQrModal()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;font-weight:700;white-space:nowrap;">ðŸ“± QR</button>
+                            <button type="button" onclick="copyGlobalLink()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;font-weight:700;white-space:nowrap;">📋 Copy</button>
+                            <button type="button" onclick="openGlobalQrModal()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;font-weight:700;white-space:nowrap;">📱 QR</button>
                         </div>
                     </div>
                     <button type="button" id="adminTunnelToggleBtn" onclick="toggleGlobalTunnel()" class="btn btn-primary" style="width:100%;height:38px;font-size:12px;font-weight:700;">
-                        ðŸš€ Enable Worldwide Access
+                        🚀 Enable Worldwide Access
                     </button>
                 </div>
 
@@ -898,17 +898,17 @@
                 <div class="admin-feature-card">
                     <div class="admin-feature-card-header">
                         <span class="admin-feature-title">
-                            <span>ðŸ’½</span> Host Storage Drive & Location
+                            <span>💽</span> Host Storage Drive & Location
                         </span>
                         <span id="adminCurrentDriveBadge" class="admin-badge-status" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);">C: Drive</span>
                     </div>
                     <p style="font-size:11px;color:var(--text-muted);line-height:1.4;margin-bottom:10px;">
-                        ZoneHub-à¦à¦° à¦¸à¦®à¦¸à§à¦¤ à¦†à¦ªà¦²à§‹à¦¡ à¦“ à¦¶à§‡à§Ÿà¦¾à¦° à¦•à¦°à¦¾ à¦«à¦¾à¦‡à¦² à¦¹à§‹à¦¸à§à¦Ÿ à¦ªà¦¿à¦¸à¦¿à¦° à¦¯à§‡ à¦¡à§à¦°à¦¾à¦‡à¦­ à¦¬à¦¾ à¦«à§‹à¦²à§à¦¡à¦¾à¦°à§‡ à¦¸à§‡à¦­ à¦¹à¦¬à§‡ à¦¤à¦¾ à¦¸à¦¿à¦²à§‡à¦•à§à¦Ÿ à¦•à¦°à§à¦¨:
+                        ZoneHub-এর সমস্ত আপলোড ও শেয়ার করা ফাইল হোস্ট পিসির যে ড্রাইভ বা ফোল্ডারে সেভ হবে তা সিলেক্ট করুন:
                     </p>
 
                     <!-- Detected Drives Quick Select List -->
                     <div style="font-size:11px;color:#cbd5e1;font-weight:700;margin-bottom:6px;">
-                        à¦ªà¦¿à¦¸à¦¿à¦° à¦‰à¦ªà¦²à¦¬à§à¦§ à¦¡à§à¦°à¦¾à¦‡à¦­à¦¸à¦®à§‚à¦¹ (Available Drives):
+                        পিসির উপলব্ধ ড্রাইভসমূহ (Available Drives):
                     </div>
                     <div id="adminDrivesList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
                         <div style="font-size:11px;color:var(--text-muted);padding:8px;text-align:center;">
@@ -918,19 +918,19 @@
 
                     <!-- Custom Path Input -->
                     <div style="font-size:11px;color:#cbd5e1;font-weight:700;margin-bottom:6px;">
-                        à¦•à¦¾à¦¸à§à¦Ÿà¦® à¦«à§‹à¦²à§à¦¡à¦¾à¦° à¦ªà¦¾à¦¥ (Custom Storage Folder):
+                        কাস্টম ফোল্ডার পাথ (Custom Storage Folder):
                     </div>
                     <div style="display:flex;gap:6px;margin-bottom:6px;">
                         <input type="text" id="adminStoragePathInput" class="chat-input" style="height:36px;flex:1;font-size:12px;font-family:monospace;" placeholder="e.g. D:\ZoneHub_Storage" />
                         <button type="button" id="adminApplyStorageBtn" onclick="applyStorageLocation()" class="btn btn-primary" style="padding:0 12px;font-size:12px;font-weight:700;white-space:nowrap;">
-                            ðŸ’¾ Apply
+                            💾 Apply
                         </button>
                     </div>
                     <div id="adminStorageMsg" style="display:none;font-size:11px;padding:6px 10px;border-radius:6px;margin-top:6px;"></div>
                 </div>
 
                 <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
-                    <span>ðŸ”‘ Change Admin PIN:</span>
+                    <span>🔑 Change Admin PIN:</span>
                     <span id="currentAdminPinBadge" style="display:none;font-size:11px;color:#38bdf8;background:rgba(56,189,248,0.12);padding:2px 8px;border-radius:4px;border:1px solid rgba(56,189,248,0.3);font-family:monospace;font-weight:700;">
                         Current PIN: <span id="currentAdminPinValue">1234</span>
                     </span>
@@ -945,15 +945,15 @@
 
                 <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;">
                     <button type="button" onclick="openHubRenameModal(); closeAdminModal();" class="btn btn-secondary" style="font-size:12px;gap:5px;">
-                        ðŸ·ï¸ Rename Hub
+                        🏷️ Rename Hub
                     </button>
                     <button type="button" id="adminLogoutBtn" onclick="logoutAdmin()" class="btn btn-secondary" style="font-size:12px;color:#f87171;border-color:rgba(239,68,68,0.3);">
-                        ðŸ”’ Lock Admin
+                        🔒 Lock Admin
                     </button>
                 </div>
 
                 <button type="button" onclick="closeAdminModal()" class="btn btn-secondary modal-bottom-close-btn" style="width:100%;justify-content:center;margin-top:14px;padding:10px;font-weight:700;font-size:12px;border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);">
-                    âœ• Close Admin Settings
+                    ✕ Close Admin Settings
                 </button>
             </div>
         </div>
@@ -964,38 +964,38 @@
         <div class="pwa-modal-box" onclick="event.stopPropagation()">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                 <h3 style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;">
-                    ðŸ“² Install App on Your Device
+                    📲 Install App on Your Device
                 </h3>
-                <button type="button" class="modal-close-btn" onclick="closePwaGuideModal()">âœ•</button>
+                <button type="button" class="modal-close-btn" onclick="closePwaGuideModal()">✕</button>
             </div>
             <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:12px;">
-                à¦à¦• à¦•à§à¦²à¦¿à¦•à§‡ à¦†à¦ªà¦¨à¦¾à¦° à¦«à§‹à¦¨ à¦¬à¦¾ à¦•à¦®à§à¦ªà¦¿à¦‰à¦Ÿà¦¾à¦°à§‡ à¦…à§à¦¯à¦¾à¦ª à¦¹à¦¿à¦¸à§‡à¦¬à§‡ à¦‡à¦¨à¦¸à§à¦Ÿà¦² à¦•à¦°à§à¦¨à¥¤ à¦¬à¦¾à¦°à¦¬à¦¾à¦° à¦•à§‹à¦¨à§‹ à¦¬à§œ à¦²à¦¿à¦‚à¦• à¦Ÿà¦¾à¦‡à¦ª à¦¬à¦¾ à¦®à¦¨à§‡ à¦°à¦¾à¦–à¦¤à§‡ à¦¹à¦¬à§‡ à¦¨à¦¾!
+                এক ক্লিকে আপনার ফোন বা কম্পিউটারে অ্যাপ হিসেবে ইনস্টল করুন। বারবার কোনো বড় লিংক টাইপ বা মনে রাখতে হবে না!
             </p>
 
             <div class="pwa-step-tabs">
-                <button type="button" class="pwa-step-tab" id="pwaTabIos" onclick="switchPwaTab('ios')">ðŸ“± iPhone / iPad</button>
-                <button type="button" class="pwa-step-tab" id="pwaTabAndroid" onclick="switchPwaTab('android')">ðŸ¤– Android</button>
-                <button type="button" class="pwa-step-tab" id="pwaTabMac" onclick="switchPwaTab('mac')">ðŸŽ Mac (macOS)</button>
-                <button type="button" class="pwa-step-tab" id="pwaTabDesktop" onclick="switchPwaTab('desktop')">ðŸ’» Windows PC</button>
+                <button type="button" class="pwa-step-tab" id="pwaTabIos" onclick="switchPwaTab('ios')">📱 iPhone / iPad</button>
+                <button type="button" class="pwa-step-tab" id="pwaTabAndroid" onclick="switchPwaTab('android')">🤖 Android</button>
+                <button type="button" class="pwa-step-tab" id="pwaTabMac" onclick="switchPwaTab('mac')">🍎 Mac (macOS)</button>
+                <button type="button" class="pwa-step-tab" id="pwaTabDesktop" onclick="switchPwaTab('desktop')">💻 Windows PC</button>
             </div>
 
             <!-- iOS Panel -->
             <div class="pwa-step-panel" id="pwaPanelIos">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
-                    <div class="pwa-step-text">Safari à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦°à§‡à¦° à¦¨à¦¿à¦šà§‡ à¦¬à¦¾ à¦‰à¦ªà¦°à§‡ à¦¥à¦¾à¦•à¦¾ <strong>Share (à¦¶à§‡à§Ÿà¦¾à¦°)</strong> à¦¬à¦¾à¦Ÿà¦¨à§‡ ( âŽ‹ / [â†‘] ) à¦šà¦¾à¦ªà§à¦¨à¥¤</div>
+                    <div class="pwa-step-text">Safari ব্রাউজারের নিচে বা উপরে থাকা <strong>Share (শেয়ার)</strong> বাটনে ( ⎋ / [↑] ) চাপুন।</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">2</div>
-                    <div class="pwa-step-text">à¦®à§‡à¦¨à§à¦Ÿà¦¿ à¦à¦•à¦Ÿà§ à¦¨à¦¿à¦šà§‡ à¦¸à§à¦•à§à¦°à¦² à¦•à¦°à§‡ <strong>"Add to Home Screen"</strong> (à¦¹à§‹à¦® à¦¸à§à¦•à§à¦°à¦¿à¦¨à§‡ à¦¯à§‹à¦— à¦•à¦°à§à¦¨) à¦…à¦ªà¦¶à¦¨à§‡ à¦šà¦¾à¦ªà§à¦¨à¥¤</div>
+                    <div class="pwa-step-text">মেনুটি একটু নিচে স্ক্রল করে <strong>"Add to Home Screen"</strong> (হোম স্ক্রিনে যোগ করুন) অপশনে চাপুন।</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">3</div>
-                    <div class="pwa-step-text">à¦‰à¦ªà¦°à§‡ à¦¡à¦¾à¦¨à§‡à¦° <strong>"Add"</strong> à¦¬à¦¾à¦Ÿà¦¨à§‡ à¦šà¦¾à¦ªà§à¦¨à¥¤</div>
+                    <div class="pwa-step-text">উপরে ডানের <strong>"Add"</strong> বাটনে চাপুন।</div>
                 </div>
                 <div class="pwa-tip-box">
-                    <span>âœ¨</span>
-                    <span>à¦¸à¦¾à¦¥à§‡ à¦¸à¦¾à¦¥à§‡ à¦†à¦ªà¦¨à¦¾à¦° iPhone-à¦à¦° à¦¹à§‹à¦® à¦¸à§à¦•à§à¦°à¦¿à¦¨à§‡ ZoneHub-à¦à¦° à¦¸à§à¦¨à§à¦¦à¦° à¦…à§à¦¯à¦¾à¦ª à¦†à¦‡à¦•à¦¨ à¦¯à§à¦•à§à¦¤ à¦¹à§Ÿà§‡ à¦¯à¦¾à¦¬à§‡!</span>
+                    <span>✨</span>
+                    <span>সাথে সাথে আপনার iPhone-এর হোম স্ক্রিনে ZoneHub-এর সুন্দর অ্যাপ আইকন যুক্ত হয়ে যাবে!</span>
                 </div>
             </div>
 
@@ -1003,19 +1003,19 @@
             <div class="pwa-step-panel" id="pwaPanelAndroid">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
-                    <div class="pwa-step-text">Chrome à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦°à§‡à¦° à¦‰à¦ªà¦°à§‡ à¦¡à¦¾à¦¨à¦¦à¦¿à¦•à§‡à¦° à§©-à¦¡à¦Ÿ à¦®à§‡à¦¨à§ <strong>[ â‹® ]</strong> à¦šà¦¾à¦ªà§à¦¨à¥¤</div>
+                    <div class="pwa-step-text">Chrome ব্রাউজারের উপরে ডানদিকের ৩-ডট মেনু <strong>[ ⋮ ]</strong> চাপুন।</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">2</div>
-                    <div class="pwa-step-text"><strong>"Install app"</strong> à¦…à¦¥à¦¬à¦¾ <strong>"Add to Home screen"</strong> à¦…à¦ªà¦¶à¦¨à¦Ÿà¦¿à¦¤à§‡ à¦•à§à¦²à¦¿à¦• à¦•à¦°à§à¦¨à¥¤</div>
+                    <div class="pwa-step-text"><strong>"Install app"</strong> অথবা <strong>"Add to Home screen"</strong> অপশনটিতে ক্লিক করুন।</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">3</div>
-                    <div class="pwa-step-text">à¦ªà¦ª-à¦†à¦ªà§‡ <strong>"Install"</strong> à¦šà¦¾à¦ªà§à¦¨à¥¤</div>
+                    <div class="pwa-step-text">পপ-আপে <strong>"Install"</strong> চাপুন।</div>
                 </div>
                 <div class="pwa-tip-box">
-                    <span>âš¡</span>
-                    <span>à¦ªà¦°à§‡à¦° à¦¬à¦¾à¦° à¦•à§‹à¦¨à§‹ à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦° à¦…à§à¦¯à¦¾à¦¡à§à¦°à§‡à¦¸ à¦¬à¦¾à¦° à¦›à¦¾à§œà¦¾à¦‡ à¦«à§à¦²-à¦¸à§à¦•à§à¦°à¦¿à¦¨ à¦¦à§‡à¦¶à¦¿ à¦…à§à¦¯à¦¾à¦ªà§‡à¦° à¦®à¦¤à§‹ à¦“à¦ªà§‡à¦¨ à¦¹à¦¬à§‡!</span>
+                    <span>⚡</span>
+                    <span>পরের বার কোনো ব্রাউজার অ্যাড্রেস বার ছাড়াই ফুল-স্ক্রিন দেশি অ্যাপের মতো ওপেন হবে!</span>
                 </div>
             </div>
 
@@ -1023,19 +1023,19 @@
             <div class="pwa-step-panel" id="pwaPanelMac">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
-                    <div class="pwa-step-text"><strong>Chrome / Edge (Mac):</strong> à¦…à§à¦¯à¦¾à¦¡à§à¦°à§‡à¦¸ à¦¬à¦¾à¦°à§‡à¦° à¦¡à¦¾à¦¨à§‡ à¦¥à¦¾à¦•à¦¾ <strong>Install Icon ( âŠ• à¦¬à¦¾ ðŸ’» )</strong> à¦šà¦¾à¦ªà§à¦¨ à¦à¦¬à¦‚ <strong>"Install"</strong> à¦¬à¦¾à¦Ÿà¦¨à§‡ à¦•à§à¦²à¦¿à¦• à¦•à¦°à§à¦¨à¥¤ ZoneHub à¦¸à¦°à¦¾à¦¸à¦°à¦¿ à¦†à¦ªà¦¨à¦¾à¦° Mac <strong>Launchpad à¦“ Applications à¦«à§‹à¦²à§à¦¡à¦¾à¦°à§‡</strong> à¦¯à§à¦•à§à¦¤ à¦¹à¦¬à§‡à¥¤</div>
+                    <div class="pwa-step-text"><strong>Chrome / Edge (Mac):</strong> অ্যাড্রেস বারের ডানে থাকা <strong>Install Icon ( ⊕ বা 💻 )</strong> চাপুন এবং <strong>"Install"</strong> বাটনে ক্লিক করুন। ZoneHub সরাসরি আপনার Mac <strong>Launchpad ও Applications ফোল্ডারে</strong> যুক্ত হবে।</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">2</div>
-                    <div class="pwa-step-text"><strong>Safari (macOS Sonoma / Sequoia):</strong> à¦‰à¦ªà¦°à§‡ à¦®à§‡à¦¨à§ à¦¥à§‡à¦•à§‡ <strong>File</strong> à¦šà¦¾à¦ªà§à¦¨ &gt; <strong>"Add to Dock"</strong> à¦¸à¦¿à¦²à§‡à¦•à§à¦Ÿ à¦•à¦°à§à¦¨à¥¤ à¦¸à¦¾à¦¥à§‡ à¦¸à¦¾à¦¥à§‡ à¦†à¦ªà¦¨à¦¾à¦° Mac Dock-à¦ ZoneHub à¦†à¦‡à¦•à¦¨ à¦šà¦²à§‡ à¦†à¦¸à¦¬à§‡!</div>
+                    <div class="pwa-step-text"><strong>Safari (macOS Sonoma / Sequoia):</strong> উপরে মেনু থেকে <strong>File</strong> চাপুন &gt; <strong>"Add to Dock"</strong> সিলেক্ট করুন। সাথে সাথে আপনার Mac Dock-এ ZoneHub আইকন চলে আসবে!</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">3</div>
-                    <div class="pwa-step-text"><strong>Always-On-Top Mini Dock:</strong> à¦‰à¦ªà¦°à§‡ à¦¥à¦¾à¦•à¦¾ <strong>"ðŸ“Œ Mini Dock"</strong> à¦¬à¦¾à¦Ÿà¦¨à§‡ à¦šà¦¾à¦ªà¦²à§‡à¦‡ Premiere, Final Cut à¦¬à¦¾ Finder-à¦à¦° à¦‰à¦ªà¦° à¦­à¦¾à¦¸à¦®à¦¾à¦¨ à¦«à§à¦²à§à¦¯à¦¾à¦Ÿà¦¿à¦‚ à¦ªà¦ª-à¦†à¦‰à¦Ÿ à¦‰à¦‡à¦¨à§à¦¡à§‹ à¦“à¦ªà§‡à¦¨ à¦¹à¦¬à§‡!</div>
+                    <div class="pwa-step-text"><strong>Always-On-Top Mini Dock:</strong> উপরে থাকা <strong>"📌 Mini Dock"</strong> বাটনে চাপলেই Premiere, Final Cut বা Finder-এর উপর ভাসমান ফ্ল্যাটিং পপ-আউট উইন্ডো ওপেন হবে!</div>
                 </div>
                 <div class="pwa-tip-box">
-                    <span>ðŸŽ</span>
-                    <span>Mac à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦°à¦•à¦¾à¦°à§€à¦¦à§‡à¦° à¦•à§‹à¦¨à§‹ .exe à¦¡à¦¾à¦‰à¦¨à¦²à§‹à¦¡ à¦•à¦°à¦¤à§‡ à¦¹à§Ÿ à¦¨à¦¾! à¦à¦Ÿà¦¿ à¦¸à¦®à§à¦ªà§‚à¦°à§à¦£ à¦¨à§‡à¦Ÿà¦¿à¦­ Mac à¦…à§à¦¯à¦¾à¦ªà§‡à¦° à¦®à¦¤à§‹ à¦•à¦¾à¦œ à¦•à¦°à¦¬à§‡à¥¤</span>
+                    <span>🍎</span>
+                    <span>Mac ব্যবহারকারীদের কোনো .exe ডাউনলোড করতে হয় না! এটি সম্পূর্ণ নেটিভ Mac অ্যাপের মতো কাজ করবে।</span>
                 </div>
             </div>
 
@@ -1043,21 +1043,21 @@
             <div class="pwa-step-panel" id="pwaPanelDesktop">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
-                    <div class="pwa-step-text">Chrome à¦¬à¦¾ Edge à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦°à§‡à¦° à¦…à§à¦¯à¦¾à¦¡à§à¦°à§‡à¦¸ à¦¬à¦¾à¦°à§‡à¦° à¦¡à¦¾à¦¨à§‡ à¦¥à¦¾à¦•à¦¾ <strong>Install Icon ( âŠ• à¦¬à¦¾ ðŸ’» )</strong> à¦šà¦¾à¦ªà§à¦¨à¥¤</div>
+                    <div class="pwa-step-text">Chrome বা Edge ব্রাউজারের অ্যাড্রেস বারের ডানে থাকা <strong>Install Icon ( ⊕ বা 💻 )</strong> চাপুন।</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">2</div>
-                    <div class="pwa-step-text"><strong>"Install"</strong> à¦¬à¦¾à¦Ÿà¦¨à§‡ à¦•à§à¦²à¦¿à¦• à¦•à¦°à¦²à§‡à¦‡ à¦‡à¦¨à¦¸à§à¦Ÿà¦² à¦¸à¦®à§à¦ªà¦¨à§à¦¨ à¦¹à¦¬à§‡à¥¤</div>
+                    <div class="pwa-step-text"><strong>"Install"</strong> বাটনে ক্লিক করলেই ইনস্টল সম্পন্ন হবে।</div>
                 </div>
                 <div class="pwa-tip-box">
-                    <span>ðŸš€</span>
-                    <span>à¦†à¦ªà¦¨à¦¾à¦° Windows à¦Ÿà¦¾à¦¸à§à¦•à¦¬à¦¾à¦° à¦“ à¦¡à§‡à¦¸à§à¦•à¦Ÿà¦ªà§‡ à¦†à¦‡à¦•à¦¨ à¦¤à§ˆà¦°à¦¿ à¦¹à¦¬à§‡, à§§-à¦•à§à¦²à¦¿à¦•à§‡à¦‡ à¦¸à¦°à¦¾à¦¸à¦°à¦¿ à¦šà¦¾à¦²à§ à¦¹à¦¬à§‡!</span>
+                    <span>🚀</span>
+                    <span>আপনার Windows টাস্কবার ও ডেস্কটপে আইকন তৈরি হবে, ১-ক্লিকেই সরাসরি চালু হবে!</span>
                 </div>
             </div>
 
             <div style="margin-top:16px;display:flex;justify-content:flex-end;">
                 <button type="button" class="btn btn-primary" onclick="closePwaGuideModal()" style="padding:8px 20px;">
-                    à¦¬à§à¦à§‡à¦›à¦¿ (Got It)
+                    বুঝেছি (Got It)
                 </button>
             </div>
         </div>
@@ -1068,7 +1068,7 @@
         <div class="pwa-modal-box" style="border-color:rgba(99,102,241,0.4);box-shadow:0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(99,102,241,0.15);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                 <div style="font-size:17px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;">
-                    <span>âš¡</span> ZoneHub Storage &amp; Download Guide
+                    <span>⚡</span> ZoneHub Storage &amp; Download Guide
                 </div>
                 <button type="button" class="btn btn-icon" onclick="closeNetworkStorageModal()" style="font-size:18px;">&times;</button>
             </div>
@@ -1076,10 +1076,10 @@
             <!-- Tabs -->
             <div class="pwa-step-tabs">
                 <button type="button" class="pwa-step-tab active" id="nsTabBtn_storage" onclick="switchNetworkStorageTab('storage')">
-                    ðŸ’¾ Zero Redundancy (Host PC)
+                    💾 Zero Redundancy (Host PC)
                 </button>
                 <button type="button" class="pwa-step-tab" id="nsTabBtn_download" onclick="switchNetworkStorageTab('download')">
-                    ðŸ“¥ Download Choice
+                    📥 Download Choice
                 </button>
             </div>
 
@@ -1087,19 +1087,19 @@
             <div class="pwa-step-panel" id="nsPanel_storage" style="display:block;">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
-                    <div class="pwa-step-text"><strong>à¦¡à§à¦ªà§à¦²à¦¿à¦•à§‡à¦Ÿ à¦®à§‡à¦®à§‹à¦°à¦¿ à¦›à¦¾à§œà¦¾à¦‡ à¦¹à§‹à¦¸à§à¦Ÿ à¦ªà¦¿à¦¸à¦¿à¦° à¦«à¦¾à¦‡à¦² à¦¶à§‡à§Ÿà¦¾à¦°:</strong> à¦¯à§‡à¦¹à§‡à¦¤à§ ZoneHub à¦†à¦ªà¦¨à¦¾à¦° à¦à¦‡ à¦ªà¦¿à¦¸à¦¿à¦¤à§‡à¦‡ à¦šà¦²à¦›à§‡, à¦¤à¦¾à¦‡ à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦° à¦¦à¦¿à§Ÿà§‡ à¦¬à§œ à¦­à¦¿à¦¡à¦¿à¦“ à¦†à¦ªà¦²à§‹à¦¡ à¦•à¦°à¦¾à¦° à¦•à§‹à¦¨à§‹ à¦ªà§à¦°à§Ÿà§‹à¦œà¦¨ à¦¨à§‡à¦‡!</div>
+                    <div class="pwa-step-text"><strong>ডুপ্লিকেট মেমোরি ছাড়াই হোস্ট পিসির ফাইল শেয়ার:</strong> যেহেতু ZoneHub আপনার এই পিসিতেই চলছে, তাই ব্রাউজার দিয়ে বড় ভিডিও আপলোড করার কোনো প্রয়োজন নেই!</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">2</div>
-                    <div class="pwa-step-text"><strong>à¦¸à¦°à¦¾à¦¸à¦°à¦¿ Move / Cut-Paste à¦•à¦°à§à¦¨:</strong> à¦†à¦ªà¦¨à¦¾à¦° à¦ªà¦¿à¦¸à¦¿à¦° à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦­à¦¿à¦¡à¦¿à¦“ à¦¬à¦¾ à¦«à¦¾à¦‡à¦² à¦¸à¦°à¦¾à¦¸à¦°à¦¿ Windows File Explorer à¦¦à¦¿à§Ÿà§‡ <code>Videos\</code>, <code>Pictures\</code> à¦¬à¦¾ à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦«à§‹à¦²à§à¦¡à¦¾à¦°à§‡ à¦ªà§‡à¦¸à§à¦Ÿ à¦•à¦°à§‡ à¦¦à¦¿à¦¨à¥¤ ZoneHub à¦à¦• à¦¸à§‡à¦•à§‡à¦¨à§à¦¡à§‡à¦‡ à¦¤à¦¾ à¦²à¦¾à¦‡à¦­ à¦¡à¦¿à¦Ÿà§‡à¦•à§à¦Ÿ à¦•à¦°à¦¬à§‡â€”<strong>à¦œà¦¿à¦°à§‹ à¦¬à¦¾à¦‡à¦Ÿ à¦…à¦¤à¦¿à¦°à¦¿à¦•à§à¦¤ à¦®à§‡à¦®à§‹à¦°à¦¿ à¦¨à¦·à§à¦Ÿ à¦¹à¦¬à§‡!</strong></div>
+                    <div class="pwa-step-text"><strong>সরাসরি Move / Cut-Paste করুন:</strong> আপনার পিসির যেকোনো ভিডিও বা ফাইল সরাসরি Windows File Explorer দিয়ে <code>Videos\</code>, <code>Pictures\</code> বা যেকোনো ফোল্ডারে পেস্ট করে দিন। ZoneHub এক সেকেন্ডেই তা লাইভ ডিটেক্ট করবে—<strong>জিরো বাইট অতিরিক্ত মেমোরি নষ্ট হবে!</strong></div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">3</div>
-                    <div class="pwa-step-text"><strong>à¦…à¦¨à§à¦¯ à¦¡à§à¦°à¦¾à¦‡à¦­à§‡à¦° à¦«à§‹à¦²à§à¦¡à¦¾à¦° à¦²à¦¿à¦‚à¦• à¦•à¦°à¦¾ (mklink):</strong> D: à¦¬à¦¾ E: à¦¡à§à¦°à¦¾à¦‡à¦­à§‡à¦° à¦¬à§œ à¦«à§‹à¦²à§à¦¡à¦¾à¦° à¦•à§‹à¦¨à§‹ à¦•à¦ªà¦¿ à¦›à¦¾à§œà¦¾à¦‡ à¦¦à§‡à¦–à¦¾à¦¤à§‡ à¦•à¦®à¦¾à¦¨à§à¦¡ à¦ªà§à¦°à¦®à§à¦ªà¦Ÿà§‡ à¦šà¦¾à¦²à¦¾à¦¨: <code>mklink /J "...\Screen Recordings\MyFolder" "D:\MyFolder"</code>à¥¤</div>
+                    <div class="pwa-step-text"><strong>অন্য ড্রাইভের ফোল্ডার লিংক করা (mklink):</strong> D: বা E: ড্রাইভের বড় ফোল্ডার কোনো কপি ছাড়াই দেখাতে কমান্ড প্রম্পটে চালান: <code>mklink /J "...\Screen Recordings\MyFolder" "D:\MyFolder"</code>।</div>
                 </div>
                 <div class="pwa-tip-box" style="background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3);color:#bfdbfe;">
-                    <span>ðŸ’¡</span>
-                    <span>à¦…à¦¨à§à¦¯à¦¾à¦¨à§à¦¯ à¦•à¦°à§à¦®à¦šà¦¾à¦°à§€à¦°à¦¾ à¦¯à¦–à¦¨ à¦†à¦ªà¦²à§‹à¦¡ à¦•à¦°à§‡, à¦¤à¦¾à¦¦à§‡à¦° à¦«à¦¾à¦‡à¦²à¦—à§à¦²à§‹ à¦…à¦¬à¦¶à§à¦¯à¦‡ à¦†à¦ªà¦¨à¦¾à¦° à¦¸à¦¾à¦°à§à¦­à¦¾à¦°à§‡ à¦¸à§‡à¦­ à¦¹à¦¬à§‡ à¦¯à¦¾à¦¤à§‡ à¦ªà§à¦°à§‹ à¦Ÿà¦¿à¦® à¦¦à§‡à¦–à¦¤à§‡ à¦ªà¦¾à¦°à§‡à¥¤</span>
+                    <span>💡</span>
+                    <span>অন্যান্য কর্মচারীরা যখন আপলোড করে, তাদের ফাইলগুলো অবশ্যই আপনার সার্ভারে সেভ হবে যাতে পুরো টিম দেখতে পারে।</span>
                 </div>
             </div>
 
@@ -1107,25 +1107,25 @@
             <div class="pwa-step-panel" id="nsPanel_download" style="display:none;">
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">1</div>
-                    <div class="pwa-step-text"><strong>à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦°à§‡ à¦«à§‹à¦²à§à¦¡à¦¾à¦° à¦¨à¦¿à¦°à§à¦¬à¦¾à¦šà¦¨ à¦¸à¦•à§à¦°à¦¿à§Ÿ à¦•à¦°à§à¦¨:</strong> à¦¸à§à¦¬à§Ÿà¦‚à¦•à§à¦°à¦¿à§Ÿà¦­à¦¾à¦¬à§‡ Downloads à¦«à§‹à¦²à§à¦¡à¦¾à¦°à§‡ à¦¨à¦¾ à¦—à¦¿à§Ÿà§‡ à¦•à§‹à¦¥à¦¾à§Ÿ à¦¸à§‡à¦­ à¦¹à¦¬à§‡ à¦¤à¦¾ à¦¨à¦¿à¦œà§‡ à¦ªà¦›à¦¨à§à¦¦ à¦•à¦°à¦¤à§‡ à¦šà¦¾à¦¨?</div>
+                    <div class="pwa-step-text"><strong>ব্রাউজারে ফোল্ডার নির্বাচন সক্রিয় করুন:</strong> স্বয়ংক্রিয়ভাবে Downloads ফোল্ডারে না গিয়ে কোথায় সেভ হবে তা নিজে পছন্দ করতে চান?</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">2</div>
-                    <div class="pwa-step-text"><strong>Chrome / Edge-à¦ à¦¸à§‡à¦Ÿ à¦•à¦°à§à¦¨:</strong> à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦° à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸ &gt; <strong>Downloads</strong>-à¦ à¦¯à¦¾à¦¨à¥¤ à¦¸à§‡à¦–à¦¾à¦¨à§‡ <strong>"Ask where to save each file before downloading"</strong> (à¦¬à¦¾ à¦ªà§à¦°à¦¤à¦¿à¦¬à¦¾à¦° à¦•à§‹à¦¥à¦¾à§Ÿ à¦¸à§‡à¦­ à¦¹à¦¬à§‡ à¦œà¦¾à¦¨à¦¤à§‡ à¦šà¦¾à¦“à§Ÿà¦¾ à¦¹à§‹à¦•) à¦…à¦¨ à¦•à¦°à§‡ à¦¦à¦¿à¦¨à¥¤</div>
+                    <div class="pwa-step-text"><strong>Chrome / Edge-এ সেট করুন:</strong> ব্রাউজার সেটিংস &gt; <strong>Downloads</strong>-এ যান। সেখানে <strong>"Ask where to save each file before downloading"</strong> (বা প্রতিবার কোথায় সেভ হবে জানতে চাওয়া হোক) অন করে দিন।</div>
                 </div>
                 <div class="pwa-step-item">
                     <div class="pwa-step-num">3</div>
-                    <div class="pwa-step-text">à¦à¦–à¦¨ à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦«à¦¾à¦‡à¦², à¦›à¦¬à¦¿, à¦«à§‹à¦²à§à¦¡à¦¾à¦° à¦œà¦¿à¦ª à¦¬à¦¾ à¦…à§à¦¯à¦¾à¦²à¦¬à¦¾à¦® à¦œà¦¿à¦ª à¦¡à¦¾à¦‰à¦¨à¦²à§‹à¦¡ à¦•à¦°à¦²à§‡à¦‡ Windows à¦†à¦ªà¦¨à¦¾à¦•à§‡ à¦«à§‹à¦²à§à¦¡à¦¾à¦° (D: à¦¡à§à¦°à¦¾à¦‡à¦­, à¦¡à§‡à¦¸à§à¦•à¦Ÿà¦ª, à¦ªà§‡à¦¨à¦¡à§à¦°à¦¾à¦‡à¦­ à¦‡à¦¤à§à¦¯à¦¾à¦¦à¦¿) à¦¬à§‡à¦›à§‡ à¦¨à§‡à¦“à§Ÿà¦¾à¦° à¦…à¦ªà¦¶à¦¨ à¦¦à§‡à¦¬à§‡!</div>
+                    <div class="pwa-step-text">এখন যেকোনো ফাইল, ছবি, ফোল্ডার জিপ বা অ্যালবাম জিপ ডাউনলোড করলেই Windows আপনাকে ফোল্ডার (D: ড্রাইভ, ডেস্কটপ, পেনড্রাইভ ইত্যাদি) বেছে নেওয়ার অপশন দেবে!</div>
                 </div>
                 <div class="pwa-tip-box" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#a7f3d0;">
-                    <span>ðŸ“¥</span>
-                    <span>à¦à¦•à¦¬à¦¾à¦° à¦à¦‡ à¦¸à§‡à¦Ÿà¦¿à¦‚ à¦…à¦¨ à¦•à¦°à¦²à§‡ à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦¡à¦¾à¦‰à¦¨à¦²à§‹à¦¡à§‡à¦° à¦¸à¦®à§Ÿ Windows-à¦à¦° à¦šà§‡à¦¨à¦¾ "Save As" à¦¡à¦¾à§Ÿà¦¾à¦²à¦— à¦¬à¦•à§à¦¸ à¦“à¦ªà§‡à¦¨ à¦¹à¦¬à§‡à¥¤</span>
+                    <span>📥</span>
+                    <span>একবার এই সেটিং অন করলে যেকোনো ডাউনলোডের সময় Windows-এর চেনা "Save As" ডায়ালগ বক্স ওপেন হবে।</span>
                 </div>
             </div>
 
             <div style="margin-top:16px;display:flex;justify-content:flex-end;">
                 <button type="button" class="btn btn-primary" onclick="closeNetworkStorageModal()" style="padding:8px 20px;">
-                    à¦¬à§à¦à§‡à¦›à¦¿ (Got It)
+                    বুঝেছি (Got It)
                 </button>
             </div>
         </div>
@@ -1230,10 +1230,10 @@
         <div class="modal-content" onclick="event.stopPropagation()" style="max-width:620px;width:95%;">
             <div class="modal-header">
                 <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:18px;">ðŸ’»</span>
+                    <span style="font-size:18px;">💻</span>
                     <span>Share Code Snippet or Note</span>
                 </div>
-                <button class="modal-close-btn" onclick="closeCodeSnippetModal()">âœ•</button>
+                <button class="modal-close-btn" onclick="closeCodeSnippetModal()">✕</button>
             </div>
             <div style="padding:16px;">
                 <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
@@ -1262,7 +1262,7 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button type="button" onclick="closeCodeSnippetModal()" class="btn btn-secondary">Cancel</button>
                     <button type="button" onclick="submitCodeSnippet()" class="btn btn-primary" style="padding:0 18px;height:38px;gap:6px;">
-                        <span>âœ“ Send Code</span>
+                        <span>✓ Send Code</span>
                     </button>
                 </div>
             </div>
@@ -1278,8 +1278,8 @@
                     <span id="screenShareTitle">Live Screen Share</span>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <button type="button" onclick="toggleScreenFullscreen()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;">â›¶ Fullscreen</button>
-                    <button class="modal-close-btn" onclick="closeScreenModal()">âœ•</button>
+                    <button type="button" onclick="toggleScreenFullscreen()" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;">⛶ Fullscreen</button>
+                    <button class="modal-close-btn" onclick="closeScreenModal()">✕</button>
                 </div>
             </div>
             <div style="padding:8px;display:flex;justify-content:center;background:#000;border-radius:0 0 12px 12px;overflow:hidden;">
@@ -1293,22 +1293,22 @@
         <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:460px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                 <h3 style="font-size:16px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin:0;">
-                    <span>ðŸ“Š</span> Create Team Poll / à¦­à§‹à¦Ÿ à¦¬à¦¾ à¦®à¦¤à¦¾à¦®à¦¤
+                    <span>📊</span> Create Team Poll / ভোট বা মতামত
                 </h3>
-                <button type="button" class="modal-close-btn" onclick="closeCreatePollModal()">âœ•</button>
+                <button type="button" class="modal-close-btn" onclick="closeCreatePollModal()">✕</button>
             </div>
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.4;">
                 Ask your office team a question. Members can vote with 1 click and view live percentages.
             </p>
             <div style="margin-bottom:12px;">
-                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700;">Poll Question / à¦ªà§à¦°à¦¶à§à¦¨:</label>
-                <input type="text" id="pollQuestionInput" class="chat-input" placeholder="e.g. à¦†à¦œà¦•à§‡à¦° à¦²à¦¾à¦žà§à¦šà§‡ à¦•à§€ à¦–à¦¾à¦¬à§‡à¦¨? or Meeting at 3pm or 5pm?" style="width:100%;height:38px;padding:0 10px;font-size:13px;box-sizing:border-box;" />
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700;">Poll Question / প্রশ্ন:</label>
+                <input type="text" id="pollQuestionInput" class="chat-input" placeholder="e.g. আজকের লাঞ্চে কী খাবেন? or Meeting at 3pm or 5pm?" style="width:100%;height:38px;padding:0 10px;font-size:13px;box-sizing:border-box;" />
             </div>
             <div style="margin-bottom:12px;">
-                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700;">Options / à¦…à¦ªà¦¶à¦¨à¦¸à¦®à§‚à¦¹ (At least 2):</label>
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;font-weight:700;">Options / অপশনসমূহ (At least 2):</label>
                 <div id="pollOptionsList" style="display:flex;flex-direction:column;gap:8px;">
-                    <div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 1 (e.g. Burger / à§©à¦Ÿà¦¾)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>
-                    <div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 2 (e.g. Biryani / à§«à¦Ÿà¦¾)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>
+                    <div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 1 (e.g. Burger / ৩টা)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>
+                    <div class="poll-input-row"><input type="text" class="chat-input poll-opt-input" placeholder="Option 2 (e.g. Biryani / ৫টা)" style="width:100%;height:36px;padding:0 10px;font-size:12px;" /></div>
                 </div>
                 <button type="button" onclick="addPollOption()" class="btn btn-secondary" style="margin-top:8px;font-size:11.5px;padding:5px 10px;gap:6px;width:100%;justify-content:center;">
                     <span>+ Add Another Option</span>
@@ -1317,7 +1317,7 @@
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                 <button type="button" onclick="closeCreatePollModal()" class="btn btn-secondary">Cancel</button>
                 <button type="button" onclick="submitCreatePoll()" class="btn btn-primary" style="padding:0 18px;height:38px;">
-                    <span>ðŸ“Š Launch Poll</span>
+                    <span>📊 Launch Poll</span>
                 </button>
             </div>
         </div>
@@ -1327,7 +1327,7 @@
     <div class="modal-overlay" id="newFolderModal" onclick="closeNewFolderModal(event)" style="display:none;z-index:999999;">
         <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:380px;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                <span style="font-size:24px;">ðŸ“</span>
+                <span style="font-size:24px;">📁</span>
                 <h3 style="font-size:16px;font-weight:800;color:#fff;margin:0;">Create New Folder</h3>
             </div>
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.4;">
@@ -1340,7 +1340,7 @@
                 <div style="display:flex;justify-content:flex-end;gap:10px;">
                     <button type="button" onclick="closeNewFolderModal()" class="btn btn-secondary" style="height:38px;padding:0 14px;">Cancel</button>
                     <button type="submit" class="btn btn-primary" style="height:38px;padding:0 18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;font-weight:700;">
-                        ðŸ“ Create Folder
+                        📁 Create Folder
                     </button>
                 </div>
             </form>
@@ -1352,18 +1352,18 @@
         <div class="modal-content doc-viewer-content" onclick="event.stopPropagation()">
             <div class="modal-header doc-viewer-header">
                 <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
-                    <span id="docViewerIcon" style="font-size:22px;flex-shrink:0;">ðŸ“‘</span>
+                    <span id="docViewerIcon" style="font-size:22px;flex-shrink:0;">📑</span>
                     <div style="min-width:0;">
                         <div id="docViewerTitle" style="font-weight:800;font-size:15px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">document.csv</div>
-                        <div id="docViewerMeta" style="font-size:11px;color:var(--text-muted);">Spreadsheet Grid â€¢ 10 Rows, 4 Columns</div>
+                        <div id="docViewerMeta" style="font-size:11px;color:var(--text-muted);">Spreadsheet Grid • 10 Rows, 4 Columns</div>
                     </div>
                 </div>
                 <div class="doc-viewer-actions">
-                    <input type="text" id="docViewerSearchInput" placeholder="ðŸ” Search in file..." oninput="filterDocViewerContent(this.value)" style="height:32px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;padding:0 8px;font-size:11.5px;display:none;" />
-                    <button type="button" id="docEditToggleBtn" onclick="toggleDocEditMode()" class="btn btn-secondary" style="height:32px;font-size:11.5px;padding:0 10px;display:none;" title="Edit this file">âœï¸ Edit</button>
-                    <button type="button" id="docSaveBtn" onclick="saveDocEditorContent()" class="btn btn-primary" style="height:32px;font-size:11.5px;padding:0 12px;display:none;background:#10b981;border-color:#10b981;" title="Save changes to server">ðŸ’¾ Save</button>
-                    <button type="button" id="docDownloadBtn" onclick="downloadCurrentDocFile()" class="btn btn-secondary" style="height:32px;font-size:11.5px;padding:0 10px;" title="Download file">â¬‡ï¸ Download</button>
-                    <button class="modal-close-btn" onclick="closeDocViewerModal()">âœ•</button>
+                    <input type="text" id="docViewerSearchInput" placeholder="🔍 Search in file..." oninput="filterDocViewerContent(this.value)" style="height:32px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;padding:0 8px;font-size:11.5px;display:none;" />
+                    <button type="button" id="docEditToggleBtn" onclick="toggleDocEditMode()" class="btn btn-secondary" style="height:32px;font-size:11.5px;padding:0 10px;display:none;" title="Edit this file">✏️ Edit</button>
+                    <button type="button" id="docSaveBtn" onclick="saveDocEditorContent()" class="btn btn-primary" style="height:32px;font-size:11.5px;padding:0 12px;display:none;background:#10b981;border-color:#10b981;" title="Save changes to server">💾 Save</button>
+                    <button type="button" id="docDownloadBtn" onclick="downloadCurrentDocFile()" class="btn btn-secondary" style="height:32px;font-size:11.5px;padding:0 10px;" title="Download file">⬇️ Download</button>
+                    <button class="modal-close-btn" onclick="closeDocViewerModal()">✕</button>
                 </div>
             </div>
             <div id="docViewerBody" class="doc-viewer-body">
@@ -1375,12 +1375,12 @@
     <!-- Incoming AirDrop Transfer Request Modal -->
     <div class="modal-overlay" id="incomingAirDropModal" style="display:none;z-index:999999;">
         <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:400px;text-align:center;">
-            <div style="font-size:42px;margin-bottom:8px;animation:pwaGlowPulse 2s infinite;">âš¡</div>
+            <div style="font-size:42px;margin-bottom:8px;animation:pwaGlowPulse 2s infinite;">⚡</div>
             <h3 style="font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;">Incoming AirDrop Transfer</h3>
             <div style="font-size:13px;color:#a5b4fc;margin-bottom:12px;" id="airDropSenderText">Colleague wants to send you:</div>
             <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:14px;text-align:left;">
                 <div style="font-weight:700;font-size:13px;color:#fff;display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                    <span>ðŸ“„</span> <span id="airDropFileName">project.zip</span>
+                    <span>📄</span> <span id="airDropFileName">project.zip</span>
                 </div>
                 <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;display:flex;justify-content:space-between;">
                     <span id="airDropFileSize">25.4 MB</span>
@@ -1392,23 +1392,23 @@
             </p>
             <div style="display:flex;gap:10px;justify-content:center;">
                 <button type="button" onclick="declineIncomingAirDrop()" class="btn btn-secondary" style="flex:1;height:40px;justify-content:center;font-weight:700;">
-                    âœ• Decline
+                    ✕ Decline
                 </button>
                 <button type="button" onclick="acceptIncomingAirDrop()" class="btn btn-primary" style="flex:1;height:40px;justify-content:center;font-weight:700;background:linear-gradient(135deg,#38bdf8,#6366f1);border:none;">
-                    âš¡ Accept &amp; Receive
+                    ⚡ Accept &amp; Receive
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/i18n.js?v=20261103j"></script>
-    <script src="/js/qrcode.js?v=20261103j"></script>
-    <script src="/js/screenshare.js?v=20261103j"></script>
-    <script src="/js/media.js?v=20261103j"></script>
-    <script src="/js/chat.js?v=20261103j"></script>
-    <script src="/js/p2p.js?v=20261103j"></script>
-    <script src="/js/dashboard.js?v=20261103j"></script>
-    <script src="/js/app.js?v=20261103j"></script>
+    <script src="/js/i18n.js?v=20261103k"></script>
+    <script src="/js/qrcode.js?v=20261103k"></script>
+    <script src="/js/screenshare.js?v=20261103k"></script>
+    <script src="/js/media.js?v=20261103k"></script>
+    <script src="/js/chat.js?v=20261103k"></script>
+    <script src="/js/p2p.js?v=20261103k"></script>
+    <script src="/js/dashboard.js?v=20261103k"></script>
+    <script src="/js/app.js?v=20261103k"></script>
 </body>
 </html>
