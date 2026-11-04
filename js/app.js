@@ -129,8 +129,8 @@ function initUserInfo() {
             }
 
             let stored = localStorage.getItem('zonehub_user_name');
-            const isPlaceholder = !stored || stored.startsWith('Employee_') || stored === 'Employee';
-            if (stored && !isPlaceholder) {
+            const hasCustom = localStorage.getItem('zonehub_user_name_custom') === 'true';
+            if (stored && (hasCustom || (!stored.startsWith('Employee_') && stored !== 'Employee'))) {
                 currentUserName = stored;
             } else if (info.defaultName && !info.defaultName.startsWith('Employee_')) {
                 currentUserName = info.defaultName;
@@ -158,23 +158,56 @@ function updateUserDisplay() {
     if (avatarEl) avatarEl.innerText = init;
 }
 
-function promptChangeName() {
-    const newName = prompt('আপনার নাম পরিবর্তন করুন (Enter your name for Team Chat):', currentUserName);
-    if (newName && newName.trim().length > 0) {
-        const trimmed = newName.trim();
-        const lower = trimmed.toLowerCase();
-        const reserved = ['admin', 'administrator', 'host', 'host pc', 'system', 'server', 'zonehub', 'moderator', 'root', 'owner', 'boss'];
-        const isReserved = reserved.some(r => lower === r || lower.startsWith(r + ' ') || lower.endsWith(' ' + r) || lower.includes(' ' + r + ' ') || lower.startsWith(r + '_') || lower.endsWith('_' + r));
-        if (isReserved && !isCurrentHost && !isAdmin) {
-            alert('🚫 সিকিউরিটি সতর্কতা: "' + trimmed + '" নামটি সিস্টেম ও অ্যাডমিনদের জন্য সংরক্ষিত। অনুগ্রহ করে আপনার ব্যক্তিগত নাম লিখুন।');
-            return;
-        }
-        currentUserName = trimmed;
-        localStorage.setItem('zonehub_user_name', currentUserName);
-        updateUserDisplay();
-        showToast('Name updated to: ' + currentUserName);
+function openChangeNameModal() {
+    const modal = document.getElementById('changeNameModal');
+    const input = document.getElementById('changeNameInput');
+    if (input) input.value = currentUserName || '';
+    if (modal) modal.classList.add('active');
+    setTimeout(() => { if (input) { input.focus(); input.select(); } }, 100);
+}
+window.openChangeNameModal = openChangeNameModal;
+
+function closeChangeNameModal(e) {
+    if (!e || e.target.id === 'changeNameModal' || (e.target.classList && e.target.classList.contains('modal-close-btn')) || (e.target.classList && e.target.classList.contains('btn-secondary'))) {
+        const modal = document.getElementById('changeNameModal');
+        if (modal) modal.classList.remove('active');
     }
 }
+window.closeChangeNameModal = closeChangeNameModal;
+
+async function submitChangeName(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('changeNameInput');
+    const newName = input ? input.value.trim() : '';
+    if (!newName) return;
+
+    const lower = newName.toLowerCase();
+    const reserved = ['admin', 'administrator', 'system', 'server', 'zonehub', 'moderator', 'root'];
+    const isReserved = reserved.some(r => lower === r || lower.startsWith(r + ' ') || lower.endsWith(' ' + r) || lower.includes(' ' + r + ' ') || lower.startsWith(r + '_') || lower.endsWith('_' + r));
+    if (isReserved && !isCurrentHost && !isAdmin) {
+        showToast('🚫 That name is reserved for system administrators.');
+        return;
+    }
+
+    currentUserName = newName;
+    localStorage.setItem('zonehub_user_name', currentUserName);
+    localStorage.setItem('zonehub_user_name_custom', 'true');
+    updateUserDisplay();
+    closeChangeNameModal();
+    showToast('✅ Name permanently saved: ' + currentUserName);
+
+    try {
+        await fetch('/api/register-device?name=' + encodeURIComponent(currentUserName), { method: 'POST' });
+    } catch (err) {}
+
+    if (typeof fetchHostStats === 'function') fetchHostStats();
+}
+window.submitChangeName = submitChangeName;
+
+function promptChangeName() {
+    openChangeNameModal();
+}
+window.promptChangeName = promptChangeName;
 
 // Dynamic Hub Configuration & Rename Modal
 let hubConfigData = null;

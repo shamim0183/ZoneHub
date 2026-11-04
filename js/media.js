@@ -516,11 +516,10 @@
             const modal = document.getElementById('newFolderModal');
             const input = document.getElementById('newFolderNameInput');
             if (modal) {
-                modal.style.display = 'flex';
                 modal.classList.add('active');
                 if (input) {
                     input.value = '';
-                    setTimeout(() => input.focus(), 100);
+                    setTimeout(() => { input.focus(); }, 100);
                 }
             } else {
                 const name = prompt('নতুন ফোল্ডারের নাম লিখুন (Enter new folder name):');
@@ -530,15 +529,12 @@
         window.promptCreateNewFolder = promptCreateNewFolder;
 
         function closeNewFolderModal(e) {
-            // If called with an event, only close if clicking the backdrop or Cancel button
-            if (e && e.target && e.target.id !== 'newFolderModal' && !e.target.classList.contains('btn-secondary') && e.target.tagName !== 'BUTTON') return;
-            const modal = document.getElementById('newFolderModal');
-            if (modal) {
-                modal.style.display = 'none';
-                modal.classList.remove('active');
+            if (!e || e.target.id === 'newFolderModal' || (e.target.classList && e.target.classList.contains('modal-close-btn')) || (e.target.classList && e.target.classList.contains('btn-secondary'))) {
+                const modal = document.getElementById('newFolderModal');
+                if (modal) modal.classList.remove('active');
+                const inp = document.getElementById('newFolderNameInput');
+                if (inp) inp.value = '';
             }
-            const inp = document.getElementById('newFolderNameInput');
-            if (inp) inp.value = '';
         }
         window.closeNewFolderModal = closeNewFolderModal;
 
@@ -1024,8 +1020,6 @@
                 listEl.appendChild(card);
             });
 
-            updateMultiSelectBar();
-        }
             updateMultiSelectBar();
         }
 

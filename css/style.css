@@ -1322,25 +1322,34 @@
             right: 6px;
             display: flex;
             gap: 4px;
+            z-index: 25;
+            pointer-events: auto;
         }
 
         .chat-photo-dl-btn {
-            background: rgba(0, 0, 0, 0.65);
+            background: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             color: #fff;
-            border: none;
-            padding: 4px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 5px 10px;
             border-radius: 6px;
-            font-size: 11px;
+            font-size: 11.5px;
+            font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 4px;
-            transition: background 0.2s;
+            gap: 5px;
+            transition: all 0.2s;
+            pointer-events: auto;
+            z-index: 26;
         }
 
         .chat-photo-dl-btn:hover {
             background: var(--primary);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
         }
 
         /* WhatsApp-Style Multi-Media Collage & Album Grid */

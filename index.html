@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261103k">
+    <link rel="stylesheet" href="/css/style.css?v=20261104a">
 </head>
 <body>
     <div class="container">
@@ -258,7 +258,7 @@
                                 <option value="Chat_Media" style="background:#0f172a;color:#fff;">💬 Chat Media (চ্যাট মিডিয়া)</option>
                                 <option value="Documents" style="background:#0f172a;color:#fff;">📄 Documents (ডকুমেন্টস)</option>
                             </select>
-                            <button type="button" onclick="promptCreateNewFolder()" class="btn btn-secondary btn-new-folder" title="Create Custom Folder">+ New Folder</button>
+                            <button type="button" onclick="event.stopPropagation(); promptCreateNewFolder()" class="btn btn-secondary btn-new-folder" title="Create Custom Folder">+ New Folder</button>
                         </div>
                     </div>
 
@@ -354,7 +354,7 @@
                         <div class="section-title">
                             📁 Media Folders (ক্যাটাগরি ফোল্ডারসমূহ)
                         </div>
-                        <button onclick="promptCreateNewFolder()" class="btn btn-secondary" style="font-size:12px;padding:4px 10px;">
+                        <button type="button" onclick="event.stopPropagation(); promptCreateNewFolder()" class="btn btn-secondary" style="font-size:12px;padding:4px 10px;">
                             + New Folder
                         </button>
                     </div>
@@ -1324,11 +1324,12 @@
     </div>
 
     <!-- New Custom Folder Creation Modal -->
-    <div class="modal-overlay" id="newFolderModal" onclick="closeNewFolderModal(event)" style="display:none;z-index:999999;">
+    <div class="modal-overlay" id="newFolderModal" onclick="closeNewFolderModal(event)">
         <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:380px;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                 <span style="font-size:24px;">📁</span>
                 <h3 style="font-size:16px;font-weight:800;color:#fff;margin:0;">Create New Folder</h3>
+                <button type="button" class="modal-close-btn" onclick="closeNewFolderModal()" style="margin-left:auto;">✕</button>
             </div>
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.4;">
                 Enter a folder name to organize your shared media and files.
@@ -1347,7 +1348,34 @@
         </div>
     </div>
 
-    <!-- In-Browser Document & Code Viewer / Editor Modal -->
+    <!-- Set / Change User & PC Name Modal (Permanent) -->
+    <div class="modal-overlay" id="changeNameModal" onclick="closeChangeNameModal(event)">
+        <div class="rename-modal-box" onclick="event.stopPropagation()" style="max-width:400px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:24px;">✏️</span>
+                    <h3 style="font-size:16px;font-weight:800;color:#fff;margin:0;">Set Your Name / নাম পরিবর্তন</h3>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="closeChangeNameModal()">✕</button>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.4;">
+                আপনার পছন্দমতো নাম লিখুন। এটি স্থায়ীভাবে সেভ থাকবে (Chat, Files &amp; Active Devices এ এই নাম দেখাবে)।
+            </p>
+            <form onsubmit="submitChangeName(event)">
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:6px;">Display Name (আপনার নাম):</label>
+                    <input type="text" id="changeNameInput" class="chat-input" placeholder="e.g. Shamim, Obak, Sadid" style="width:100%;height:40px;padding:0 12px;font-size:14px;box-sizing:border-box;border-radius:8px;font-weight:700;" maxlength="32" autocomplete="off" />
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;">
+                    <button type="button" onclick="closeChangeNameModal()" class="btn btn-secondary" style="height:38px;padding:0 14px;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="height:38px;padding:0 18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;font-weight:700;">
+                        💾 Save Permanently
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="docViewerModal" onclick="closeDocViewerModal(event)" style="display:none;">
         <div class="modal-content doc-viewer-content" onclick="event.stopPropagation()">
             <div class="modal-header doc-viewer-header">
@@ -1402,13 +1430,13 @@
     </div>
 
     <!-- Modular JavaScript Architecture (Zero Dependencies) -->
-    <script src="/js/i18n.js?v=20261103k"></script>
-    <script src="/js/qrcode.js?v=20261103k"></script>
-    <script src="/js/screenshare.js?v=20261103k"></script>
-    <script src="/js/media.js?v=20261103k"></script>
-    <script src="/js/chat.js?v=20261103k"></script>
-    <script src="/js/p2p.js?v=20261103k"></script>
-    <script src="/js/dashboard.js?v=20261103k"></script>
-    <script src="/js/app.js?v=20261103k"></script>
+    <script src="/js/i18n.js?v=20261104a"></script>
+    <script src="/js/qrcode.js?v=20261104a"></script>
+    <script src="/js/screenshare.js?v=20261104a"></script>
+    <script src="/js/media.js?v=20261104a"></script>
+    <script src="/js/chat.js?v=20261104a"></script>
+    <script src="/js/p2p.js?v=20261104a"></script>
+    <script src="/js/dashboard.js?v=20261104a"></script>
+    <script src="/js/app.js?v=20261104a"></script>
 </body>
 </html>
