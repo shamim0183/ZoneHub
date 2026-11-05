@@ -5126,15 +5126,23 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
+            cursor: pointer;
             transition: all 0.15s ease;
             flex-shrink: 0;
+            outline: none;
         }
 
+        .peer-chat-action-badge:hover,
         .active-peer-row.is-clickable:hover .peer-chat-action-badge {
             background: #6366f1;
             color: #ffffff;
             border-color: #6366f1;
             box-shadow: 0 2px 8px rgba(99, 102, 241, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .peer-chat-action-badge:active {
+            transform: translateY(0);
         }
 
         .peer-avatar-wrap {

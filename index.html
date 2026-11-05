@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261105e">
+    <link rel="stylesheet" href="/css/style.css?v=20261105f">
 </head>
 <body>
     <div class="container">
@@ -482,7 +482,10 @@
                             <span class="active-dm-banner-dot online"></span>
                             <span id="activeDmBannerText">🔒 Private Chat with Colleague</span>
                         </div>
-                        <button type="button" onclick="switchChatChannel('public')" class="btn-dm-back" title="Back to Team Chat">✕ Back to #Team Chat</button>
+                        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                            <button type="button" onclick="triggerAirDropToCurrentDm()" class="btn-dm-back" title="Direct high-speed P2P AirDrop with this colleague" style="color:#38bdf8;border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.1);font-weight:700;">⚡ AirDrop Beam</button>
+                            <button type="button" onclick="switchChatChannel('public')" class="btn-dm-back" title="Back to Team Chat">✕ Back to #Team Chat</button>
+                        </div>
                     </div>
 
                     <!-- Drag & Drop Visual Overlay for Chat -->
@@ -1475,9 +1478,9 @@
     <script src="/js/qrcode.js?v=20261104a"></script>
     <script src="/js/screenshare.js?v=20261104a"></script>
     <script src="/js/media.js?v=20261104e"></script>
-    <script src="/js/chat.js?v=20261104e"></script>
-    <script src="/js/p2p.js?v=20261105e"></script>
-    <script src="/js/dashboard.js?v=20261104a"></script>
+    <script src="/js/chat.js?v=20261105f"></script>
+    <script src="/js/p2p.js?v=20261105f"></script>
+    <script src="/js/dashboard.js?v=20261105f"></script>
     <script src="/js/app.js?v=20261104e"></script>
 </body>
 </html>

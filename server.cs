@@ -657,6 +657,7 @@ namespace ZoneHub
                     var d = new Dictionary<string, object>();
                     d["name"] = displayName;
                     d["ip"] = p.clientIp ?? "";
+                    d["userId"] = !string.IsNullOrEmpty(p.userId) ? p.userId : (p.clientIp ?? "");
                     d["isHost"] = p.isHost;
                     d["deviceType"] = devType;
                     d["icon"] = icon;

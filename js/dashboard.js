@@ -7,6 +7,76 @@
     let isTunnelBusy = false;
     let currentGlobalUrl = '';
 
+    function escapeQuotes(text) {
+        if (!text) return '';
+        return String(text).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+    window.escapeQuotes = window.escapeQuotes || escapeQuotes;
+
+    function openPrivateChatWithDevice(rawName, rawUserIdOrIp) {
+        if (!rawName && !rawUserIdOrIp) return;
+
+        // 1. Close Connected Devices popover
+        const popover = document.getElementById('activePeersPopover');
+        if (popover) popover.style.display = 'none';
+
+        // 2. Resolve true display name and ID
+        let targetName = (rawName || '').replace(/\s*\(Host PC\)/i, '').trim();
+        let targetId = (rawUserIdOrIp || '').trim();
+
+        // Cross-reference with WebRTC discovered peers (window.__zonehubPeers)
+        if (window.__zonehubPeers && Array.isArray(window.__zonehubPeers)) {
+            const matchedPeer = window.__zonehubPeers.find(p => 
+                (targetId && p.userId === targetId) ||
+                (targetName && p.userName && p.userName.toLowerCase() === targetName.toLowerCase()) ||
+                (p.ip && (p.ip === targetName || p.ip === targetId))
+            );
+            if (matchedPeer) {
+                targetName = matchedPeer.userName || targetName;
+                targetId = matchedPeer.userId || targetId;
+            }
+        }
+
+        if (!targetId) targetId = targetName;
+        if (!targetName) targetName = targetId;
+
+        // 3. Switch layout view to chat
+        if (typeof window.switchView === 'function') {
+            if (window.innerWidth <= 768) {
+                window.switchView('chat');
+            } else {
+                const tabChatOnly = document.getElementById('tabChatOnlyBtn');
+                const isChatActive = tabChatOnly && tabChatOnly.classList.contains('active');
+                if (!isChatActive) {
+                    window.switchView('split');
+                }
+            }
+        }
+
+        // 4. Switch chat channel to private DM with this user
+        if (typeof window.switchChatChannel === 'function') {
+            window.switchChatChannel(targetId, { userId: targetId, userName: targetName });
+        }
+
+        // 5. Scroll chat to view and focus message input
+        setTimeout(() => {
+            const chatSection = document.getElementById('chatSectionWrapper');
+            if (chatSection && window.innerWidth <= 768) {
+                chatSection.scrollIntoView({ behavior: 'smooth' });
+            }
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.focus();
+            }
+        }, 150);
+
+        // 6. Visual notification
+        if (typeof showToast === 'function') {
+            showToast('💬 Opened private 1-on-1 chat with ' + targetName);
+        }
+    }
+    window.openPrivateChatWithDevice = openPrivateChatWithDevice;
+
     async function fetchHostStats() {
         try {
             const res = await fetch('/api/stats', { cache: 'no-cache' });
@@ -145,14 +215,15 @@
                         const name = p.name || 'Anonymous';
                         const isSelf = myNameNorm && (name.toLowerCase() === myNameNorm || (isHostCurrent && isHost));
 
+                        const targetId = p.userId || p.ip || name;
                         const clickHandler = isSelf 
                             ? '' 
-                            : `onclick="openPrivateChatWithDevice('${escapeHtml(name)}', '${escapeHtml(p.userId || '')}')"`;
+                            : `onclick="openPrivateChatWithDevice('${escapeQuotes(name)}', '${escapeQuotes(targetId)}')"` ;
                         const rowClass = isSelf ? 'active-peer-row' : 'active-peer-row is-clickable';
                         const rowTitle = isSelf ? 'Your current device' : `Click to open private 1-on-1 chat with ${escapeHtml(name)}`;
                         const actionBadge = isSelf
                             ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;font-weight:600;">(You)</span>`
-                            : `<span class="peer-chat-action-badge">💬 Chat &amp; Share</span>`;
+                            : `<button type="button" class="peer-chat-action-badge" onclick="event.stopPropagation(); openPrivateChatWithDevice('${escapeQuotes(name)}', '${escapeQuotes(targetId)}');" title="Open 1-on-1 private chat &amp; direct file beam">💬 Chat &amp; Share</button>`;
 
                         return `
                             <div class="${rowClass}" ${clickHandler} title="${rowTitle}">

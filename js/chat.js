@@ -740,6 +740,42 @@
         }
         window.switchChatChannel = switchChatChannel;
 
+        window.triggerAirDropToCurrentDm = function() {
+            if (!currentDmUser) {
+                if (typeof switchView === 'function') switchView('p2p');
+                return;
+            }
+
+            const dmName = (currentDmUser.userName || '').toLowerCase();
+            const dmId = currentDmUser.userId || '';
+
+            // Switch to AirDrop Beam tab
+            if (typeof switchView === 'function') {
+                switchView('p2p');
+            }
+
+            // Check if peer is found in window.__zonehubPeers
+            let matchedPeer = null;
+            if (window.__zonehubPeers && Array.isArray(window.__zonehubPeers)) {
+                matchedPeer = window.__zonehubPeers.find(p => 
+                    (dmId && p.userId === dmId) ||
+                    (p.userName && p.userName.toLowerCase() === dmName) ||
+                    (p.ip && (p.ip === dmName || p.ip === dmId))
+                );
+            }
+
+            if (matchedPeer && typeof window.startSendFileToPeer === 'function') {
+                window.startSendFileToPeer(matchedPeer.userId);
+                if (typeof showToast === 'function') {
+                    showToast('⚡ Choose a file to beam directly to ' + (matchedPeer.userName || currentDmUser.userName));
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast('⚡ AirDrop Beam: Select ' + currentDmUser.userName + ' in the devices list to send files.');
+                }
+            }
+        };
+
         function renderDmTabs() {
             const container = document.getElementById('activeDmTabsContainer');
             if (!container) return;
