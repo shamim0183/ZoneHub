@@ -1,4 +1,4 @@
-const CACHE_NAME = 'media-hub-shell-v25';
+const CACHE_NAME = 'media-hub-shell-v26';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

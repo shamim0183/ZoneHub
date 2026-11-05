@@ -3674,64 +3674,49 @@ namespace ZoneHub
             string downloadsPath = Path.Combine(userProfile, "Downloads");
             string storageBase = !string.IsNullOrEmpty(RootDirectory) ? RootDirectory : GetConfiguredStorageDirectory();
             string targetDir = downloadsPath;
-
-            if (folderType == "storage" || folderType == "library")
-            {
-                targetDir = storageBase;
-            }
-            else if (folderType == "videos")
-            {
-                targetDir = Path.Combine(storageBase, "Videos");
-            }
-            else if (folderType == "pictures")
-            {
-                targetDir = Path.Combine(storageBase, "Pictures");
-            }
-            else if (folderType == "files" || folderType == "documents")
-            {
-                targetDir = Path.Combine(storageBase, "Documents");
-            }
-            else
-            {
-                targetDir = downloadsPath;
-            }
-
-            if (!Directory.Exists(targetDir))
-            {
-                try { Directory.CreateDirectory(targetDir); } catch {}
-            }
-
+            bool found = false;
             bool opened = false;
             string errorMsg = "";
 
-            try
+            if (!string.IsNullOrEmpty(specificFile))
             {
-                if (!string.IsNullOrEmpty(specificFile))
+                string pDown = Path.Combine(downloadsPath, specificFile);
+                if (File.Exists(pDown))
                 {
-                    string filePath = Path.Combine(targetDir, specificFile);
-                    if (File.Exists(filePath))
-                    {
-                        Process.Start("explorer.exe", "/select,\"" + filePath + "\"");
-                        opened = true;
-                    }
-                    else
-                    {
-                        Process.Start("explorer.exe", targetDir);
-                        opened = true;
-                    }
+                    targetDir = downloadsPath;
+                    found = true;
+                    try { Process.Start("explorer.exe", "/select,\"" + pDown + "\""); opened = true; } catch (Exception ex) { errorMsg = ex.Message; }
                 }
                 else
                 {
-                    Process.Start("explorer.exe", targetDir);
-                    opened = true;
+                    string[] storageDirs = new string[] { storageBase, Path.Combine(storageBase, "Videos"), Path.Combine(storageBase, "Pictures"), Path.Combine(storageBase, "Files"), Path.Combine(storageBase, "Documents") };
+                    foreach (var sDir in storageDirs)
+                    {
+                        string pStore = Path.Combine(sDir, specificFile);
+                        if (File.Exists(pStore))
+                        {
+                            targetDir = sDir;
+                            found = true;
+                            try { Process.Start("explorer.exe", "/select,\"" + pStore + "\""); opened = true; } catch (Exception ex) { errorMsg = ex.Message; }
+                            break;
+                        }
+                    }
                 }
             }
-            catch (Exception ex)
+
+            if (!opened)
             {
-                errorMsg = ex.Message;
+                if (folderType == "storage" || folderType == "library") targetDir = storageBase;
+                else if (folderType == "videos") targetDir = Path.Combine(storageBase, "Videos");
+                else if (folderType == "pictures") targetDir = Path.Combine(storageBase, "Pictures");
+                else if (folderType == "files" || folderType == "documents") targetDir = Path.Combine(storageBase, "Documents");
+                else targetDir = downloadsPath;
+
+                if (!Directory.Exists(targetDir)) { try { Directory.CreateDirectory(targetDir); } catch {} }
+                try { Process.Start("explorer.exe", targetDir); opened = true; } catch (Exception ex) { errorMsg = ex.Message; }
             }
 
-            string json = "{\"success\":true,\"opened\":" + (opened ? "true" : "false") + ",\"path\":\"" + JsonEscape(targetDir) + "\",\"downloadsPath\":\"" + JsonEscape(downloadsPath) + "\",\"storagePath\":\"" + JsonEscape(storageBase) + "\"" + (!string.IsNullOrEmpty(errorMsg) ? ",\"error\":\"" + JsonEscape(errorMsg) + "\"" : "") + "}";
+            string json = "{\"success\":true,\"opened\":" + (opened ? "true" : "false") + ",\"found\":" + (found ? "true" : "false") + ",\"path\":\"" + JsonEscape(targetDir) + "\",\"downloadsPath\":\"" + JsonEscape(downloadsPath) + "\",\"storagePath\":\"" + JsonEscape(storageBase) + "\"" + (!string.IsNullOrEmpty(errorMsg) ? ",\"error\":\"" + JsonEscape(errorMsg) + "\"" : "") + "}";
             SendJsonResponse(stream, 200, json);
         }
 

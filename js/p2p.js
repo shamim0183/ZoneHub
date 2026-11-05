@@ -169,16 +169,18 @@
             const res = await fetch(url);
             const data = await res.json();
             if (data && data.success) {
-                if (data.opened) {
-                    showToast('📂 Opened folder in Windows Explorer: ' + (data.path || 'Downloads'));
+                if (data.found) {
+                    showToast('📂 Opened file location: ' + (data.path || 'Downloads'));
+                } else if (data.opened) {
+                    showToast('📂 Opened: ' + (data.path || 'Downloads') + '\n(If saved to another drive, check that folder)');
                 } else {
-                    showToast('📁 Saved directory: ' + (data.path || 'Downloads'));
+                    showToast('📁 Saved location: ' + (data.path || 'Downloads'));
                 }
             } else {
-                showToast('📁 Saved location: C:\\Users\\...\\Downloads');
+                showToast('📁 Default location: C:\\Users\\...\\Downloads');
             }
         } catch (e) {
-            showToast('📁 Saved location: C:\\Users\\...\\Downloads');
+            showToast('📁 Default location: C:\\Users\\...\\Downloads');
         }
         if (folderType && folderType !== 'downloads' && typeof switchView === 'function') {
             switchView('files');
@@ -313,6 +315,15 @@
                 await writable.write(blob);
                 await writable.close();
                 showToast('🎉 Saved directly to: ' + handle.name);
+                closeP2PTransferCard();
+                let history = getAirDropHistory();
+                const item = history.find(h => h.id === idOrName || h.fileName === fileName);
+                if (item) {
+                    item.savedLocation = 'Saved as ' + handle.name;
+                    item.customSaved = true;
+                    saveAirDropHistory(history);
+                    renderAirDropHistory();
+                }
                 return;
             } catch (err) {
                 if (err.name === 'AbortError') return;
@@ -451,12 +462,16 @@
                 : '<span class="p2p-badge-received">⬇️ Received from ' + escapeHtml(tx.peerName || 'Peer') + '</span>';
 
             const isLib = tx.isLibrarySaved;
+            const isCustom = tx.customSaved;
             const targetFolder = tx.savedFolder || (isVideo ? 'Videos' : (isImage ? 'Pictures' : 'Files'));
             const locHtml = isSent
                 ? '<span class="p2p-saved-path">💻 Original on this PC</span>'
                 : (isLib
                     ? '<span class="p2p-saved-path p2p-saved-library p2p-clickable-path" onclick="openAirDropFolder(\'' + targetFolder.toLowerCase() + '\', \'' + escapeHtml(fileName) + '\')" title="Saved in ZoneHub Shared Storage (' + targetFolder + '/). Click to open in File Explorer or view in ZoneHub">☁️ ' + escapeHtml(tx.savedLocation || ('ZoneHub: ' + targetFolder + '/')) + '</span>'
-                    : '<span class="p2p-saved-path p2p-clickable-path" onclick="openAirDropFolder(\'downloads\', \'' + escapeHtml(fileName) + '\')" title="Auto-saved to Windows Downloads folder. Click to open in File Explorer">📁 ' + escapeHtml(tx.savedLocation || 'Saved in Downloads') + '</span>'
+                    : (isCustom
+                        ? '<span class="p2p-saved-path p2p-clickable-path" onclick="openAirDropFolder(\'downloads\', \'' + escapeHtml(fileName) + '\')" title="Saved to your chosen drive/folder. Click to reveal">📁 ' + escapeHtml(tx.savedLocation || 'Saved to chosen folder') + '</span>'
+                        : '<span class="p2p-saved-path p2p-clickable-path" onclick="openAirDropFolder(\'downloads\', \'' + escapeHtml(fileName) + '\')" title="Saved via browser. Click to open in File Explorer">📁 ' + escapeHtml(tx.savedLocation || 'Downloaded to PC') + '</span>'
+                      )
                   );
 
             let playBtn = '';
@@ -1189,7 +1204,7 @@
             peerName: currentIncomingTransfer.fromName || 'Colleague',
             peerId: currentIncomingTransfer.fromId || '',
             timestamp: Date.now(),
-            savedLocation: 'Downloads folder (C:\\Users\\...\\Downloads)',
+            savedLocation: 'Downloaded to PC',
             status: 'completed'
         };
         addAirDropTransferRecord(record, finalBlob, url);
@@ -1207,6 +1222,16 @@
         if (isTransferCardMinimized) {
             window.expandP2PTransferCard();
         }
+
+        // Auto-dismiss completed floating card after 7s so it doesn't stay open blocking the screen
+        if (window.__p2pCompleteAutoCloseTimer) clearTimeout(window.__p2pCompleteAutoCloseTimer);
+        window.__p2pCompleteAutoCloseTimer = setTimeout(() => {
+            const card = document.getElementById('p2pTransferCard');
+            if (card && card.style.display !== 'none' && !activeTransferInProgress) {
+                closeP2PTransferCard();
+            }
+        }, 7000);
+
         const card = document.getElementById('p2pTransferCard');
         const titleEl = document.getElementById('p2pTransferTitle');
         const percentEl = document.getElementById('p2pTransferPercent');
@@ -1233,8 +1258,8 @@
                     escapeHtml(fileName) +
                 '</div>' +
                 '<div style="font-size:11.5px;color:#34d399;background:rgba(16,185,129,0.1);padding:6px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.25);">' +
-                    '📁 <strong>Saved in Downloads folder</strong><br/>' +
-                    '<span style="color:#94a3b8;font-size:10.5px;">Auto-downloaded to: <code>C:\\Users\\...\\Downloads</code></span>' +
+                    '📁 <strong>Downloaded &amp; Saved (100%)</strong><br/>' +
+                    '<span style="color:#94a3b8;font-size:10.5px;">Auto-downloaded to your PC or chosen drive.</span>' +
                 '</div>' +
                 '<button type="button" class="btn btn-secondary" onclick="openAirDropFolder(\'downloads\', \'' + escapeHtml(fileName) + '\')" style="justify-content:center;font-size:12px;padding:6px 10px;color:#38bdf8;border-color:rgba(56,189,248,0.35);font-weight:700;">📂 Open in Windows Explorer</button>' +
                 (isVideo ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:7px 12px;background:linear-gradient(135deg,#10b981,#059669);font-weight:700;box-shadow:0 2px 8px rgba(16,185,129,0.4);">▶ Watch Video in ZoneHub</button>' : '') +
