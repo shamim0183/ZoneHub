@@ -255,56 +255,73 @@
     };
 
     window.openAirDropMedia = function(idOrName) {
+        const hist = getAirDropHistory();
+        const found = hist.find(h => h.id === idOrName || h.fileName === idOrName);
         const entry = (window.__zonehubActiveBlobs && (window.__zonehubActiveBlobs.get(idOrName) || window.__zonehubActiveBlobs.get(idOrName.toLowerCase()))) ||
-                      (window.__zonehubTransferRecords && window.__zonehubTransferRecords.find(t => t.id === idOrName || t.fileName === idOrName));
+                      (window.__zonehubTransferRecords && window.__zonehubTransferRecords.find(t => t.id === idOrName || t.fileName === idOrName)) ||
+                      found;
         
-        let blobUrl = entry && (entry.blobUrl || (entry.blob ? URL.createObjectURL(entry.blob) : null));
-        const fileName = (entry && entry.fileName) || idOrName || 'media_item';
-        const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(fileName);
-        const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName);
+        const realFileName = (entry && entry.fileName) || (found && found.fileName) || (idOrName && !idOrName.startsWith('tx_') ? idOrName : 'media_item');
+        const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(realFileName);
+        const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(realFileName);
 
-        if (!blobUrl) {
-            const hist = getAirDropHistory();
-            const found = hist.find(h => h.id === idOrName || h.fileName === idOrName);
-            if (found && window.__zonehubActiveBlobs) {
-                const active = window.__zonehubActiveBlobs.get(found.id) || window.__zonehubActiveBlobs.get(found.fileName);
-                if (active) blobUrl = active.blobUrl || (active.blob ? URL.createObjectURL(active.blob) : null);
-            }
+        let mediaUrl = null;
+        if (entry && (entry.blobUrl || entry.blob)) {
+            mediaUrl = entry.blobUrl || (entry.blob ? URL.createObjectURL(entry.blob) : null);
+        } else if (found && window.__zonehubActiveBlobs) {
+            const active = window.__zonehubActiveBlobs.get(found.id) || window.__zonehubActiveBlobs.get(found.fileName);
+            if (active) mediaUrl = active.blobUrl || (active.blob ? URL.createObjectURL(active.blob) : null);
         }
 
-        if (blobUrl) {
+        // If not in RAM (e.g. after page refresh), fallback to streaming from server library!
+        if (!mediaUrl && realFileName && realFileName !== 'media_item') {
+            const targetFolder = (found && found.savedFolder) || (isVideo ? 'Videos' : (isImage ? 'Pictures' : 'Files'));
+            mediaUrl = '/' + encodeURIComponent(targetFolder) + '/' + encodeURIComponent(realFileName);
+        }
+
+        if (mediaUrl) {
             if (isVideo) {
                 if (typeof openAlbumLightbox === 'function') {
-                    openAlbumLightbox([blobUrl], 0, fileName);
+                    openAlbumLightbox([mediaUrl], 0, realFileName);
                 } else if (typeof playVideo === 'function') {
-                    playVideo(blobUrl, fileName);
+                    playVideo(mediaUrl, realFileName);
                 } else {
-                    window.open(blobUrl, '_blank');
+                    window.open(mediaUrl, '_blank');
                 }
             } else if (isImage) {
                 if (typeof openAlbumLightbox === 'function') {
-                    openAlbumLightbox([blobUrl], 0, fileName);
+                    openAlbumLightbox([mediaUrl], 0, realFileName);
                 } else {
-                    window.open(blobUrl, '_blank');
+                    window.open(mediaUrl, '_blank');
                 }
             } else {
                 const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = fileName;
+                a.href = mediaUrl;
+                a.download = realFileName;
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 1000);
             }
         } else {
-            showToast('📁 "' + fileName + '" is saved in your local Downloads folder. Open it from your PC or browser download shelf.');
+            showToast('📁 "' + realFileName + '" is saved in your local Downloads folder. Open it from your PC or browser download shelf.');
         }
     };
 
     window.saveAirDropAs = async function(idOrName) {
+        const hist = getAirDropHistory();
+        const found = hist.find(h => h.id === idOrName || h.fileName === idOrName);
         const entry = (window.__zonehubActiveBlobs && (window.__zonehubActiveBlobs.get(idOrName) || window.__zonehubActiveBlobs.get(idOrName.toLowerCase()))) ||
                       (window.__zonehubTransferRecords && window.__zonehubTransferRecords.find(t => t.id === idOrName || t.fileName === idOrName));
-        const fileName = (entry && entry.fileName) || idOrName || 'download';
-        const blob = entry && (entry.blob || entry.file);
+        const fileName = (entry && entry.fileName) || (found && found.fileName) || (idOrName && !idOrName.startsWith('tx_') ? idOrName : 'download');
+        let blob = entry && (entry.blob || entry.file);
+
+        if (!blob && found) {
+            try {
+                const targetFolder = found.savedFolder || 'Videos';
+                const res = await fetch('/' + encodeURIComponent(targetFolder) + '/' + encodeURIComponent(fileName));
+                if (res.ok) blob = await res.blob();
+            } catch(e) {}
+        }
 
         if (blob && 'showSaveFilePicker' in window) {
             try {
@@ -345,10 +362,12 @@
     };
 
     window.uploadAirDropToServer = async function(idOrName, btnElement) {
+        const hist = getAirDropHistory();
+        const found = hist.find(h => h.id === idOrName || h.fileName === idOrName);
         const entry = (window.__zonehubActiveBlobs && (window.__zonehubActiveBlobs.get(idOrName) || window.__zonehubActiveBlobs.get(idOrName.toLowerCase()))) ||
                       (window.__zonehubTransferRecords && window.__zonehubTransferRecords.find(t => t.id === idOrName || t.fileName === idOrName));
         const blob = entry && (entry.blob || entry.file);
-        const fileName = (entry && entry.fileName) || idOrName || 'media_item';
+        const fileName = (entry && entry.fileName) || (found && found.fileName) || (idOrName && !idOrName.startsWith('tx_') ? idOrName : 'media_item');
 
         if (!blob) {
             showToast('⚠️ File binary is not in memory. Check your Downloads folder.');

@@ -2262,11 +2262,11 @@
                 display: none !important;
             }
 
-            /* Clean 2-Column Tabs on Mobile */
+            /* Clean 3-Column Navigation Tabs on Mobile */
             .tabs-header {
                 display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
-                gap: 8px !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 6px !important;
                 width: 100% !important;
                 margin-bottom: 14px !important;
                 padding-bottom: 4px !important;
@@ -2277,14 +2277,14 @@
                 justify-content: center !important;
                 text-align: center !important;
                 white-space: nowrap !important;
-                font-size: 13px !important;
-                padding: 10px 8px !important;
-                gap: 6px !important;
+                font-size: 11.5px !important;
+                padding: 8px 4px !important;
+                gap: 5px !important;
                 box-sizing: border-box !important;
             }
             .tab-btn svg {
-                width: 16px !important;
-                height: 16px !important;
+                width: 15px !important;
+                height: 15px !important;
                 flex-shrink: 0 !important;
             }
             .badge-counter {
@@ -2736,15 +2736,32 @@
                 overflow-x: auto !important;
                 -webkit-overflow-scrolling: touch !important;
                 flex-wrap: nowrap !important;
-                padding-bottom: 2px !important;
+                padding-bottom: 4px !important;
+                scrollbar-width: none !important;
             }
             .chat-channels-left::-webkit-scrollbar {
                 display: none !important;
             }
-            .channel-pill {
+            .active-dm-tabs-container {
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 6px !important;
                 flex-shrink: 0 !important;
+            }
+            .channel-dm-wrapper {
+                flex-shrink: 0 !important;
+                position: relative !important;
+                display: inline-flex !important;
+            }
+            .channel-pill,
+            .dm-channel-tab,
+            .btn-dm-add {
+                flex-shrink: 0 !important;
+                white-space: nowrap !important;
                 font-size: 11px !important;
                 padding: 4px 10px !important;
+                display: inline-flex !important;
+                align-items: center !important;
             }
             .chat-inline-search-box {
                 width: 100% !important;
@@ -4009,6 +4026,8 @@
             display: inline-flex;
             align-items: center;
             gap: 5px;
+            white-space: nowrap;
+            flex-shrink: 0;
             transition: all 0.2s ease;
         }
 
@@ -4025,10 +4044,10 @@
         }
 
         .active-dm-tabs-container {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
-            flex-wrap: wrap;
+            flex-shrink: 0;
         }
 
         .dm-channel-tab {
@@ -4043,6 +4062,8 @@
             font-size: 11px;
             font-weight: 700;
             cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
             transition: all 0.2s ease;
         }
 
@@ -4099,12 +4120,17 @@
             border-bottom: 1px solid rgba(56, 189, 248, 0.2);
             font-size: 11px;
             color: #7dd3fc;
+            gap: 8px;
         }
 
         .active-dm-banner-left {
             display: flex;
             align-items: center;
             gap: 8px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .active-dm-banner-dot.online {
@@ -4117,11 +4143,16 @@
 
         .channel-dm-wrapper {
             position: relative;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
         }
 
         .btn-dm-add {
             background: rgba(255, 255, 255, 0.05);
             border: 1px dashed rgba(255, 255, 255, 0.2);
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .btn-dm-add:hover {
