@@ -1175,6 +1175,13 @@ namespace ZoneHub
                     return;
                 }
 
+                // Handle GET / POST /api/open-folder (Open directory on PC in File Explorer & get paths)
+                if (decodedPath.Equals("/api/open-folder", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleOpenFolder(stream, req);
+                    return;
+                }
+
                 // Handle GET / POST config (Dynamic Hub Name)
                 if (decodedPath.Equals("/api/config", StringComparison.OrdinalIgnoreCase))
                 {
@@ -3639,6 +3646,93 @@ namespace ZoneHub
             }
 
             SendJsonResponse(stream, 400, "{\"success\":false,\"error\":\"Invalid directory path provided.\"}");
+        }
+
+        private static void HandleOpenFolder(NetworkStream stream, RequestContext req)
+        {
+            string folderType = "downloads";
+            string specificFile = "";
+            int qIdx = req.Url.IndexOf('?');
+            if (qIdx >= 0)
+            {
+                string query = req.Url.Substring(qIdx + 1);
+                string[] parts = query.Split('&');
+                foreach (var part in parts)
+                {
+                    string[] kv = part.Split('=');
+                    if (kv.Length >= 2)
+                    {
+                        string k = Uri.UnescapeDataString(kv[0]).ToLower().Trim();
+                        string v = Uri.UnescapeDataString(kv[1]).Trim();
+                        if (k == "folder" || k == "target" || k == "type") folderType = v.ToLower();
+                        if (k == "file" || k == "filename") specificFile = v;
+                    }
+                }
+            }
+
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string downloadsPath = Path.Combine(userProfile, "Downloads");
+            string storageBase = !string.IsNullOrEmpty(RootDirectory) ? RootDirectory : GetConfiguredStorageDirectory();
+            string targetDir = downloadsPath;
+
+            if (folderType == "storage" || folderType == "library")
+            {
+                targetDir = storageBase;
+            }
+            else if (folderType == "videos")
+            {
+                targetDir = Path.Combine(storageBase, "Videos");
+            }
+            else if (folderType == "pictures")
+            {
+                targetDir = Path.Combine(storageBase, "Pictures");
+            }
+            else if (folderType == "files" || folderType == "documents")
+            {
+                targetDir = Path.Combine(storageBase, "Documents");
+            }
+            else
+            {
+                targetDir = downloadsPath;
+            }
+
+            if (!Directory.Exists(targetDir))
+            {
+                try { Directory.CreateDirectory(targetDir); } catch {}
+            }
+
+            bool opened = false;
+            string errorMsg = "";
+
+            try
+            {
+                if (!string.IsNullOrEmpty(specificFile))
+                {
+                    string filePath = Path.Combine(targetDir, specificFile);
+                    if (File.Exists(filePath))
+                    {
+                        Process.Start("explorer.exe", "/select,\"" + filePath + "\"");
+                        opened = true;
+                    }
+                    else
+                    {
+                        Process.Start("explorer.exe", targetDir);
+                        opened = true;
+                    }
+                }
+                else
+                {
+                    Process.Start("explorer.exe", targetDir);
+                    opened = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMsg = ex.Message;
+            }
+
+            string json = "{\"success\":true,\"opened\":" + (opened ? "true" : "false") + ",\"path\":\"" + JsonEscape(targetDir) + "\",\"downloadsPath\":\"" + JsonEscape(downloadsPath) + "\",\"storagePath\":\"" + JsonEscape(storageBase) + "\"" + (!string.IsNullOrEmpty(errorMsg) ? ",\"error\":\"" + JsonEscape(errorMsg) + "\"" : "") + "}";
+            SendJsonResponse(stream, 200, json);
         }
 
         private static void ServeDashboard(NetworkStream stream, bool headOnly)

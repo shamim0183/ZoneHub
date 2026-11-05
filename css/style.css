@@ -2220,27 +2220,32 @@
             color: #f43f5e;
         }
 
-        /* Toast */
+        /* Toast Notification (Top-Center Floating Badge — Never collides with cards or keyboard) */
         #toast {
             position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: #1e293b;
+            top: 24px;
+            left: 50%;
+            transform: translate(-50%, -60px);
+            background: rgba(15, 23, 42, 0.96);
             color: #f8fafc;
-            padding: 12px 20px;
-            border-radius: 10px;
-            border: 1px solid rgba(99, 102, 241, 0.4);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            padding: 11px 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(56, 189, 248, 0.3);
             font-size: 13px;
-            font-weight: 500;
-            transform: translateY(100px);
+            font-weight: 600;
             opacity: 0;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 4000;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 100000;
+            pointer-events: none;
+            max-width: calc(100vw - 32px);
+            text-align: center;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
         }
 
         #toast.show {
-            transform: translateY(0);
+            transform: translate(-50%, 0);
             opacity: 1;
         }
 
@@ -6111,6 +6116,27 @@
             border-radius: 4px;
             padding: 2px 7px;
             border: 1px dashed rgba(255, 255, 255, 0.12);
+        }
+        .p2p-clickable-path {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .p2p-clickable-path:hover {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-1px);
+        }
+        .p2p-saved-path.p2p-saved-library {
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        .p2p-saved-path.p2p-saved-library:hover {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
         }
 
         .p2p-history-actions {

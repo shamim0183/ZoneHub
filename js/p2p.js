@@ -49,6 +49,7 @@
     let currentIncomingTransfer = null;
     let activeTransferInProgress = false;
     let isTransferCardMinimized = false;
+    let pendingCandidates = new Map();     // targetPeerId -> Array of RTCIceCandidate
     let heartbeatTimer = null;
     let signalTimer = null;
 
@@ -162,10 +163,54 @@
         if (pill) pill.style.display = 'none';
     };
 
+    window.openAirDropFolder = async function(folderType, fileName) {
+        try {
+            const url = '/api/open-folder?folder=' + encodeURIComponent(folderType || 'downloads') + (fileName ? '&file=' + encodeURIComponent(fileName) : '');
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data && data.success) {
+                if (data.opened) {
+                    showToast('📂 Opened folder in Windows Explorer: ' + (data.path || 'Downloads'));
+                } else {
+                    showToast('📁 Saved directory: ' + (data.path || 'Downloads'));
+                }
+            } else {
+                showToast('📁 Saved location: C:\\Users\\...\\Downloads');
+            }
+        } catch (e) {
+            showToast('📁 Saved location: C:\\Users\\...\\Downloads');
+        }
+        if (folderType && folderType !== 'downloads' && typeof switchView === 'function') {
+            switchView('files');
+        }
+    };
+
+    function cleanupPeerSession(peerId) {
+        if (peerId) {
+            if (activeDataChannels.has(peerId)) {
+                try { activeDataChannels.get(peerId).close(); } catch (e) {}
+                activeDataChannels.delete(peerId);
+            }
+            if (activePeerConnections.has(peerId)) {
+                try { activePeerConnections.get(peerId).close(); } catch (e) {}
+                activePeerConnections.delete(peerId);
+            }
+            if (pendingCandidates.has(peerId)) {
+                pendingCandidates.delete(peerId);
+            }
+        }
+        activeTransferInProgress = false;
+    }
+
     window.cancelActiveP2PTransfer = function() {
         if (!confirm('Are you sure you want to stop and cancel this AirDrop transfer?')) return;
         activeTransferInProgress = false;
         isTransferCardMinimized = false;
+
+        const otherPeerId = targetPeerForTransfer || (currentIncomingTransfer ? currentIncomingTransfer.fromId : '');
+        if (otherPeerId) {
+            postSignal(otherPeerId, 'transfer-canceled', { by: getMyName() });
+        }
 
         for (const [id, dc] of activeDataChannels.entries()) {
             try { dc.close(); } catch (e) {}
@@ -175,6 +220,7 @@
         }
         activeDataChannels.clear();
         activePeerConnections.clear();
+        pendingCandidates.clear();
 
         currentIncomingTransfer = null;
         pendingFileOffer = null;
@@ -330,6 +376,15 @@
                     }
                     if (typeof loadFileList === 'function') loadFileList();
                     if (typeof loadFoldersList === 'function') loadFoldersList();
+                    let history = getAirDropHistory();
+                    const item = history.find(h => h.id === idOrName || h.fileName === fileName);
+                    if (item) {
+                        item.savedLocation = 'ZoneHub Library (' + targetFolder + '/)';
+                        item.savedFolder = targetFolder;
+                        item.isLibrarySaved = true;
+                        saveAirDropHistory(history);
+                        renderAirDropHistory();
+                    }
                 } else {
                     showToast('❌ Server upload error: HTTP ' + xhr.status);
                     if (btnElement) {
@@ -395,9 +450,14 @@
                 ? '<span class="p2p-badge-sent">⬆️ Sent to ' + escapeHtml(tx.peerName || 'Peer') + '</span>'
                 : '<span class="p2p-badge-received">⬇️ Received from ' + escapeHtml(tx.peerName || 'Peer') + '</span>';
 
+            const isLib = tx.isLibrarySaved;
+            const targetFolder = tx.savedFolder || (isVideo ? 'Videos' : (isImage ? 'Pictures' : 'Files'));
             const locHtml = isSent
                 ? '<span class="p2p-saved-path">💻 Original on this PC</span>'
-                : '<span class="p2p-saved-path" title="Auto-saved to Windows Downloads folder">📁 Saved in Downloads</span>';
+                : (isLib
+                    ? '<span class="p2p-saved-path p2p-saved-library p2p-clickable-path" onclick="openAirDropFolder(\'' + targetFolder.toLowerCase() + '\', \'' + escapeHtml(fileName) + '\')" title="Saved in ZoneHub Shared Storage (' + targetFolder + '/). Click to open in File Explorer or view in ZoneHub">☁️ ' + escapeHtml(tx.savedLocation || ('ZoneHub: ' + targetFolder + '/')) + '</span>'
+                    : '<span class="p2p-saved-path p2p-clickable-path" onclick="openAirDropFolder(\'downloads\', \'' + escapeHtml(fileName) + '\')" title="Auto-saved to Windows Downloads folder. Click to open in File Explorer">📁 ' + escapeHtml(tx.savedLocation || 'Saved in Downloads') + '</span>'
+                  );
 
             let playBtn = '';
             if (isVideo) {
@@ -405,6 +465,13 @@
             } else if (isImage) {
                 playBtn = '<button type="button" class="btn btn-primary btn-icon-sm" onclick="openAirDropMedia(\'' + tx.id + '\')" title="Preview Photo" style="font-size:11.5px;padding:4px 10px;gap:5px;background:linear-gradient(135deg,#ec4899,#db2777);"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> View Photo</button>';
             }
+
+            const openFolderBtn = !isSent
+                ? (isLib
+                    ? '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="openAirDropFolder(\'' + targetFolder.toLowerCase() + '\', \'' + escapeHtml(fileName) + '\')" title="Open directory in Windows Explorer" style="font-size:11.5px;padding:4px 10px;gap:5px;color:#34d399;border-color:rgba(16,185,129,0.35);">📂 Open Folder</button>'
+                    : '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="openAirDropFolder(\'downloads\', \'' + escapeHtml(fileName) + '\')" title="Open Downloads folder in Windows Explorer" style="font-size:11.5px;padding:4px 10px;gap:5px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">📂 Open Folder</button>'
+                  )
+                : '';
 
             html += 
                 '<div class="p2p-history-item" id="p2pItem_' + tx.id + '">' +
@@ -425,6 +492,7 @@
                     '</div>' +
                     '<div class="p2p-history-actions">' +
                         playBtn +
+                        openFolderBtn +
                         '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="saveAirDropAs(\'' + tx.id + '\')" title="Save to local folder" style="font-size:11.5px;padding:4px 10px;gap:5px;">💾 Save As...</button>' +
                         '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="uploadAirDropToServer(\'' + tx.id + '\', this)" title="Upload to ZoneHub Shared Library" style="font-size:11.5px;padding:4px 10px;gap:5px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ Save to Library</button>' +
                         '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="deleteAirDropHistoryItem(\'' + tx.id + '\')" title="Remove from list" style="font-size:11px;padding:4px 8px;color:#f43f5e;">✕</button>' +
@@ -460,6 +528,7 @@
                     data: typeof data === 'string' ? data : JSON.stringify(data)
                 })
             });
+            setTimeout(pollSignals, 60);
         } catch (e) {
             console.error('[P2P] Failed to send signal:', e);
         }
@@ -533,14 +602,28 @@
                 break;
 
             case 'file-accept':
-                showToast('⚡ ' + fromName + ' accepted! Direct P2P transfer started...');
-                if (pendingFileOffer && targetPeerForTransfer === fromId) {
+                showToast('⚡ ' + fromName + ' accepted! Connecting direct P2P link...');
+                if (pendingFileOffer) {
+                    targetPeerForTransfer = fromId;
+                    targetPeerNameForTransfer = fromName;
                     await initiateSenderWebRTC(fromId, pendingFileOffer);
                 }
                 break;
 
             case 'file-decline':
                 showToast('❌ ' + fromName + ' declined the P2P transfer.');
+                resetTransferState();
+                break;
+
+            case 'transfer-canceled':
+                showToast('⏹ Transfer was canceled by ' + fromName + '.');
+                cleanupPeerSession(fromId);
+                resetTransferState();
+                break;
+
+            case 'transfer-error':
+                showToast('⚠️ Transfer interrupted: Connection issue with ' + fromName + '.');
+                cleanupPeerSession(fromId);
                 resetTransferState();
                 break;
 
@@ -656,6 +739,18 @@
     // -------------------------------------------------------------
     // Sender WebRTC Setup
     // -------------------------------------------------------------
+    async function drainPendingCandidates(peerId, pc) {
+        const list = pendingCandidates.get(peerId) || [];
+        pendingCandidates.delete(peerId);
+        for (const cand of list) {
+            try {
+                await pc.addIceCandidate(cand);
+            } catch (e) {
+                console.warn('[P2P] Queued candidate add error:', e);
+            }
+        }
+    }
+
     async function initiateSenderWebRTC(toId, file) {
         const pc = new RTCPeerConnection(STUN_CONFIG);
         activePeerConnections.set(toId, pc);
@@ -667,8 +762,15 @@
         };
 
         pc.oniceconnectionstatechange = () => {
-            if (pc.iceConnectionState === 'failed' && typeof pc.restartIce === 'function') {
-                pc.restartIce();
+            if (pc.iceConnectionState === 'failed') {
+                if (typeof pc.restartIce === 'function') {
+                    pc.restartIce();
+                } else {
+                    showToast('⚠️ P2P connection failed with ' + targetPeerNameForTransfer);
+                    postSignal(toId, 'transfer-error', { error: 'ICE failed' });
+                }
+            } else if (pc.iceConnectionState === 'disconnected') {
+                showToast('⚠️ P2P link disconnected with ' + targetPeerNameForTransfer);
             }
         };
 
@@ -684,6 +786,7 @@
 
         dc.onerror = (err) => {
             console.error('[P2P] Sender DataChannel error:', err);
+            postSignal(toId, 'transfer-error', { error: 'DataChannel error' });
         };
 
         dc.onopen = async () => {
@@ -693,6 +796,7 @@
             } catch (err) {
                 console.error('[P2P] Streaming failed:', err);
                 showToast('❌ Transfer interrupted: ' + (err.message || 'Connection lost'));
+                postSignal(toId, 'transfer-error', { error: err.message || 'Connection lost' });
             }
         };
 
@@ -715,8 +819,15 @@
         };
 
         pc.oniceconnectionstatechange = () => {
-            if (pc.iceConnectionState === 'failed' && typeof pc.restartIce === 'function') {
-                pc.restartIce();
+            if (pc.iceConnectionState === 'failed') {
+                if (typeof pc.restartIce === 'function') {
+                    pc.restartIce();
+                } else {
+                    showToast('⚠️ P2P connection failed with peer');
+                    postSignal(fromId, 'transfer-error', { error: 'ICE failed' });
+                }
+            } else if (pc.iceConnectionState === 'disconnected') {
+                showToast('⚠️ P2P link disconnected with peer');
             }
         };
 
@@ -732,11 +843,13 @@
 
             dc.onerror = (err) => {
                 console.error('[P2P] Receiver DataChannel error:', err);
+                postSignal(fromId, 'transfer-error', { error: 'DataChannel error' });
             };
         };
 
         const sdp = JSON.parse(sdpStr);
         await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await drainPendingCandidates(fromId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await postSignal(fromId, 'answer', JSON.stringify(answer));
@@ -747,16 +860,25 @@
         if (pc) {
             const sdp = JSON.parse(sdpStr);
             await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+            await drainPendingCandidates(fromId, pc);
         }
     }
 
     async function handleWebRTCCandidate(fromId, candStr) {
-        const pc = activePeerConnections.get(fromId);
-        if (pc) {
-            try {
-                const cand = JSON.parse(candStr);
-                await pc.addIceCandidate(new RTCIceCandidate(cand));
-            } catch (e) {}
+        try {
+            const cand = JSON.parse(candStr);
+            const rtcCand = new RTCIceCandidate(cand);
+            const pc = activePeerConnections.get(fromId);
+            if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                await pc.addIceCandidate(rtcCand);
+            } else {
+                if (!pendingCandidates.has(fromId)) {
+                    pendingCandidates.set(fromId, []);
+                }
+                pendingCandidates.get(fromId).push(rtcCand);
+            }
+        } catch (e) {
+            console.warn('[P2P] ICE candidate queue note:', e);
         }
     }
 
@@ -1112,8 +1234,9 @@
                 '</div>' +
                 '<div style="font-size:11.5px;color:#34d399;background:rgba(16,185,129,0.1);padding:6px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.25);">' +
                     '📁 <strong>Saved in Downloads folder</strong><br/>' +
-                    '<span style="color:#94a3b8;font-size:10.5px;">Auto-downloaded to your PC. Watch or open directly below:</span>' +
+                    '<span style="color:#94a3b8;font-size:10.5px;">Auto-downloaded to: <code>C:\\Users\\...\\Downloads</code></span>' +
                 '</div>' +
+                '<button type="button" class="btn btn-secondary" onclick="openAirDropFolder(\'downloads\', \'' + escapeHtml(fileName) + '\')" style="justify-content:center;font-size:12px;padding:6px 10px;color:#38bdf8;border-color:rgba(56,189,248,0.35);font-weight:700;">📂 Open in Windows Explorer</button>' +
                 (isVideo ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:7px 12px;background:linear-gradient(135deg,#10b981,#059669);font-weight:700;box-shadow:0 2px 8px rgba(16,185,129,0.4);">▶ Watch Video in ZoneHub</button>' : '') +
                 (isImage ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:7px 12px;background:linear-gradient(135deg,#ec4899,#db2777);font-weight:700;">👁️ View Photo</button>' : '') +
                 '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
