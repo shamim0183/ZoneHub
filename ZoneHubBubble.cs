@@ -95,6 +95,9 @@ namespace ZoneHub {
         private string serverUrl = "http://localhost:8080";
         private IntPtr cachedAppHwnd = IntPtr.Zero;
         private bool isAppRestoredState = false;
+        private string latestMessageSender = "";
+        private string latestMessageSenderId = "";
+        private bool latestMessageIsPrivate = false;
 
         // Win32 API for toggling and minimizing/restoring the ZoneHub App window
         [DllImport("user32.dll")]
@@ -580,16 +583,30 @@ namespace ZoneHub {
             closeBtn.MouseLeftButtonDown += (s, e) => {
                 e.Handled = true;
                 teaserWindow.Hide();
+                ClearUnreadNotification();
             };
             Grid.SetColumn(closeBtn, 2);
             grid.Children.Add(closeBtn);
 
             teaserBorder.Child = grid;
-            teaserBorder.MouseLeftButtonDown += (s, e) => {
+            teaserBorder.PreviewMouseLeftButtonDown += (s, e) => {
+                Point pt = e.GetPosition(closeBtn);
+                if (pt.X >= 0 && pt.X <= closeBtn.ActualWidth && pt.Y >= 0 && pt.Y <= closeBtn.ActualHeight) {
+                    teaserWindow.Hide();
+                    ClearUnreadNotification();
+                    e.Handled = true;
+                    return;
+                }
+
                 teaserWindow.Hide();
-                unreadCount = 0;
-                badgeBorder.Visibility = Visibility.Collapsed;
-                ToggleZoneHubApp(openChatTab: true);
+                ClearUnreadNotification();
+
+                string targetTab = "chat";
+                if (latestMessageIsPrivate && !string.IsNullOrEmpty(latestMessageSender)) {
+                    targetTab = "dm:" + latestMessageSender;
+                }
+
+                ToggleZoneHubApp(targetTabSignal: targetTab);
             };
 
             teaserWindow.Content = teaserBorder;
@@ -658,14 +675,29 @@ namespace ZoneHub {
             } catch { }
         }
 
+        private void ClearUnreadNotification() {
+            try {
+                unreadCount = 0;
+                if (badgeText != null) badgeText.Text = "0";
+                if (badgeBorder != null) badgeBorder.Visibility = Visibility.Collapsed;
+            } catch { }
+        }
+
         private void OnBubbleClicked() {
             bool hasUnread = (unreadCount > 0);
-            unreadCount = 0;
-            badgeBorder.Visibility = Visibility.Collapsed;
+            string targetTab = null;
+            if (hasUnread) {
+                if (latestMessageIsPrivate && !string.IsNullOrEmpty(latestMessageSender)) {
+                    targetTab = "dm:" + latestMessageSender;
+                } else {
+                    targetTab = "chat";
+                }
+            }
+            ClearUnreadNotification();
             teaserWindow.Hide();
 
             // Toggle ZoneHub App (First time opens, then toggles between Minimize and Restore!)
-            ToggleZoneHubApp(openChatTab: hasUnread);
+            ToggleZoneHubApp(targetTabSignal: targetTab);
         }
 
         private bool IsMatchingZoneHubTitle(string title) {
@@ -706,10 +738,10 @@ namespace ZoneHub {
             return found;
         }
 
-        private void ToggleZoneHubApp(bool openChatTab = false) {
+        private void ToggleZoneHubApp(string targetTabSignal = null) {
             try {
-                if (openChatTab) {
-                    SendTargetTabSignal("chat");
+                if (!string.IsNullOrEmpty(targetTabSignal)) {
+                    SendTargetTabSignal(targetTabSignal);
                 }
 
                 IntPtr appHwnd = FindZoneHubAppWindow();
@@ -717,28 +749,28 @@ namespace ZoneHub {
                 if (appHwnd != IntPtr.Zero) {
                     bool isMinimized = IsIconic(appHwnd);
                     if (isMinimized) {
-                        // Window is currently minimized -> RESTORE AND BRING TO FRONT!
                         ShowWindow(appHwnd, SW_RESTORE);
                         SetForegroundWindow(appHwnd);
                         isAppRestoredState = true;
-                    } else if (isAppRestoredState && !openChatTab) {
-                        // Window is currently visible on screen -> MINIMIZE IT!
+                    } else if (isAppRestoredState && string.IsNullOrEmpty(targetTabSignal)) {
                         ShowWindow(appHwnd, SW_MINIMIZE);
                         isAppRestoredState = false;
                     } else {
-                        // Window is behind other windows or new chat notification arrived -> BRING TO FRONT!
                         ShowWindow(appHwnd, SW_RESTORE);
                         SetForegroundWindow(appHwnd);
                         isAppRestoredState = true;
                     }
                 } else {
-                    // First time only: App is closed -> Launch standalone native Desktop App!
-                    string targetUrl = BuildAppUrl(openChatTab ? "tab=chat" : null);
+                    string extra = "tab=chat";
+                    if (!string.IsNullOrEmpty(targetTabSignal) && targetTabSignal.StartsWith("dm:")) {
+                        extra = "tab=chat&dm=" + Uri.EscapeDataString(targetTabSignal.Substring(3));
+                    }
+                    string targetUrl = BuildAppUrl(extra);
                     LaunchStandaloneApp(targetUrl);
                     isAppRestoredState = true;
                 }
             } catch {
-                string targetUrl = BuildAppUrl(openChatTab ? "tab=chat" : null);
+                string targetUrl = BuildAppUrl(!string.IsNullOrEmpty(targetTabSignal) ? "tab=chat" : null);
                 LaunchStandaloneApp(targetUrl);
                 isAppRestoredState = true;
             }
@@ -1092,32 +1124,53 @@ namespace ZoneHub {
                     int diff = count - lastMessageCount;
                     lastMessageCount = count;
 
-                    // Extract latest sender name
+                    // Extract latest sender name & details from the last message object
+                    int lastObjStart = json.LastIndexOf("{\"id\":");
+                    if (lastObjStart == -1) lastObjStart = json.LastIndexOf('{');
+                    string lastObj = (lastObjStart >= 0) ? json.Substring(lastObjStart) : json;
+
                     string sender = "Team Member";
                     string preview = "New message";
+                    string sId = "";
+                    bool isPriv = false;
 
-                    int lastUserIdx = json.LastIndexOf("\"user\":");
-                    if (lastUserIdx != -1) {
-                        int uStart = json.IndexOf('"', lastUserIdx + 7) + 1;
-                        int uEnd = json.IndexOf('"', uStart);
-                        if (uEnd > uStart) sender = json.Substring(uStart, uEnd - uStart);
+                    int uIdx = lastObj.IndexOf("\"user\":");
+                    if (uIdx != -1) {
+                        int uStart = lastObj.IndexOf('"', uIdx + 7) + 1;
+                        int uEnd = lastObj.IndexOf('"', uStart);
+                        if (uEnd > uStart) sender = lastObj.Substring(uStart, uEnd - uStart);
                     }
 
-                    int lastTextIdx = json.LastIndexOf("\"text\":");
-                    if (lastTextIdx != -1) {
-                        int tStart = json.IndexOf('"', lastTextIdx + 7) + 1;
-                        int tEnd = json.IndexOf('"', tStart);
-                        if (tEnd > tStart) preview = json.Substring(tStart, tEnd - tStart);
+                    int uiIdx = lastObj.IndexOf("\"userId\":");
+                    if (uiIdx != -1) {
+                        int uiStart = lastObj.IndexOf('"', uiIdx + 9) + 1;
+                        int uiEnd = lastObj.IndexOf('"', uiStart);
+                        if (uiEnd > uiStart) sId = lastObj.Substring(uiStart, uiEnd - uiStart);
+                    }
+
+                    int tIdx = lastObj.IndexOf("\"text\":");
+                    if (tIdx != -1) {
+                        int tStart = lastObj.IndexOf('"', tIdx + 7) + 1;
+                        int tEnd = lastObj.IndexOf('"', tStart);
+                        if (tEnd > tStart) preview = lastObj.Substring(tStart, tEnd - tStart);
+                    }
+
+                    if (lastObj.IndexOf("\"isPrivate\":true", StringComparison.OrdinalIgnoreCase) >= 0) {
+                        isPriv = true;
                     }
 
                     Dispatcher.Invoke(new Action(() => {
-                        OnNewMessageReceived(sender, preview, diff);
+                        OnNewMessageReceived(sender, preview, diff, isPriv, sId);
                     }));
                 }
             } catch { }
         }
 
-        private void OnNewMessageReceived(string user, string text, int diff) {
+        private void OnNewMessageReceived(string user, string text, int diff, bool isPrivate, string senderId) {
+            latestMessageSender = user;
+            latestMessageSenderId = senderId;
+            latestMessageIsPrivate = isPrivate;
+
             unreadCount += diff;
             badgeText.Text = unreadCount > 99 ? "99+" : unreadCount.ToString();
             badgeBorder.Visibility = Visibility.Visible;

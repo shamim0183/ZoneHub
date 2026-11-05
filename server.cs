@@ -1674,7 +1674,10 @@ namespace ZoneHub
             {
                 try
                 {
-                    setVal = req.Url.Split(new[] { "set=" }, StringSplitOptions.None)[1].Split('&')[0];
+                    int sIdx = req.Url.IndexOf("set=") + 4;
+                    int sEnd = req.Url.IndexOf('&', sIdx);
+                    string rawVal = (sEnd == -1) ? req.Url.Substring(sIdx) : req.Url.Substring(sIdx, sEnd - sIdx);
+                    setVal = Uri.UnescapeDataString(rawVal).Trim();
                 }
                 catch {}
             }
@@ -1687,10 +1690,15 @@ namespace ZoneHub
                 if (!string.IsNullOrEmpty(setVal))
                 {
                     TargetTabByIp[clientKey] = setVal;
-                    if (clientKey == "localhost")
+                    if (req.IsLocalhost || clientKey == "127.0.0.1" || clientKey == "localhost" || clientKey == "::1")
                     {
+                        TargetTabByIp["localhost"] = setVal;
                         TargetTabByIp["127.0.0.1"] = setVal;
                         TargetTabByIp["::1"] = setVal;
+                    }
+                    if (!string.IsNullOrEmpty(req.ClientIp))
+                    {
+                        TargetTabByIp[req.ClientIp] = setVal;
                     }
                     SendJsonResponse(stream, 200, "{\"success\":true,\"targetTab\":\"" + JsonEscape(setVal) + "\"}");
                     return;
@@ -1706,6 +1714,11 @@ namespace ZoneHub
                 {
                     current = TargetTabByIp["localhost"];
                     TargetTabByIp.Remove("localhost");
+                }
+                else if (TargetTabByIp.ContainsKey("127.0.0.1"))
+                {
+                    current = TargetTabByIp["127.0.0.1"];
+                    TargetTabByIp.Remove("127.0.0.1");
                 }
 
                 SendJsonResponse(stream, 200, "{\"targetTab\":\"" + JsonEscape(current) + "\"}");

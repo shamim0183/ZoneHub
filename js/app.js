@@ -830,7 +830,9 @@ function onToastClicked() {
 }
 
 let teaserTimer = null;
+let latestTeaserMsg = null;
 function showChatHeadTeaser(msg) {
+    latestTeaserMsg = msg;
     const teaser = document.getElementById('chatHeadTeaser');
     const userEl = document.getElementById('teaserUser');
     const textEl = document.getElementById('teaserText');
@@ -858,7 +860,20 @@ function dismissTeaser() {
 
 function onTeaserClicked() {
     dismissTeaser();
-    toggleChatHeadClick();
+    unreadChatCount = 0;
+    if (typeof updateChatUnreadBadge === 'function') updateChatUnreadBadge();
+
+    if (latestTeaserMsg && latestTeaserMsg.isPrivate && latestTeaserMsg.user) {
+        if (typeof window.openPrivateChatWithDevice === 'function') {
+            window.openPrivateChatWithDevice(latestTeaserMsg.user, latestTeaserMsg.userId || latestTeaserMsg.user);
+        } else if (typeof window.switchChatChannel === 'function') {
+            if (typeof switchView === 'function') switchView('chat');
+            window.switchChatChannel(latestTeaserMsg.userId || latestTeaserMsg.user, { userId: latestTeaserMsg.userId, userName: latestTeaserMsg.user });
+        }
+    } else {
+        if (typeof switchView === 'function') switchView('chat');
+        if (typeof window.switchChatChannel === 'function') window.switchChatChannel('public');
+    }
 }
 
 function toggleChatHeadClick() {
@@ -1265,7 +1280,26 @@ async function checkTargetTabSignal() {
         const res = await fetch('/api/target-tab?t=' + Date.now());
         const data = await res.json();
         if (data && data.targetTab) {
-            switchView(data.targetTab);
+            const sig = data.targetTab.trim();
+            unreadChatCount = 0;
+            if (typeof updateChatUnreadBadge === 'function') updateChatUnreadBadge();
+
+            if (sig.startsWith('dm:')) {
+                const dmTarget = sig.substring(3).trim();
+                if (typeof window.openPrivateChatWithDevice === 'function') {
+                    window.openPrivateChatWithDevice(dmTarget, dmTarget);
+                } else if (typeof window.switchChatChannel === 'function') {
+                    if (typeof switchView === 'function') switchView('chat');
+                    window.switchChatChannel(dmTarget, { userId: dmTarget, userName: dmTarget });
+                }
+            } else if (sig === 'chat' || sig === 'public') {
+                if (typeof switchView === 'function') switchView('chat');
+                if (typeof window.switchChatChannel === 'function') {
+                    window.switchChatChannel('public');
+                }
+            } else {
+                if (typeof switchView === 'function') switchView(sig);
+            }
             if (typeof scrollChatToBottom === 'function') {
                 scrollChatToBottom(true);
             }
@@ -1275,6 +1309,8 @@ async function checkTargetTabSignal() {
 
 window.addEventListener('DOMContentLoaded', () => {
     // Check if opened as Corner Mini Dock:
+    const urlParams = new URLSearchParams(window.location.search);
+    const dmParam = urlParams.get('dm');
     if (window.location.search.includes('view=mini')) {
         document.body.classList.add('mini-dock-mode');
         switchView('chat');
@@ -1282,6 +1318,14 @@ window.addEventListener('DOMContentLoaded', () => {
         switchView('chat');
     } else if (window.innerWidth < 768) {
         switchView('files');
+    }
+    if (dmParam) {
+        if (typeof switchView === 'function') switchView('chat');
+        setTimeout(() => {
+            if (typeof window.openPrivateChatWithDevice === 'function') {
+                window.openPrivateChatWithDevice(dmParam, dmParam);
+            }
+        }, 350);
     }
 
     window.addEventListener('resize', () => {
