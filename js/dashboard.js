@@ -29,18 +29,19 @@
         // 2. Resolve true display name and ID
         let targetName = (rawName || '').replace(/\s*\(Host PC\)/i, '').trim();
         let targetId = (rawUserIdOrIp || '').trim();
+        let targetIp = '';
 
-        // Cross-reference with WebRTC discovered peers (window.__zonehubPeers)
-        if (window.__zonehubPeers && Array.isArray(window.__zonehubPeers)) {
-            const matchedPeer = window.__zonehubPeers.find(p => 
-                (targetId && p.userId === targetId) ||
-                (targetName && p.userName && p.userName.toLowerCase() === targetName.toLowerCase()) ||
-                (p.ip && (p.ip === targetName || p.ip === targetId))
-            );
-            if (matchedPeer) {
-                targetName = matchedPeer.userName || targetName;
-                targetId = matchedPeer.userId || targetId;
-            }
+        // Cross-reference with all discovered LAN devices & WebRTC peers
+        const allPeers = (window.__activeDevicesPeers || []).concat(window.__zonehubPeers || []);
+        const matchedPeer = allPeers.find(p => 
+            (targetId && (p.userId === targetId || p.ip === targetId)) ||
+            (targetName && ((p.name && p.name.toLowerCase() === targetName.toLowerCase()) || (p.userName && p.userName.toLowerCase() === targetName.toLowerCase()))) ||
+            (p.ip && (p.ip === targetName || p.ip === targetId))
+        );
+        if (matchedPeer) {
+            targetName = (matchedPeer.name || matchedPeer.userName || targetName).replace(/\s*\(Host PC\)/i, '').trim();
+            targetId = matchedPeer.userId || matchedPeer.ip || targetId;
+            targetIp = matchedPeer.ip || '';
         }
 
         if (!targetId) targetId = targetName;
@@ -61,7 +62,7 @@
 
         // 4. Switch chat channel to private DM with this user
         if (typeof window.switchChatChannel === 'function') {
-            window.switchChatChannel(targetId, { userId: targetId, userName: targetName });
+            window.switchChatChannel(targetId, { userId: targetId, userName: targetName, ip: targetIp });
         }
 
         // 5. Scroll chat to view and focus message input
@@ -209,6 +210,11 @@
                         if (seenKeys.has(dedupeKey)) continue;
                         seenKeys.add(dedupeKey);
                         uniquePeers.push(p);
+                    }
+
+                    window.__activeDevicesPeers = uniquePeers;
+                    if (typeof window.updateDmUsersMenu === 'function') {
+                        window.updateDmUsersMenu();
                     }
 
                     peersList.innerHTML = uniquePeers.map(p => {

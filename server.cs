@@ -564,18 +564,28 @@ namespace ZoneHub
             lock (PeersLock)
             {
                 string key = ip.Trim();
+                string resolvedName = key;
+                lock (DeviceNameCache)
+                {
+                    if (DeviceNameCache.ContainsKey(key)) resolvedName = DeviceNameCache[key];
+                }
+
                 if (ActivePeers.ContainsKey(key))
                 {
                     ActivePeers[key].lastSeenUnix = DateTime.UtcNow.Ticks;
                     ActivePeers[key].isMobile = isMobile;
                     if (!string.IsNullOrEmpty(ua)) ActivePeers[key].userAgent = ua;
+                    if (!string.IsNullOrEmpty(resolvedName) && !resolvedName.Equals(key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ActivePeers[key].userName = resolvedName;
+                    }
                 }
                 else
                 {
                     ActivePeers[key] = new PeerInfo
                     {
                         userId = key,
-                        userName = key,
+                        userName = resolvedName,
                         clientIp = key,
                         lastSeenUnix = DateTime.UtcNow.Ticks,
                         isHost = (key == "127.0.0.1" || key == "::1" || key == GetCurrentLocalIp()),
@@ -625,9 +635,26 @@ namespace ZoneHub
                 {
                     var p = kvp.Value;
                     string key = !string.IsNullOrEmpty(p.clientIp) ? p.clientIp.Trim() : kvp.Key;
-                    if (!dedup.ContainsKey(key) || dedup[key].lastSeenUnix < p.lastSeenUnix)
+                    if (!dedup.ContainsKey(key))
                     {
                         dedup[key] = p;
+                    }
+                    else
+                    {
+                        bool existingHasName = !string.IsNullOrEmpty(dedup[key].userName) && !dedup[key].userName.Equals(key, StringComparison.OrdinalIgnoreCase);
+                        bool candidateHasName = !string.IsNullOrEmpty(p.userName) && !p.userName.Equals(key, StringComparison.OrdinalIgnoreCase);
+                        if (!existingHasName && candidateHasName)
+                        {
+                            dedup[key] = p;
+                        }
+                        else if (existingHasName && !candidateHasName)
+                        {
+                            dedup[key].lastSeenUnix = Math.Max(dedup[key].lastSeenUnix, p.lastSeenUnix);
+                        }
+                        else if (p.lastSeenUnix > dedup[key].lastSeenUnix)
+                        {
+                            dedup[key] = p;
+                        }
                     }
                 }
 
@@ -1080,16 +1107,24 @@ namespace ZoneHub
                     return;
                 }
 
-                // Handle GET / POST register-device (Desktop Bubble registers actual Windows PC name)
+                // Handle GET / POST register-device (Registers client username, userId and IP)
                 if (decodedPath.Equals("/api/register-device", StringComparison.OrdinalIgnoreCase))
                 {
                     string devName = "";
+                    string devUserId = "";
                     if (req.Url.Contains("name="))
                     {
                         int nIdx = req.Url.IndexOf("name=") + 5;
                         int nEnd = req.Url.IndexOf('&', nIdx);
                         string rawName = (nEnd == -1) ? req.Url.Substring(nIdx) : req.Url.Substring(nIdx, nEnd - nIdx);
                         devName = Uri.UnescapeDataString(rawName).Trim();
+                    }
+                    if (req.Url.Contains("userId="))
+                    {
+                        int uIdx = req.Url.IndexOf("userId=") + 7;
+                        int uEnd = req.Url.IndexOf('&', uIdx);
+                        string rawUId = (uEnd == -1) ? req.Url.Substring(uIdx) : req.Url.Substring(uIdx, uEnd - uIdx);
+                        devUserId = Uri.UnescapeDataString(rawUId).Trim();
                     }
                     if (!string.IsNullOrEmpty(devName) && !string.IsNullOrEmpty(req.ClientIp))
                     {
@@ -1100,6 +1135,28 @@ namespace ZoneHub
                         lock (DeviceNameCache)
                         {
                             DeviceNameCache[req.ClientIp] = devName;
+                        }
+                        lock (PeersLock)
+                        {
+                            string ipKey = req.ClientIp.Trim();
+                            if (ActivePeers.ContainsKey(ipKey))
+                            {
+                                ActivePeers[ipKey].userName = devName;
+                                if (!string.IsNullOrEmpty(devUserId)) ActivePeers[ipKey].userId = devUserId;
+                                ActivePeers[ipKey].lastSeenUnix = DateTime.UtcNow.Ticks;
+                            }
+                            if (!string.IsNullOrEmpty(devUserId))
+                            {
+                                ActivePeers[devUserId] = new PeerInfo
+                                {
+                                    userId = devUserId,
+                                    userName = devName,
+                                    clientIp = ipKey,
+                                    lastSeenUnix = DateTime.UtcNow.Ticks,
+                                    isHost = req.IsLocalhost,
+                                    isOnline = true
+                                };
+                            }
                         }
                     }
                     SendJsonResponse(stream, 200, "{\"success\":true}");
@@ -1765,15 +1822,54 @@ namespace ZoneHub
                 }
                 else if (m.isPrivate)
                 {
-                    // Match by userName first (persistent across sessions), userId as secondary
+                    // Sender check: match by username or userId
                     bool isSender =
                         (!string.IsNullOrEmpty(reqUser) && string.Equals(m.user, reqUser, StringComparison.OrdinalIgnoreCase)) ||
                         (!string.IsNullOrEmpty(reqUserId) && string.Equals(m.userId, reqUserId, StringComparison.OrdinalIgnoreCase));
 
+                    // Recipient check: match by username, userId, client IP, or Host aliases
                     bool isRecipient =
                         (!string.IsNullOrEmpty(reqUser) && string.Equals(m.recipientUser, reqUser, StringComparison.OrdinalIgnoreCase)) ||
                         (!string.IsNullOrEmpty(reqUser) && string.Equals(m.recipientId, reqUser, StringComparison.OrdinalIgnoreCase)) ||
                         (!string.IsNullOrEmpty(reqUserId) && string.Equals(m.recipientId, reqUserId, StringComparison.OrdinalIgnoreCase));
+
+                    // Check by IP address
+                    if (!isRecipient && !string.IsNullOrEmpty(req.ClientIp))
+                    {
+                        if (string.Equals(m.recipientId, req.ClientIp, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(m.recipientUser, req.ClientIp, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isRecipient = true;
+                        }
+                    }
+
+                    // Check by Host machine
+                    if (!isRecipient && req.IsLocalhost)
+                    {
+                        if (string.Equals(m.recipientId, "host", StringComparison.OrdinalIgnoreCase) ||
+                            (!string.IsNullOrEmpty(m.recipientUser) && m.recipientUser.IndexOf("Host", StringComparison.OrdinalIgnoreCase) >= 0))
+                        {
+                            isRecipient = true;
+                        }
+                    }
+
+                    // Check by registered device name cache
+                    if (!isRecipient && !string.IsNullOrEmpty(req.ClientIp))
+                    {
+                        string cachedName = null;
+                        lock (DeviceNameCache)
+                        {
+                            if (DeviceNameCache.ContainsKey(req.ClientIp)) cachedName = DeviceNameCache[req.ClientIp];
+                        }
+                        if (!string.IsNullOrEmpty(cachedName))
+                        {
+                            if (string.Equals(m.recipientUser, cachedName, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(m.recipientId, cachedName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                isRecipient = true;
+                            }
+                        }
+                    }
 
                     if (isSender || isRecipient)
                     {

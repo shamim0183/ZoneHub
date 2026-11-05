@@ -143,10 +143,20 @@ function initUserInfo() {
                 localStorage.setItem('zonehub_user_name', currentUserName);
             }
             updateUserDisplay();
+
+            // Auto-register device identity with server on startup
+            try {
+                const regUid = (typeof myUserId !== 'undefined' && myUserId) ? myUserId : (localStorage.getItem('zonehub_user_id') || '');
+                fetch('/api/register-device?name=' + encodeURIComponent(currentUserName) + '&userId=' + encodeURIComponent(regUid), { method: 'POST' });
+            } catch (e) {}
         })
         .catch(() => {
             if (!currentUserName) currentUserName = 'Employee';
             updateUserDisplay();
+            try {
+                const regUid = (typeof myUserId !== 'undefined' && myUserId) ? myUserId : (localStorage.getItem('zonehub_user_id') || '');
+                fetch('/api/register-device?name=' + encodeURIComponent(currentUserName) + '&userId=' + encodeURIComponent(regUid), { method: 'POST' });
+            } catch (e) {}
         });
 }
 

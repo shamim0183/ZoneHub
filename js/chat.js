@@ -64,7 +64,7 @@
             if (currentChatChannel !== 'public' && currentDmUser) {
                 return {
                     isPrivate: true,
-                    recipientId: currentDmUser.userId,
+                    recipientId: currentDmUser.userId || currentDmUser.userName,
                     recipientUser: currentDmUser.userName
                 };
             }
@@ -217,12 +217,22 @@
                         if (m.isPrivate) {
                             const senderName = (m.user || '').trim();
                             const senderId = m.userId || ('usr_' + senderName.toLowerCase());
-                            const isCurrentlyLookingAtThisDm = currentDmUser && (currentDmUser.userId === m.userId || currentDmUser.userName.toLowerCase() === senderName.toLowerCase());
+                            const senderNameL = senderName.toLowerCase();
+                            const isCurrentlyLookingAtThisDm = currentDmUser && (
+                                currentDmUser.userId === m.userId || 
+                                currentDmUser.userName.toLowerCase() === senderNameL ||
+                                (currentDmUser.ip && (currentDmUser.ip === senderName || currentDmUser.ip === m.userId))
+                            );
                             if (!isCurrentlyLookingAtThisDm) {
                                 dmUnreadMap[senderId] = (dmUnreadMap[senderId] || 0) + 1;
-                                dmUnreadMap[senderName.toLowerCase()] = (dmUnreadMap[senderName.toLowerCase()] || 0) + 1;
-                                // Auto-open tab for incoming private message if not already open
-                                if (!openDmTabs.some(t => t.userName.toLowerCase() === senderName.toLowerCase())) {
+                                dmUnreadMap[senderNameL] = (dmUnreadMap[senderNameL] || 0) + 1;
+                                // Auto-open tab for incoming private message if not already open (prevent duplicate tabs)
+                                const alreadyOpen = openDmTabs.some(t => 
+                                    t.userId === senderId || 
+                                    t.userName.toLowerCase() === senderNameL ||
+                                    (t.ip && (t.ip === senderName || t.ip === senderId))
+                                );
+                                if (!alreadyOpen) {
                                     openDmTabs.push({ userId: senderId, userName: senderName });
                                 }
                             }
@@ -259,28 +269,52 @@
                 const myNameL = (myName || '').trim().toLowerCase();
                 const dmNameL = (currentDmUser.userName || '').trim().toLowerCase();
                 const dmId    = (currentDmUser.userId || '').trim();
+                const dmIp    = (currentDmUser.ip || '').trim();
+
+                function matchesDmPeer(uName, uId) {
+                    if (!uName && !uId) return false;
+                    const uNL = (uName || '').trim().toLowerCase();
+                    const uIL = (uId || '').trim();
+                    if (dmNameL && (uNL === dmNameL || uIL === dmNameL)) return true;
+                    if (dmId && (uIL === dmId || uNL === dmId)) return true;
+                    if (dmIp && (uNL === dmIp || uIL === dmIp)) return true;
+                    // Check against LAN discovered peers
+                    const peers = (window.__activeDevicesPeers || []).concat(window.__zonehubPeers || []);
+                    const found = peers.find(p => 
+                        (p.ip && (p.ip === dmNameL || p.ip === dmIp || p.ip === dmId)) ||
+                        (p.name && p.name.toLowerCase() === dmNameL) ||
+                        (p.userName && p.userName.toLowerCase() === dmNameL)
+                    );
+                    if (found) {
+                        if (found.name && (found.name.toLowerCase() === uNL || found.name.toLowerCase() === uIL)) return true;
+                        if (found.userName && (found.userName.toLowerCase() === uNL || found.userName.toLowerCase() === uIL)) return true;
+                        if (found.ip && (found.ip === uNL || found.ip === uIL)) return true;
+                        if (found.userId && (found.userId === uNL || found.userId === uIL)) return true;
+                    }
+                    return false;
+                }
+
+                function matchesMe(uName, uId) {
+                    if (!uName && !uId) return false;
+                    const uNL = (uName || '').trim().toLowerCase();
+                    const uIL = (uId || '').trim();
+                    if (myNameL && (uNL === myNameL || uIL === myNameL)) return true;
+                    if (myId && (uIL === myId || uNL === myId)) return true;
+                    if (typeof isCurrentHost !== 'undefined' && isCurrentHost) {
+                        if (uNL.includes('host') || uIL === 'host' || uNL === 'host pc') return true;
+                    }
+                    return false;
+                }
 
                 visibleMessages = messages.filter(m => {
                     if (!m.isPrivate) return false;
+                    const senderName = m.user || '';
+                    const senderId   = m.userId || '';
+                    const recipName  = m.recipientUser || '';
+                    const recipId    = m.recipientId || '';
 
-                    // Sender name/id
-                    const senderNameL = (m.user || '').trim().toLowerCase();
-                    const senderId    = (m.userId || '').trim();
-
-                    // Recipient name/id
-                    const recipNameL  = (m.recipientUser || '').trim().toLowerCase();
-                    const recipId     = (m.recipientId || '').trim();
-
-                    // I am the sender, the other person is the recipient
-                    const iSentToDm =
-                        (senderNameL === myNameL || (myId && senderId === myId)) &&
-                        (recipNameL  === dmNameL  || (dmId && recipId === dmId) || recipId === dmNameL);
-
-                    // The other person sent to me
-                    const dmSentToMe =
-                        (senderNameL === dmNameL || (dmId && senderId === dmId)) &&
-                        (recipNameL  === myNameL  || (myId && recipId === myId) || recipId === myNameL);
-
+                    const iSentToDm  = matchesMe(senderName, senderId) && matchesDmPeer(recipName, recipId);
+                    const dmSentToMe = matchesDmPeer(senderName, senderId) && matchesMe(recipName, recipId);
                     return iSentToDm || dmSentToMe;
                 });
             }
@@ -690,13 +724,29 @@
         }
 
         function checkUserIsOnline(userName, userId) {
-            if (!window.__p2pOnlinePeers || !Array.isArray(window.__p2pOnlinePeers)) return false;
             const uNorm = (userName || '').trim().toLowerCase();
-            return window.__p2pOnlinePeers.some(p => {
-                const pNorm = (p.userName || '').trim().toLowerCase();
-                const match = (uNorm && pNorm === uNorm) || (userId && p.userId === userId);
-                return match && (p.isOnline !== false);
-            });
+            const uId = (userId || '').trim();
+
+            // 1. Check Active LAN Devices from server stats
+            if (window.__activeDevicesPeers && Array.isArray(window.__activeDevicesPeers)) {
+                const found = window.__activeDevicesPeers.some(p => {
+                    const pNorm = (p.name || p.userName || '').trim().toLowerCase();
+                    return (uNorm && pNorm === uNorm) || (uId && p.userId === uId) || (uNorm && p.ip === uNorm);
+                });
+                if (found) return true;
+            }
+
+            // 2. Check P2P / WebRTC Peers
+            if (window.__p2pOnlinePeers && Array.isArray(window.__p2pOnlinePeers)) {
+                const found = window.__p2pOnlinePeers.some(p => {
+                    const pNorm = (p.userName || '').trim().toLowerCase();
+                    const match = (uNorm && pNorm === uNorm) || (uId && p.userId === uId);
+                    return match && (p.isOnline !== false);
+                });
+                if (found) return true;
+            }
+
+            return false;
         }
 
         function switchChatChannel(channel, dmUser) {
@@ -720,10 +770,24 @@
                 if (chatInput) chatInput.placeholder = 'Type a message or paste images...';
             } else if (currentDmUser) {
                 if (teamBtn) teamBtn.classList.remove('active');
-                // Ensure DM tab exists in openDmTabs
+                // Ensure DM tab exists in openDmTabs (prevent duplicate tabs)
                 const uNorm = (currentDmUser.userName || '').toLowerCase();
-                if (!openDmTabs.some(t => t.userName.toLowerCase() === uNorm)) {
-                    openDmTabs.push({ userId: currentDmUser.userId, userName: currentDmUser.userName });
+                const existingTab = openDmTabs.find(t => 
+                    t.userName.toLowerCase() === uNorm || 
+                    (currentDmUser.userId && t.userId === currentDmUser.userId) ||
+                    (currentDmUser.ip && (t.ip === currentDmUser.ip || t.userName === currentDmUser.ip))
+                );
+                if (!existingTab) {
+                    openDmTabs.push({ 
+                        userId: currentDmUser.userId || currentDmUser.userName, 
+                        userName: currentDmUser.userName,
+                        ip: currentDmUser.ip || ''
+                    });
+                } else {
+                    // Update tab with resolved human name
+                    existingTab.userName = currentDmUser.userName;
+                    if (currentDmUser.userId) existingTab.userId = currentDmUser.userId;
+                    if (currentDmUser.ip) existingTab.ip = currentDmUser.ip;
                 }
                 if (banner) {
                     banner.style.display = 'flex';
@@ -841,21 +905,42 @@
             // Consolidate unique colleagues keyed by normalized name
             const consolidated = new Map();
 
-            // 1. Add peers from P2P/Active presence
-            if (window.__p2pOnlinePeers && Array.isArray(window.__p2pOnlinePeers)) {
-                window.__p2pOnlinePeers.forEach(p => {
-                    const norm = (p.userName || '').trim().toLowerCase();
-                    if (!norm || norm === myNameNorm || p.userId === myId) return; // Never include self!
+            // 1. Add peers from Active Devices (/api/stats polled by dashboard.js)
+            if (window.__activeDevicesPeers && Array.isArray(window.__activeDevicesPeers)) {
+                window.__activeDevicesPeers.forEach(p => {
+                    const rawName = (p.name || p.userName || '').trim();
+                    const cleanName = rawName.replace(/\s*\(Host PC\)/i, '').trim();
+                    const norm = cleanName.toLowerCase();
+                    if (!norm || norm === myNameNorm || (typeof isCurrentHost !== 'undefined' && isCurrentHost && p.isHost)) return;
                     consolidated.set(norm, {
-                        userId: p.userId,
-                        userName: p.userName,
-                        isOnline: p.isOnline !== undefined ? p.isOnline : true,
+                        userId: p.userId || p.ip || norm,
+                        userName: cleanName,
+                        ip: p.ip || '',
+                        isOnline: true,
                         isHost: p.isHost
                     });
                 });
             }
 
-            // 2. Add colleagues from chat history
+            // 2. Add peers from P2P/Active presence
+            if (window.__p2pOnlinePeers && Array.isArray(window.__p2pOnlinePeers)) {
+                window.__p2pOnlinePeers.forEach(p => {
+                    const rawName = (p.userName || '').trim();
+                    const cleanName = rawName.replace(/\s*\(Host PC\)/i, '').trim();
+                    const norm = cleanName.toLowerCase();
+                    if (!norm || norm === myNameNorm || p.userId === myId) return; // Never include self!
+                    if (!consolidated.has(norm)) {
+                        consolidated.set(norm, {
+                            userId: p.userId,
+                            userName: cleanName,
+                            isOnline: p.isOnline !== undefined ? p.isOnline : true,
+                            isHost: p.isHost
+                        });
+                    }
+                });
+            }
+
+            // 3. Add colleagues from chat history
             knownChatUsers.forEach((uObj, norm) => {
                 if (!norm || norm === myNameNorm) return;
                 if (!consolidated.has(norm)) {
@@ -919,7 +1004,13 @@
 
                 const row = document.createElement('div');
                 row.className = 'dm-user-item' + (isCurrentActive ? ' active' : '') + (u.isOnline ? ' is-online' : '');
-                row.onclick = () => switchChatChannel(u.userId, u);
+                row.onclick = () => {
+                    const menu = document.getElementById('dmUserMenu');
+                    if (menu) menu.style.display = 'none';
+                    switchChatChannel(u.userId, u);
+                    const chatInput = document.getElementById('chatInput');
+                    if (chatInput) chatInput.focus();
+                };
                 row.innerHTML = 
                     '<div class="dm-user-left">' +
                         '<div class="dm-avatar-wrap">' +
@@ -939,6 +1030,7 @@
 
             renderDmTabs();
         }
+        window.updateDmUsersMenu = updateDmUsersMenu;
 
         // WhatsApp Album Lightbox Helpers
         function openAlbumById(msgId, startIndex) {
