@@ -875,19 +875,31 @@
         }
 
         function toggleDmMenu(e) {
-            if (e) e.stopPropagation();
+            if (e) {
+                if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                if (typeof e.preventDefault === 'function') e.preventDefault();
+            }
             const menu = document.getElementById('dmUserMenu');
+            const backdrop = document.getElementById('dmUserMenuBackdrop');
             if (!menu) return;
-            menu.style.display = (menu.style.display === 'block' ? 'none' : 'block');
-            updateDmUsersMenu();
+            const isOpening = (menu.style.display !== 'block');
+            menu.style.display = isOpening ? 'block' : 'none';
+            if (backdrop) {
+                backdrop.style.display = (isOpening && window.innerWidth <= 768) ? 'block' : 'none';
+            }
+            if (isOpening) {
+                updateDmUsersMenu();
+            }
         }
 
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('dmUserMenu');
             const btn = document.getElementById('channelDmsToggleBtn');
+            const backdrop = document.getElementById('dmUserMenuBackdrop');
             if (menu && menu.style.display === 'block') {
                 if (!menu.contains(e.target) && e.target !== btn && (!btn || !btn.contains(e.target))) {
                     menu.style.display = 'none';
+                    if (backdrop) backdrop.style.display = 'none';
                 }
             }
         });
@@ -1006,7 +1018,9 @@
                 row.className = 'dm-user-item' + (isCurrentActive ? ' active' : '') + (u.isOnline ? ' is-online' : '');
                 row.onclick = () => {
                     const menu = document.getElementById('dmUserMenu');
+                    const backdrop = document.getElementById('dmUserMenuBackdrop');
                     if (menu) menu.style.display = 'none';
+                    if (backdrop) backdrop.style.display = 'none';
                     switchChatChannel(u.userId, u);
                     const chatInput = document.getElementById('chatInput');
                     if (chatInput) chatInput.focus();

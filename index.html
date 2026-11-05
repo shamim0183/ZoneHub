@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261105f">
+    <link rel="stylesheet" href="/css/style.css?v=20261105i">
 </head>
 <body>
     <div class="container">
@@ -212,18 +212,21 @@
             </button>
             <button class="tab-btn" id="tabFilesOnlyBtn" onclick="switchView('files')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                Files &amp; Media
+                <span class="tab-label-full">Files &amp; Media</span>
+                <span class="tab-label-short">Files</span>
                 <span class="badge-counter" id="fileCountBadge">0</span>
             </button>
             <button class="tab-btn" id="tabChatOnlyBtn" onclick="switchView('chat'); if(typeof switchChatChannel==='function') switchChatChannel('public');">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                Team Chat
+                <span class="tab-label-full">Team Chat</span>
+                <span class="tab-label-short">Chat</span>
                 <span class="badge-counter" id="chatCountBadge">0</span>
                 <span class="badge-counter" id="chatUnreadBadge" style="display:none;background:var(--accent-rose);color:#fff;font-weight:700;">0</span>
             </button>
             <button class="tab-btn" id="tabP2pBtn" onclick="switchView('p2p')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                ⚡ AirDrop Beam
+                <span class="tab-label-full">⚡ AirDrop Beam</span>
+                <span class="tab-label-short">⚡ AirDrop</span>
                 <span class="badge-counter" id="p2pPeersCountBadge" style="display:none;background:#06b6d4;color:#fff;">0</span>
             </button>
         </div>
@@ -455,10 +458,14 @@
                                 <button class="channel-pill btn-dm-add" id="channelDmsToggleBtn" onclick="toggleDmMenu(event)" title="Direct Message a Colleague">
                                     <span>💬</span> Direct Message <span id="dmUnreadTotalBadge" class="badge-counter" style="display:none;background:var(--accent-rose);color:#fff;margin-left:4px;">0</span> ▾
                                 </button>
+                                <div id="dmUserMenuBackdrop" class="dm-popup-backdrop" onclick="toggleDmMenu(event)" style="display:none;"></div>
                                 <div id="dmUserMenu" class="dm-users-popup" style="display:none;">
                                     <div class="dm-popup-header">
-                                        <span>Colleagues Online</span>
-                                        <span id="dmOnlineCount" class="dm-header-count">0 online</span>
+                                        <div style="display:flex;align-items:center;gap:6px;">
+                                            <span>Colleagues Online</span>
+                                            <span id="dmOnlineCount" class="dm-header-count">0 online</span>
+                                        </div>
+                                        <button type="button" class="dm-popup-close-btn" onclick="toggleDmMenu(event)" title="Close" aria-label="Close">✕</button>
                                     </div>
                                     <div id="dmUsersList" class="dm-users-list">
                                         <!-- Populated dynamically -->
@@ -1478,9 +1485,9 @@
     <script src="/js/qrcode.js?v=20261104a"></script>
     <script src="/js/screenshare.js?v=20261104a"></script>
     <script src="/js/media.js?v=20261104e"></script>
-    <script src="/js/chat.js?v=20261105h"></script>
-    <script src="/js/p2p.js?v=20261105f"></script>
-    <script src="/js/dashboard.js?v=20261105h"></script>
-    <script src="/js/app.js?v=20261105h"></script>
+    <script src="/js/chat.js?v=20261105i"></script>
+    <script src="/js/p2p.js?v=20261105i"></script>
+    <script src="/js/dashboard.js?v=20261105i"></script>
+    <script src="/js/app.js?v=20261105i"></script>
 </body>
 </html>

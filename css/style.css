@@ -314,6 +314,12 @@
         }
 
         /* Layout Tabs */
+        .tab-label-short {
+            display: none;
+        }
+        .tab-label-full {
+            display: inline;
+        }
         .tabs-header {
             display: flex;
             gap: 10px;
@@ -2263,33 +2269,45 @@
             }
 
             /* Clean 3-Column Navigation Tabs on Mobile */
+            .tab-label-short {
+                display: inline !important;
+            }
+            .tab-label-full {
+                display: none !important;
+            }
             .tabs-header {
                 display: grid !important;
                 grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-                gap: 6px !important;
+                gap: 4px !important;
                 width: 100% !important;
-                margin-bottom: 14px !important;
+                margin-bottom: 12px !important;
                 padding-bottom: 4px !important;
                 box-sizing: border-box !important;
             }
             .tab-btn {
                 width: 100% !important;
+                min-width: 0 !important;
                 justify-content: center !important;
                 text-align: center !important;
                 white-space: nowrap !important;
-                font-size: 11.5px !important;
-                padding: 8px 4px !important;
-                gap: 5px !important;
+                font-size: 11px !important;
+                padding: 7px 3px !important;
+                gap: 3px !important;
                 box-sizing: border-box !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
             }
             .tab-btn svg {
-                width: 15px !important;
-                height: 15px !important;
+                width: 14px !important;
+                height: 14px !important;
                 flex-shrink: 0 !important;
             }
             .badge-counter {
-                font-size: 11px !important;
-                padding: 2px 6px !important;
+                font-size: 10px !important;
+                padding: 1px 4px !important;
+                min-width: 16px !important;
+                text-align: center !important;
+                box-sizing: border-box !important;
             }
 
             /* Strict Screen Width Boundaries */
@@ -2753,6 +2771,26 @@
                 position: relative !important;
                 display: inline-flex !important;
             }
+            .dm-users-popup {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                width: calc(100vw - 32px) !important;
+                max-width: 320px !important;
+                max-height: 75vh !important;
+                z-index: 100000 !important;
+                border-radius: 16px !important;
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), 0 0 0 100vmax rgba(5, 8, 16, 0.75) !important;
+                overflow: hidden !important;
+                backdrop-filter: blur(16px) !important;
+                -webkit-backdrop-filter: blur(16px) !important;
+            }
+            .dm-users-list {
+                max-height: 55vh !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
             .channel-pill,
             .dm-channel-tab,
             .btn-dm-add {
@@ -2946,9 +2984,9 @@
 
         @media (max-width: 360px) {
             .tab-btn {
-                font-size: 12px !important;
-                padding: 8px 4px !important;
-                gap: 4px !important;
+                font-size: 10px !important;
+                padding: 6px 2px !important;
+                gap: 2px !important;
             }
             .brand-title {
                 font-size: 16px !important;
@@ -4184,6 +4222,40 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+        }
+
+        .dm-popup-close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 6px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .dm-popup-close-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .dm-popup-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 8, 16, 0.75);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 99999;
         }
 
         .dm-header-count {
