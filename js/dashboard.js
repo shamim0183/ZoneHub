@@ -18,7 +18,13 @@
 
         // 1. Close Connected Devices popover
         const popover = document.getElementById('activePeersPopover');
-        if (popover) popover.style.display = 'none';
+        if (popover) {
+            popover.classList.remove('active');
+            popover.style.display = 'none';
+        }
+        if (typeof closeActivePeersPopover === 'function') {
+            closeActivePeersPopover();
+        }
 
         // 2. Resolve true display name and ID
         let targetName = (rawName || '').replace(/\s*\(Host PC\)/i, '').trim();
@@ -218,12 +224,12 @@
                         const targetId = p.userId || p.ip || name;
                         const clickHandler = isSelf 
                             ? '' 
-                            : `onclick="openPrivateChatWithDevice('${escapeQuotes(name)}', '${escapeQuotes(targetId)}')"` ;
+                            : `onclick="closeActivePeersPopover(); openPrivateChatWithDevice('${escapeQuotes(name)}', '${escapeQuotes(targetId)}')"` ;
                         const rowClass = isSelf ? 'active-peer-row' : 'active-peer-row is-clickable';
                         const rowTitle = isSelf ? 'Your current device' : `Click to open private 1-on-1 chat with ${escapeHtml(name)}`;
                         const actionBadge = isSelf
                             ? `<span style="font-size:10px;color:var(--text-muted);margin-left:auto;font-weight:600;">(You)</span>`
-                            : `<button type="button" class="peer-chat-action-badge" onclick="event.stopPropagation(); openPrivateChatWithDevice('${escapeQuotes(name)}', '${escapeQuotes(targetId)}');" title="Open 1-on-1 private chat &amp; direct file beam">💬 Chat &amp; Share</button>`;
+                            : `<button type="button" class="peer-chat-action-badge" onclick="event.stopPropagation(); closeActivePeersPopover(); openPrivateChatWithDevice('${escapeQuotes(name)}', '${escapeQuotes(targetId)}');" title="Open 1-on-1 private chat &amp; direct file beam">💬 Chat &amp; Share</button>`;
 
                         return `
                             <div class="${rowClass}" ${clickHandler} title="${rowTitle}">
@@ -412,6 +418,7 @@
         const popover = document.getElementById('activePeersPopover');
         if (popover) {
             popover.classList.remove('active');
+            popover.style.display = 'none';
         }
         const metricDevices = document.getElementById('metricDevices');
         if (metricDevices) {
@@ -441,6 +448,7 @@
                 closeActivePeersPopover(e);
             } else {
                 positionActivePeersPopover();
+                popover.style.display = 'block';
                 popover.classList.add('active');
             }
         }
