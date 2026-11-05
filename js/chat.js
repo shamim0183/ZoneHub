@@ -462,9 +462,53 @@
                                 '</div>' +
                             '</div>' +
                         '</div>';
-                } else if (msg.type === 'file' || msg.type === 'folder' || msg.type === 'p2p_file') {
+                } else if (msg.type === 'p2p_file') {
+                    const rawName = msg.text || 'AirDrop File';
+                    let cleanName = rawName;
+                    let sizeLabel = msg.duration > 0 ? formatBytes(msg.duration) : '';
+                    const matchSize = rawName.match(/^(.*?)\s*\(([\d\.]+\s*(?:Bytes|KB|MB|GB|TB))\)$/i);
+                    if (matchSize) {
+                        cleanName = matchSize[1].trim();
+                        if (!sizeLabel) sizeLabel = matchSize[2].trim();
+                    }
+                    const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(cleanName);
+                    const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(cleanName);
+                    const isAudio = /\.(mp3|wav|m4a|ogg|flac)$/i.test(cleanName);
+                    const p2pIcon = isVideo ? '🎬' : (isImage ? '🖼️' : (isAudio ? '🎵' : '⚡'));
+                    
+                    const isAuthor = (msg.userId && msg.userId === myUserId) || (msg.user === currentUserName);
+                    const directionBadge = isAuthor 
+                        ? '<span class="p2p-badge-sent">⚡ Sent via AirDrop</span>'
+                        : '<span class="p2p-badge-received">⚡ Received via AirDrop</span>';
+
+                    let actionButtons = '';
+                    if (isVideo) {
+                        actionButtons += '<button type="button" onclick="openAirDropMedia(\'' + escapeQuotes(cleanName) + '\')" class="chat-file-dl-btn" style="background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-weight:700;">▶ Play Video</button>';
+                    } else if (isImage) {
+                        actionButtons += '<button type="button" onclick="openAirDropMedia(\'' + escapeQuotes(cleanName) + '\')" class="chat-file-dl-btn" style="background:linear-gradient(135deg,#ec4899,#db2777);color:#fff;">👁️ View</button>';
+                    }
+                    actionButtons += '<button type="button" onclick="saveAirDropAs(\'' + escapeQuotes(cleanName) + '\')" class="chat-file-dl-btn">💾 Save</button>';
+                    actionButtons += '<button type="button" onclick="uploadAirDropToServer(\'' + escapeQuotes(cleanName) + '\', this)" class="chat-file-dl-btn" style="color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ To Library</button>';
+
+                    contentHtml = 
+                        '<div class="chat-file-attachment-card" style="border-color:rgba(56,189,248,0.3);box-shadow:0 4px 16px rgba(0,0,0,0.4);flex-direction:column;align-items:stretch;gap:8px;">' +
+                            '<div style="display:flex;align-items:center;gap:10px;">' +
+                                '<div class="chat-file-icon" style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);font-size:20px;">' + p2pIcon + '</div>' +
+                                '<div class="chat-file-info" style="min-width:0;">' +
+                                    '<div class="chat-file-name" style="font-weight:700;" title="' + escapeHtml(cleanName) + '">' + escapeHtml(cleanName) + '</div>' +
+                                    '<div class="chat-file-meta" style="margin-top:2px;">' +
+                                        directionBadge +
+                                        ' • <span style="font-weight:600;color:#fff;">' + escapeHtml(sizeLabel || 'Direct LAN') + '</span>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div style="display:flex;align-items:center;justify-content:space-between;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;gap:6px;">' +
+                                '<span style="font-size:10.5px;color:#94a3b8;">📁 ' + (isAuthor ? 'Original on this PC' : 'Saved in Downloads folder') + '</span>' +
+                                '<div style="display:flex;gap:6px;align-items:center;">' + actionButtons + '</div>' +
+                            '</div>' +
+                        '</div>';
+                } else if (msg.type === 'file' || msg.type === 'folder') {
                     const isFolder = msg.type === 'folder';
-                    const isP2P = msg.type === 'p2p_file';
                     const icon = isFolder ? '📁' : '📄';
                     const fName = msg.text || (isFolder ? 'Shared Folder' : 'Shared File');
                     const fUrl = msg.imageUrl || msg.audioUrl || '#';
@@ -474,7 +518,7 @@
                             '<div class="chat-file-icon">' + icon + '</div>' +
                             '<div class="chat-file-info">' +
                                 '<div class="chat-file-name">' + escapeHtml(fName) + '</div>' +
-                                '<div class="chat-file-meta">' + (isP2P ? '⚡ P2P Direct &bull; ' : '') + (isFolder ? 'Folder' : (fSize || 'Document')) + '</div>' +
+                                '<div class="chat-file-meta">' + (isFolder ? 'Folder' : (fSize || 'Document')) + '</div>' +
                             '</div>' +
                             (fUrl && fUrl !== '#' ? 
                                 '<button type="button" onclick="triggerDownloadTracked(\'' + escapeQuotes(fUrl) + '\', \'' + escapeQuotes(fName + (isFolder && !fName.endsWith('.zip') ? '.zip' : '')) + '\')" class="chat-file-dl-btn">' +
@@ -875,23 +919,31 @@
             triggerDownloadTracked('/api/download-zip', zipName, { zipName: zipName, files: list });
         }
 
-        window.onP2PTransferCompleted = async function(file) {
-            if (currentDmUser) {
-                try {
-                    await fetch('/api/messages', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(Object.assign({
-                            user: currentUserName,
-                            userId: myUserId,
-                            text: file.name + ' (' + formatBytes(file.size) + ')',
-                            type: 'p2p_file',
-                            duration: file.size
-                        }, getMsgChannelPayload()))
-                    });
-                    loadMessages();
-                } catch(e) {}
-            }
+        window.onP2PTransferCompleted = async function(file, meta) {
+            try {
+                let payload = {
+                    user: currentUserName,
+                    userId: myUserId,
+                    text: file.name + ' (' + formatBytes(file.size) + ')',
+                    type: 'p2p_file',
+                    duration: file.size,
+                    transferId: (meta && meta.transferId) || ''
+                };
+                if (currentDmUser) {
+                    payload = Object.assign(payload, getMsgChannelPayload());
+                } else if (meta && meta.targetUserId) {
+                    payload.isPrivate = true;
+                    payload.recipientId = meta.targetUserId;
+                    payload.recipientUser = meta.targetUserName || 'Colleague';
+                }
+
+                await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (typeof loadMessages === 'function') loadMessages();
+            } catch(e) {}
         };
 
         // Multi-Photo & Video Upload Handler

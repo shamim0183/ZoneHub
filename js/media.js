@@ -1333,8 +1333,10 @@
 
             const url = currentAlbumList[currentAlbumIndex];
             const cleanUrl = url.split('?')[0];
-            const filename = cleanUrl.split('/').pop() || 'media_item';
-            const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(filename);
+            const rawFilename = cleanUrl.split('/').pop() || 'media_item';
+            const displayName = currentAlbumSender || rawFilename;
+            const filename = rawFilename.includes('.') ? rawFilename : displayName;
+            const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(displayName) || /\.(mp4|webm|mov|mkv|avi)$/i.test(rawFilename);
 
             const modalTitle = document.getElementById('modalFileName');
             const modalBody = document.getElementById('modalBody');
@@ -1345,7 +1347,7 @@
             const downloadAllBtn = document.getElementById('modalDownloadAllBtn');
 
             if (modalTitle) {
-                modalTitle.innerText = filename + (currentAlbumSender ? ' • ' + currentAlbumSender : '');
+                modalTitle.innerText = displayName;
             }
             if (downloadBtn) {
                 downloadBtn.dataset.url = url;
@@ -1750,6 +1752,9 @@
         window.downloadSelectedFiles = downloadSelectedFiles;
         window.triggerDownloadTracked = triggerDownloadTracked;
         window.downloadMediaFile = triggerDownloadTracked;
+        window.playVideo = playVideo;
+        window.openAlbumLightbox = openAlbumLightbox;
+        window.previewMedia = previewMedia;
 
         // Auto-run on load
         if (typeof loadFoldersList === 'function') loadFoldersList();

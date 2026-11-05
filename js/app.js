@@ -977,6 +977,9 @@ function switchView(view) {
         if (typeof refreshPeersList === 'function') {
             refreshPeersList();
         }
+        if (typeof renderAirDropHistory === 'function') {
+            renderAirDropHistory();
+        }
     }
 }
 

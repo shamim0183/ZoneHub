@@ -44,11 +44,327 @@
     let activeDataChannels = new Map();    // targetPeerId -> RTCDataChannel
     let pendingFileOffer = null;          // file waiting to send
     let targetPeerForTransfer = null;
+    let targetPeerNameForTransfer = '';
     let currentIncomingTransfer = null;
     let heartbeatTimer = null;
     let signalTimer = null;
 
     window.__p2pOnlinePeers = [];
+    window.__zonehubActiveBlobs = window.__zonehubActiveBlobs || new Map();
+    window.__zonehubTransferRecords = window.__zonehubTransferRecords || [];
+
+    // -------------------------------------------------------------
+    // AirDrop Persistent Transfer History Manager
+    // -------------------------------------------------------------
+    function getAirDropHistory() {
+        try {
+            const raw = localStorage.getItem('zonehub_airdrop_history');
+            return raw ? JSON.parse(raw) : [];
+        } catch(e) {
+            return [];
+        }
+    }
+    window.getAirDropHistory = getAirDropHistory;
+
+    function saveAirDropHistory(list) {
+        try {
+            const cleanList = (list || []).slice(0, 100).map(t => ({
+                id: t.id,
+                direction: t.direction,
+                fileName: t.fileName,
+                fileSize: t.fileSize,
+                mime: t.mime,
+                peerName: t.peerName,
+                peerId: t.peerId,
+                timestamp: t.timestamp,
+                savedLocation: t.savedLocation,
+                status: t.status
+            }));
+            localStorage.setItem('zonehub_airdrop_history', JSON.stringify(cleanList));
+            window.__zonehubTransferRecords = cleanList;
+        } catch(e) {}
+    }
+    window.saveAirDropHistory = saveAirDropHistory;
+
+    function addAirDropTransferRecord(record, blobOrFile, blobUrl) {
+        if (!record || !record.id) return;
+        if (blobOrFile && window.__zonehubActiveBlobs) {
+            window.__zonehubActiveBlobs.set(record.id, {
+                id: record.id,
+                fileName: record.fileName,
+                blob: blobOrFile,
+                file: blobOrFile,
+                blobUrl: blobUrl,
+                mime: record.mime
+            });
+            window.__zonehubActiveBlobs.set(record.fileName, {
+                id: record.id,
+                fileName: record.fileName,
+                blob: blobOrFile,
+                file: blobOrFile,
+                blobUrl: blobUrl,
+                mime: record.mime
+            });
+        }
+
+        let history = getAirDropHistory();
+        history = history.filter(h => h.id !== record.id);
+        history.unshift(record);
+        saveAirDropHistory(history);
+        renderAirDropHistory();
+    }
+    window.addAirDropTransferRecord = addAirDropTransferRecord;
+
+    window.closeP2PTransferCard = function() {
+        const card = document.getElementById('p2pTransferCard');
+        if (card) card.style.display = 'none';
+    };
+
+    window.deleteAirDropHistoryItem = function(id) {
+        let history = getAirDropHistory();
+        history = history.filter(h => h.id !== id);
+        saveAirDropHistory(history);
+        renderAirDropHistory();
+        showToast('Removed from AirDrop history');
+    };
+
+    window.clearAirDropHistory = function() {
+        if (!confirm('Clear all AirDrop transfer records from this device?')) return;
+        localStorage.removeItem('zonehub_airdrop_history');
+        window.__zonehubTransferRecords = [];
+        renderAirDropHistory();
+        showToast('AirDrop history cleared.');
+    };
+
+    window.openAirDropMedia = function(idOrName) {
+        const entry = (window.__zonehubActiveBlobs && (window.__zonehubActiveBlobs.get(idOrName) || window.__zonehubActiveBlobs.get(idOrName.toLowerCase()))) ||
+                      (window.__zonehubTransferRecords && window.__zonehubTransferRecords.find(t => t.id === idOrName || t.fileName === idOrName));
+        
+        let blobUrl = entry && (entry.blobUrl || (entry.blob ? URL.createObjectURL(entry.blob) : null));
+        const fileName = (entry && entry.fileName) || idOrName || 'media_item';
+        const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(fileName);
+        const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName);
+
+        if (!blobUrl) {
+            const hist = getAirDropHistory();
+            const found = hist.find(h => h.id === idOrName || h.fileName === idOrName);
+            if (found && window.__zonehubActiveBlobs) {
+                const active = window.__zonehubActiveBlobs.get(found.id) || window.__zonehubActiveBlobs.get(found.fileName);
+                if (active) blobUrl = active.blobUrl || (active.blob ? URL.createObjectURL(active.blob) : null);
+            }
+        }
+
+        if (blobUrl) {
+            if (isVideo) {
+                if (typeof openAlbumLightbox === 'function') {
+                    openAlbumLightbox([blobUrl], 0, fileName);
+                } else if (typeof playVideo === 'function') {
+                    playVideo(blobUrl, fileName);
+                } else {
+                    window.open(blobUrl, '_blank');
+                }
+            } else if (isImage) {
+                if (typeof openAlbumLightbox === 'function') {
+                    openAlbumLightbox([blobUrl], 0, fileName);
+                } else {
+                    window.open(blobUrl, '_blank');
+                }
+            } else {
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 1000);
+            }
+        } else {
+            showToast('📁 "' + fileName + '" is saved in your local Downloads folder. Open it from your PC or browser download shelf.');
+        }
+    };
+
+    window.saveAirDropAs = async function(idOrName) {
+        const entry = (window.__zonehubActiveBlobs && (window.__zonehubActiveBlobs.get(idOrName) || window.__zonehubActiveBlobs.get(idOrName.toLowerCase()))) ||
+                      (window.__zonehubTransferRecords && window.__zonehubTransferRecords.find(t => t.id === idOrName || t.fileName === idOrName));
+        const fileName = (entry && entry.fileName) || idOrName || 'download';
+        const blob = entry && (entry.blob || entry.file);
+
+        if (blob && 'showSaveFilePicker' in window) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: fileName
+                });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                showToast('🎉 Saved directly to: ' + handle.name);
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+
+        const url = (entry && entry.blobUrl) || (blob ? URL.createObjectURL(blob) : null);
+        if (url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 1000);
+            showToast('💾 Saved to Downloads folder!');
+        } else {
+            showToast('📁 "' + fileName + '" is already saved in your Downloads folder.');
+        }
+    };
+
+    window.uploadAirDropToServer = async function(idOrName, btnElement) {
+        const entry = (window.__zonehubActiveBlobs && (window.__zonehubActiveBlobs.get(idOrName) || window.__zonehubActiveBlobs.get(idOrName.toLowerCase()))) ||
+                      (window.__zonehubTransferRecords && window.__zonehubTransferRecords.find(t => t.id === idOrName || t.fileName === idOrName));
+        const blob = entry && (entry.blob || entry.file);
+        const fileName = (entry && entry.fileName) || idOrName || 'media_item';
+
+        if (!blob) {
+            showToast('⚠️ File binary is not in memory. Check your Downloads folder.');
+            return;
+        }
+
+        const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(fileName);
+        const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName);
+        const targetFolder = isVideo ? 'Videos' : (isImage ? 'Pictures' : 'Files');
+
+        if (btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerHTML = '⏳ Uploading...';
+        }
+        showToast('☁️ Saving "' + fileName + '" to ZoneHub Shared Library (' + targetFolder + ')...');
+
+        try {
+            const url = '/upload?filename=' + encodeURIComponent(fileName) + '&folder=' + encodeURIComponent(targetFolder) + '&expiry=15d';
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('X-Filename', encodeURIComponent(fileName));
+            xhr.setRequestHeader('X-Folder', encodeURIComponent(targetFolder));
+            xhr.setRequestHeader('X-Expiry', '15d');
+            const uploaderName = (typeof getCurrentUserName === 'function' ? getCurrentUserName() : (localStorage.getItem('zonehub_user_name') || 'Employee'));
+            xhr.setRequestHeader('X-Uploader', encodeURIComponent(uploaderName));
+
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    showToast('🎉 Saved to ZoneHub Server! Visible in ' + targetFolder + ' tab for all PCs.');
+                    if (btnElement) {
+                        btnElement.disabled = true;
+                        btnElement.innerHTML = '✓ Saved to Server';
+                        btnElement.style.background = '#059669';
+                        btnElement.style.borderColor = '#059669';
+                        btnElement.style.color = '#fff';
+                    }
+                    if (typeof loadFileList === 'function') loadFileList();
+                    if (typeof loadFoldersList === 'function') loadFoldersList();
+                } else {
+                    showToast('❌ Server upload error: HTTP ' + xhr.status);
+                    if (btnElement) {
+                        btnElement.disabled = false;
+                        btnElement.innerHTML = '☁️ Save to Library';
+                    }
+                }
+            };
+            xhr.onerror = function() {
+                showToast('❌ Upload failed: Network connection error');
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = '☁️ Save to Library';
+                }
+            };
+            xhr.send(blob);
+        } catch(e) {
+            showToast('❌ Upload failed: ' + e.message);
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = '☁️ Save to Library';
+            }
+        }
+    };
+
+    function renderAirDropHistory() {
+        const listEl = document.getElementById('p2pHistoryList');
+        const countBadge = document.getElementById('p2pHistoryCount');
+        if (!listEl) return;
+
+        const history = getAirDropHistory();
+        if (countBadge) countBadge.innerText = history.length;
+
+        if (history.length === 0) {
+            listEl.innerHTML = 
+                '<div class="p2p-history-empty">' +
+                    '<div style="font-size:28px;margin-bottom:8px;">📦</div>' +
+                    '<div style="font-weight:700;color:#fff;margin-bottom:4px;">No AirDrop transfers yet on this PC</div>' +
+                    '<div style="font-size:12px;color:var(--text-muted);">' +
+                        'Files you send or receive via AirDrop beam will appear here with instant video playback and save options.' +
+                    '</div>' +
+                '</div>';
+            return;
+        }
+
+        let html = '';
+        history.forEach(tx => {
+            const isSent = tx.direction === 'sent';
+            const fileName = tx.fileName || 'file';
+            const fileSizeStr = typeof formatBytes === 'function' ? formatBytes(tx.fileSize || 0) : (tx.fileSize + ' B');
+            const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(fileName);
+            const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName);
+            const isAudio = /\.(mp3|wav|m4a|ogg|flac)$/i.test(fileName);
+            
+            const iconChar = isVideo ? '🎬' : (isImage ? '🖼️' : (isAudio ? '🎵' : '📄'));
+            const iconClass = isVideo ? 'video' : (isImage ? 'image' : '');
+
+            const timeStr = tx.timestamp ? new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const dateStr = tx.timestamp ? new Date(tx.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+            const timeFormatted = (dateStr ? dateStr + ' ' : '') + timeStr;
+
+            const badgeHtml = isSent 
+                ? '<span class="p2p-badge-sent">⬆️ Sent to ' + escapeHtml(tx.peerName || 'Peer') + '</span>'
+                : '<span class="p2p-badge-received">⬇️ Received from ' + escapeHtml(tx.peerName || 'Peer') + '</span>';
+
+            const locHtml = isSent
+                ? '<span class="p2p-saved-path">💻 Original on this PC</span>'
+                : '<span class="p2p-saved-path" title="Auto-saved to Windows Downloads folder">📁 Saved in Downloads</span>';
+
+            let playBtn = '';
+            if (isVideo) {
+                playBtn = '<button type="button" class="btn btn-primary btn-icon-sm" onclick="openAirDropMedia(\'' + tx.id + '\')" title="Watch Video" style="font-size:11.5px;padding:4px 10px;gap:5px;background:linear-gradient(135deg,#38bdf8,#6366f1);"><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg> Watch Video</button>';
+            } else if (isImage) {
+                playBtn = '<button type="button" class="btn btn-primary btn-icon-sm" onclick="openAirDropMedia(\'' + tx.id + '\')" title="Preview Photo" style="font-size:11.5px;padding:4px 10px;gap:5px;background:linear-gradient(135deg,#ec4899,#db2777);"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> View Photo</button>';
+            }
+
+            html += 
+                '<div class="p2p-history-item" id="p2pItem_' + tx.id + '">' +
+                    '<div class="p2p-history-left">' +
+                        '<div class="p2p-history-icon ' + iconClass + '">' + iconChar + '</div>' +
+                        '<div class="p2p-history-info">' +
+                            '<div class="p2p-history-title" title="' + escapeHtml(fileName) + '">' + escapeHtml(fileName) + '</div>' +
+                            '<div class="p2p-history-meta">' +
+                                badgeHtml +
+                                '<span>•</span>' +
+                                '<span style="font-weight:600;color:#e2e8f0;">' + fileSizeStr + '</span>' +
+                                '<span>•</span>' +
+                                '<span>' + timeFormatted + '</span>' +
+                                '<span>•</span>' +
+                                locHtml +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="p2p-history-actions">' +
+                        playBtn +
+                        '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="saveAirDropAs(\'' + tx.id + '\')" title="Save to local folder" style="font-size:11.5px;padding:4px 10px;gap:5px;">💾 Save As...</button>' +
+                        '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="uploadAirDropToServer(\'' + tx.id + '\', this)" title="Upload to ZoneHub Shared Library" style="font-size:11.5px;padding:4px 10px;gap:5px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ Save to Library</button>' +
+                        '<button type="button" class="btn btn-secondary btn-icon-sm" onclick="deleteAirDropHistoryItem(\'' + tx.id + '\')" title="Remove from list" style="font-size:11px;padding:4px 8px;color:#f43f5e;">✕</button>' +
+                    '</div>' +
+                '</div>';
+        });
+
+        listEl.innerHTML = html;
+    }
+    window.renderAirDropHistory = renderAirDropHistory;
 
     function getMyId() {
         return (typeof myUserId !== 'undefined' && myUserId ? myUserId : (localStorage.getItem('zonehub_user_id') || localStorage.getItem('skycommerce_user_id'))) || '';
@@ -490,8 +806,48 @@
         updateP2PProgress(100, totalBytes, totalBytes, 0);
         showToast('🎉 Sent ' + file.name + ' via direct P2P successfully (0 host storage used)!');
 
+        const txId = 'tx_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        let blobUrl = '';
+        try { blobUrl = URL.createObjectURL(file); } catch (e) {}
+        const record = {
+            id: txId,
+            direction: 'sent',
+            fileName: file.name,
+            fileSize: totalBytes,
+            mime: file.type || 'application/octet-stream',
+            peerName: targetPeerNameForTransfer || 'Colleague',
+            peerId: targetPeerForTransfer || '',
+            timestamp: Date.now(),
+            savedLocation: 'Local PC (Original)',
+            status: 'completed'
+        };
+        addAirDropTransferRecord(record, file, blobUrl);
+
+        // Update floating card actions
+        const actionsEl = document.getElementById('p2pTransferActions');
+        const titleEl = document.getElementById('p2pTransferTitle');
+        if (titleEl) titleEl.innerHTML = '🎉 Sent: ' + escapeHtml(file.name);
+        if (actionsEl) {
+            actionsEl.style.display = 'flex';
+            const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(file.name);
+            const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
+            actionsEl.innerHTML = 
+                '<div style="font-size:11.5px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:6px 10px;border-radius:6px;border:1px solid rgba(56,189,248,0.25);">' +
+                    '✓ <strong>Sent to ' + escapeHtml(record.peerName) + '</strong> (0 host storage used)' +
+                '</div>' +
+                (isVideo ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:6px 12px;background:linear-gradient(135deg,#38bdf8,#6366f1);font-weight:700;">▶ Preview Video</button>' : '') +
+                (isImage ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:6px 12px;">👁️ Preview Photo</button>' : '') +
+                '<button type="button" class="btn btn-secondary" onclick="uploadAirDropToServer(\'' + txId + '\', this)" style="justify-content:center;font-size:11.5px;padding:6px 10px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ Save to ZoneHub Shared Library</button>';
+        }
+
         if (typeof window.onP2PTransferCompleted === 'function') {
-            try { window.onP2PTransferCompleted(file); } catch (e) {}
+            try { 
+                window.onP2PTransferCompleted(file, { 
+                    transferId: txId, 
+                    targetUserId: targetPeerForTransfer, 
+                    targetUserName: targetPeerNameForTransfer 
+                }); 
+            } catch (e) {}
         }
     }
 
@@ -597,27 +953,74 @@
         a.href = url;
         a.download = fileName;
         document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        try {
+            a.click();
+        } catch (err) {
+            console.warn('[P2P] Auto-click blocked by browser, manual save button is active:', err);
+        }
+        setTimeout(() => { if (a.parentNode) document.body.removeChild(a); }, 1000);
 
-        // Keep card visible with direct manual click link in case Mac Safari popup blocker blocks auto-click
+        const txId = 'tx_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        const record = {
+            id: txId,
+            direction: 'received',
+            fileName: fileName,
+            fileSize: finalBlob.size,
+            mime: currentIncomingTransfer.mime || 'application/octet-stream',
+            peerName: currentIncomingTransfer.fromName || 'Colleague',
+            peerId: currentIncomingTransfer.fromId || '',
+            timestamp: Date.now(),
+            savedLocation: 'Downloads folder (C:\\Users\\...\\Downloads)',
+            status: 'completed'
+        };
+        addAirDropTransferRecord(record, finalBlob, url);
+
+        // Keep card prominent with complete actions
         const card = document.getElementById('p2pTransferCard');
         const titleEl = document.getElementById('p2pTransferTitle');
+        const percentEl = document.getElementById('p2pTransferPercent');
+        const barEl = document.getElementById('p2pTransferBarFill');
+        const speedEl = document.getElementById('p2pTransferSpeed');
         const statsEl = document.getElementById('p2pTransferStats');
-        if (titleEl) titleEl.innerHTML = '🎉 Download Ready: ' + escapeHtml(fileName);
-        if (statsEl) {
-            statsEl.innerHTML = '<a href="' + url + '" download="' + escapeHtml(fileName) + '" style="color:#38bdf8;font-weight:700;text-decoration:underline;">Click here to save file</a>';
+        const actionsEl = document.getElementById('p2pTransferActions');
+
+        if (percentEl) percentEl.innerText = '100%';
+        if (barEl) barEl.style.width = '100%';
+        if (speedEl) speedEl.innerText = 'Complete!';
+        if (titleEl) titleEl.innerHTML = '🎉 File Received: ' + escapeHtml(fileName);
+        if (statsEl) statsEl.innerText = formatBytes(finalBlob.size) + ' / ' + formatBytes(finalBlob.size);
+
+        if (actionsEl) {
+            actionsEl.style.display = 'flex';
+            const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(fileName);
+            const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName);
+            actionsEl.innerHTML = 
+                '<div style="font-size:11.5px;color:#34d399;background:rgba(16,185,129,0.1);padding:6px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.25);">' +
+                    '📁 <strong>Saved in Downloads folder</strong><br/>' +
+                    '<span style="color:#94a3b8;font-size:10.5px;">Auto-downloaded to your PC. Watch or open directly below:</span>' +
+                '</div>' +
+                (isVideo ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:7px 12px;background:linear-gradient(135deg,#10b981,#059669);font-weight:700;box-shadow:0 2px 8px rgba(16,185,129,0.4);">▶ Watch Video in ZoneHub</button>' : '') +
+                (isImage ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:7px 12px;background:linear-gradient(135deg,#ec4899,#db2777);font-weight:700;">👁️ View Photo</button>' : '') +
+                '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+                    '<button type="button" class="btn btn-secondary" onclick="saveAirDropAs(\'' + txId + '\')" style="flex:1;justify-content:center;font-size:11.5px;padding:6px 10px;">💾 Save As...</button>' +
+                    '<button type="button" class="btn btn-secondary" onclick="uploadAirDropToServer(\'' + txId + '\', this)" style="flex:1;justify-content:center;font-size:11.5px;padding:6px 10px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ Save to Library</button>' +
+                '</div>';
         }
 
         if (typeof playProfessionalChime === 'function') {
             playProfessionalChime();
         }
-        showToast('🎉 Received "' + fileName + '" directly via P2P! Saved to your device.');
+        showToast('🎉 Successfully received "' + fileName + '" via AirDrop! Check your Downloads folder.');
 
-        setTimeout(() => {
-            if (card) card.style.display = 'none';
-            URL.revokeObjectURL(url);
-        }, 15000);
+        if (typeof window.onP2PTransferCompleted === 'function') {
+            try { 
+                window.onP2PTransferCompleted({ name: fileName, size: finalBlob.size }, { 
+                    transferId: txId, 
+                    targetUserId: currentIncomingTransfer.fromId, 
+                    targetUserName: currentIncomingTransfer.fromName 
+                }); 
+            } catch (e) {}
+        }
 
         currentIncomingTransfer = null;
     }
@@ -753,6 +1156,7 @@
     window.sendP2PFileDirectly = async function(targetUserId, targetUserName, file) {
         if (!file || !targetUserId) return;
         targetPeerForTransfer = targetUserId;
+        targetPeerNameForTransfer = targetUserName || 'Colleague';
         pendingFileOffer = file;
 
         showToast('⚡ Requesting ' + targetUserName + ' to accept ' + file.name + ' via Direct P2P (0 host storage)...');
@@ -772,6 +1176,7 @@
         pendingFileOffer = file;
         const targetPeer = window.__p2pOnlinePeers.find(p => p.userId === targetPeerForTransfer);
         const peerName = targetPeer ? targetPeer.userName : 'Colleague';
+        targetPeerNameForTransfer = peerName;
 
         showToast('📤 Requesting ' + peerName + ' to accept ' + file.name + '...');
         showP2PProgressCard('Waiting for ' + peerName + ' to accept...', 0, 0, file.size);
@@ -799,6 +1204,7 @@
     function initP2P() {
         sendHeartbeat();
         pollSignals();
+        renderAirDropHistory();
 
         if (heartbeatTimer) clearInterval(heartbeatTimer);
         if (signalTimer) clearInterval(signalTimer);
