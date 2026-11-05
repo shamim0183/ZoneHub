@@ -5342,6 +5342,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            padding-bottom: 140px;
         }
 
         .p2p-radar-header-card {
@@ -6029,7 +6030,7 @@
             align-items: center;
             gap: 14px;
             min-width: 0;
-            flex: 1 1 280px;
+            flex: 1 1 240px;
         }
 
         .p2p-history-icon {
@@ -6057,7 +6058,7 @@
 
         .p2p-history-info {
             min-width: 0;
-            flex: 1 1 auto;
+            flex: 1 1 0;
         }
 
         .p2p-history-title {
@@ -6067,7 +6068,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 480px;
+            max-width: 100%;
         }
 
         .p2p-history-meta {
@@ -6117,6 +6118,7 @@
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
+            flex-shrink: 0;
         }
 
         .p2p-history-empty {
@@ -6127,4 +6129,133 @@
             background: rgba(30, 41, 59, 0.3);
             border-radius: 12px;
             border: 1px dashed rgba(255, 255, 255, 0.08);
+        }
+
+        /* Floating Transfer Card Pin Close Button */
+        .p2p-card-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        .p2p-card-close-btn:hover {
+            background: rgba(244, 63, 94, 0.25);
+            border-color: rgba(244, 63, 94, 0.5);
+            color: #f43f5e;
+            transform: scale(1.1);
+        }
+
+        /* Responsive Breakpoints for AirDrop History & Card */
+        @media (max-width: 900px) {
+            .p2p-history-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .p2p-history-actions {
+                width: 100%;
+                justify-content: flex-start;
+                padding-top: 6px;
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+            }
+        }
+        @media (max-width: 600px) {
+            .p2p-transfer-card {
+                bottom: 12px !important;
+                right: 12px !important;
+                left: 12px !important;
+                width: auto !important;
+                max-width: none !important;
+            }
+        }
+
+        /* Floating P2P Mini-Pill (Docked unobtrusively when minimized) */
+        .p2p-transfer-mini-pill {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99999;
+            height: 38px;
+            padding: 0 16px 0 12px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(56, 189, 248, 0.25);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+            max-width: calc(100vw - 32px);
+        }
+        .p2p-transfer-mini-pill:hover {
+            transform: translateY(-2px);
+            border-color: #38bdf8;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), 0 0 18px rgba(56, 189, 248, 0.4);
+        }
+        .p2p-transfer-mini-pill.completed {
+            border-color: rgba(52, 211, 153, 0.6);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(52, 211, 153, 0.35);
+        }
+        .p2p-pill-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 8px #38bdf8;
+            animation: p2pPillPulseAnim 1.6s infinite;
+            flex-shrink: 0;
+        }
+        .p2p-transfer-mini-pill.completed .p2p-pill-pulse {
+            background: #34d399;
+            box-shadow: 0 0 8px #34d399;
+        }
+        @keyframes p2pPillPulseAnim {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.6; }
+        }
+        .p2p-pill-text {
+            font-size: 12px;
+            font-weight: 700;
+            color: #f8fafc;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 240px;
+        }
+        .p2p-pill-expand-icon {
+            font-size: 13px;
+            color: #38bdf8;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        @media (max-width: 600px) {
+            .p2p-transfer-mini-pill {
+                bottom: 12px;
+                right: 12px;
+                left: 12px;
+                width: auto;
+                justify-content: space-between;
+            }
+            .p2p-pill-text {
+                max-width: 200px;
+            }
         }

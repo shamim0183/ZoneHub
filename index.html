@@ -18,7 +18,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/css/style.css?v=20261104e">
+    <link rel="stylesheet" href="/css/style.css?v=20261105b">
 </head>
 <body>
     <div class="container">
@@ -617,6 +617,10 @@
                             <span class="badge-radar-online">🟢 Radar Active: <strong id="p2pOnlineCount">0</strong> Connected Devices</span>
                             <span class="badge-radar-identity">Your Device: <strong id="p2pMyNameDisplay">You</strong></span>
                             <button type="button" class="btn btn-secondary btn-icon-sm" onclick="refreshPeersList()" title="Scan for devices">🔄 Scan Now</button>
+                            <label class="p2p-auto-accept-label" title="Automatically accept beamed files from local devices without blocking confirmation" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#34d399;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;">
+                                <input type="checkbox" id="p2pAutoAcceptToggle" checked onchange="toggleAutoAccept(this.checked)" style="accent-color:#10b981;cursor:pointer;" />
+                                <span>⚡ Auto-Accept</span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -655,13 +659,21 @@
                 </div>
             </div>
 
+            <!-- Floating P2P Transfer Mini-Pill (Docked unobtrusively when typing/minimized) -->
+            <div id="p2pTransferMiniPill" class="p2p-transfer-mini-pill" onclick="expandP2PTransferCard()" style="display:none;" title="Click to view transfer details">
+                <span class="p2p-pill-pulse"></span>
+                <span id="p2pMiniPillText" class="p2p-pill-text">⚡ AirDrop Transfer</span>
+                <span class="p2p-pill-expand-icon">↗</span>
+            </div>
+
             <!-- Hidden P2P Transfer Progress & Pickers (Floating Bottom Card) -->
             <div id="p2pTransferCard" class="p2p-transfer-card" style="display:none;position:fixed;bottom:24px;right:24px;z-index:99999;width:340px;max-width:calc(100vw - 32px);background:rgba(15,23,42,0.96);box-shadow:0 16px 40px rgba(0,0,0,0.85);border:1px solid rgba(56,189,248,0.4);border-radius:14px;padding:15px;backdrop-filter:blur(12px);">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div style="font-weight:700;font-size:13px;color:#fff;" id="p2pTransferTitle">Transferring...</div>
+                    <div style="font-weight:700;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;" id="p2pTransferTitle">Transferring...</div>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="font-weight:700;color:#38bdf8;font-size:13px;" id="p2pTransferPercent">0%</span>
-                        <button type="button" onclick="closeP2PTransferCard()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:15px;line-height:1;padding:0 2px;" title="Dismiss card">✕</button>
+                        <button type="button" onclick="minimizeP2PTransferCard()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;cursor:pointer;font-size:14px;line-height:1;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" title="Minimize to floating pill (keeps transferring)">—</button>
+                        <button type="button" onclick="closeP2PTransferCard()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;cursor:pointer;font-size:13px;line-height:1;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" title="Close / Minimize">✕</button>
                     </div>
                 </div>
                 <div class="progress-bar-bg" style="margin-top:8px;height:6px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
@@ -670,6 +682,10 @@
                 <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-muted);">
                     <span id="p2pTransferStats">0 MB / 0 MB</span>
                     <span id="p2pTransferSpeed">0 MB/s</span>
+                </div>
+                <div id="p2pCancelContainer" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:10.5px;color:#94a3b8;">Tap — to minimize &amp; type</span>
+                    <button type="button" onclick="cancelActiveP2PTransfer()" style="background:none;border:none;color:#f43f5e;font-size:11px;cursor:pointer;padding:2px 4px;font-weight:600;text-decoration:underline;">⏹ Cancel Transfer</button>
                 </div>
                 <div id="p2pTransferActions" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);flex-direction:column;gap:8px;">
                 </div>
@@ -1460,7 +1476,7 @@
     <script src="/js/screenshare.js?v=20261104a"></script>
     <script src="/js/media.js?v=20261104e"></script>
     <script src="/js/chat.js?v=20261104e"></script>
-    <script src="/js/p2p.js?v=20261104e"></script>
+    <script src="/js/p2p.js?v=20261105b"></script>
     <script src="/js/dashboard.js?v=20261104a"></script>
     <script src="/js/app.js?v=20261104e"></script>
 </body>

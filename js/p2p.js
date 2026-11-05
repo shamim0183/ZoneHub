@@ -35,10 +35,11 @@
     };
 
     // High-performance WebRTC SCTP parameters (RFC 8831)
-    const CHUNK_SIZE = 64 * 1024; // 64 KB per chunk (industry standard for maximum LAN throughput)
-    const READ_BLOCK_SIZE = 1024 * 1024; // 1 MB disk read block (reduces async slice promises by 94%)
-    const HIGH_WATER_MARK = 8 * 1024 * 1024; // 8 MB high-water mark keeps Wi-Fi/Gigabit pipe saturated
-    const LOW_WATER_MARK = 2 * 1024 * 1024;   // 2 MB resume threshold
+    // Universal High-performance WebRTC SCTP parameters (Mobile & Desktop Safe)
+    const CHUNK_SIZE = 32 * 1024;        // 32 KB chunk (guaranteed safe across iOS WebKit, Android Chrome & Desktop)
+    const READ_BLOCK_SIZE = 512 * 1024;  // 512 KB slice blocks
+    const HIGH_WATER_MARK = 1024 * 1024; // 1 MB high-water mark (prevents mobile SCTP buffer rejection)
+    const LOW_WATER_MARK = 256 * 1024;   // 256 KB resume threshold
 
     let activePeerConnections = new Map(); // targetPeerId -> RTCPeerConnection
     let activeDataChannels = new Map();    // targetPeerId -> RTCDataChannel
@@ -46,6 +47,8 @@
     let targetPeerForTransfer = null;
     let targetPeerNameForTransfer = '';
     let currentIncomingTransfer = null;
+    let activeTransferInProgress = false;
+    let isTransferCardMinimized = false;
     let heartbeatTimer = null;
     let signalTimer = null;
 
@@ -115,9 +118,76 @@
     }
     window.addAirDropTransferRecord = addAirDropTransferRecord;
 
-    window.closeP2PTransferCard = function() {
+    function isAutoAcceptEnabled() {
+        return localStorage.getItem('zonehub_auto_accept_airdrop') !== 'false';
+    }
+    window.isAutoAcceptEnabled = isAutoAcceptEnabled;
+
+    window.toggleAutoAccept = function(enabled) {
+        localStorage.setItem('zonehub_auto_accept_airdrop', enabled ? 'true' : 'false');
+        if (typeof showToast === 'function') {
+            showToast(enabled ? '⚡ Auto-Accept ON: Beamed files download immediately' : 'ℹ️ Auto-Accept OFF: Confirmation prompt required');
+        }
+    };
+
+    window.minimizeP2PTransferCard = function() {
+        isTransferCardMinimized = true;
         const card = document.getElementById('p2pTransferCard');
+        const pill = document.getElementById('p2pTransferMiniPill');
         if (card) card.style.display = 'none';
+        if (pill) pill.style.display = 'flex';
+        if (typeof showToast === 'function' && activeTransferInProgress) {
+            showToast('⚡ Transfer minimized to floating pill. Tap it anytime to reopen.');
+        }
+    };
+
+    window.expandP2PTransferCard = function() {
+        isTransferCardMinimized = false;
+        const card = document.getElementById('p2pTransferCard');
+        const pill = document.getElementById('p2pTransferMiniPill');
+        if (pill) pill.style.display = 'none';
+        if (card) card.style.display = 'block';
+    };
+
+    window.closeP2PTransferCard = function() {
+        if (activeTransferInProgress) {
+            // Do not abort if user clicked close merely to type or view screen
+            window.minimizeP2PTransferCard();
+            return;
+        }
+        isTransferCardMinimized = false;
+        const card = document.getElementById('p2pTransferCard');
+        const pill = document.getElementById('p2pTransferMiniPill');
+        if (card) card.style.display = 'none';
+        if (pill) pill.style.display = 'none';
+    };
+
+    window.cancelActiveP2PTransfer = function() {
+        if (!confirm('Are you sure you want to stop and cancel this AirDrop transfer?')) return;
+        activeTransferInProgress = false;
+        isTransferCardMinimized = false;
+
+        for (const [id, dc] of activeDataChannels.entries()) {
+            try { dc.close(); } catch (e) {}
+        }
+        for (const [id, pc] of activePeerConnections.entries()) {
+            try { pc.close(); } catch (e) {}
+        }
+        activeDataChannels.clear();
+        activePeerConnections.clear();
+
+        currentIncomingTransfer = null;
+        pendingFileOffer = null;
+        targetPeerForTransfer = null;
+
+        const card = document.getElementById('p2pTransferCard');
+        const pill = document.getElementById('p2pTransferMiniPill');
+        if (card) card.style.display = 'none';
+        if (pill) pill.style.display = 'none';
+
+        if (typeof showToast === 'function') {
+            showToast('⏹ AirDrop transfer canceled.');
+        }
     };
 
     window.deleteAirDropHistoryItem = function(id) {
@@ -514,6 +584,14 @@
             fileSizeStr: fileSizeStr
         };
 
+        if (isAutoAcceptEnabled()) {
+            if (typeof showToast === 'function') {
+                showToast('⚡ Auto-accepting ' + fileName + ' (' + fileSizeStr + ') from ' + fromName + '...');
+            }
+            window.acceptIncomingAirDrop();
+            return;
+        }
+
         const modal = document.getElementById('incomingAirDropModal');
         const senderText = document.getElementById('airDropSenderText');
         const fileEl = document.getElementById('airDropFileName');
@@ -804,6 +882,18 @@
         }
 
         updateP2PProgress(100, totalBytes, totalBytes, 0);
+        activeTransferInProgress = false;
+        const cancelEl = document.getElementById('p2pCancelContainer');
+        if (cancelEl) cancelEl.style.display = 'none';
+        const pill = document.getElementById('p2pTransferMiniPill');
+        if (pill) {
+            pill.classList.add('completed');
+            const pillText = document.getElementById('p2pMiniPillText');
+            if (pillText) pillText.innerText = '🎉 Sent! Tap to view';
+        }
+        if (isTransferCardMinimized) {
+            window.expandP2PTransferCard();
+        }
         showToast('🎉 Sent ' + file.name + ' via direct P2P successfully (0 host storage used)!');
 
         const txId = 'tx_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
@@ -826,18 +916,25 @@
         // Update floating card actions
         const actionsEl = document.getElementById('p2pTransferActions');
         const titleEl = document.getElementById('p2pTransferTitle');
-        if (titleEl) titleEl.innerHTML = '🎉 Sent: ' + escapeHtml(file.name);
+        if (titleEl) {
+            titleEl.innerText = '🎉 ' + file.name;
+            titleEl.title = file.name;
+        }
         if (actionsEl) {
             actionsEl.style.display = 'flex';
             const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(file.name);
             const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
             actionsEl.innerHTML = 
+                '<div style="font-size:11px;font-weight:700;color:#fff;word-break:break-all;line-height:1.35;max-height:36px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;" title="' + escapeHtml(file.name) + '">' +
+                    escapeHtml(file.name) +
+                '</div>' +
                 '<div style="font-size:11.5px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:6px 10px;border-radius:6px;border:1px solid rgba(56,189,248,0.25);">' +
                     '✓ <strong>Sent to ' + escapeHtml(record.peerName) + '</strong> (0 host storage used)' +
                 '</div>' +
                 (isVideo ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:6px 12px;background:linear-gradient(135deg,#38bdf8,#6366f1);font-weight:700;">▶ Preview Video</button>' : '') +
                 (isImage ? '<button type="button" class="btn btn-primary" onclick="openAirDropMedia(\'' + txId + '\')" style="justify-content:center;font-size:12px;padding:6px 12px;">👁️ Preview Photo</button>' : '') +
-                '<button type="button" class="btn btn-secondary" onclick="uploadAirDropToServer(\'' + txId + '\', this)" style="justify-content:center;font-size:11.5px;padding:6px 10px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ Save to ZoneHub Shared Library</button>';
+                '<button type="button" class="btn btn-secondary" onclick="uploadAirDropToServer(\'' + txId + '\', this)" style="justify-content:center;font-size:11.5px;padding:6px 10px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ Save to ZoneHub Shared Library</button>' +
+                '<button type="button" class="btn btn-secondary" onclick="closeP2PTransferCard()" style="width:100%;justify-content:center;font-size:11.5px;padding:6px;background:transparent;border:1px solid rgba(255,255,255,0.12);color:#94a3b8;margin-top:2px;">✕ Close Window (Dismiss)</button>';
         }
 
         if (typeof window.onP2PTransferCompleted === 'function') {
@@ -976,6 +1073,18 @@
         addAirDropTransferRecord(record, finalBlob, url);
 
         // Keep card prominent with complete actions
+        activeTransferInProgress = false;
+        const cancelEl = document.getElementById('p2pCancelContainer');
+        if (cancelEl) cancelEl.style.display = 'none';
+        const pill = document.getElementById('p2pTransferMiniPill');
+        if (pill) {
+            pill.classList.add('completed');
+            const pillText = document.getElementById('p2pMiniPillText');
+            if (pillText) pillText.innerText = '🎉 Received! Tap to view';
+        }
+        if (isTransferCardMinimized) {
+            window.expandP2PTransferCard();
+        }
         const card = document.getElementById('p2pTransferCard');
         const titleEl = document.getElementById('p2pTransferTitle');
         const percentEl = document.getElementById('p2pTransferPercent');
@@ -987,7 +1096,10 @@
         if (percentEl) percentEl.innerText = '100%';
         if (barEl) barEl.style.width = '100%';
         if (speedEl) speedEl.innerText = 'Complete!';
-        if (titleEl) titleEl.innerHTML = '🎉 File Received: ' + escapeHtml(fileName);
+        if (titleEl) {
+            titleEl.innerText = '🎉 ' + fileName;
+            titleEl.title = fileName;
+        }
         if (statsEl) statsEl.innerText = formatBytes(finalBlob.size) + ' / ' + formatBytes(finalBlob.size);
 
         if (actionsEl) {
@@ -995,6 +1107,9 @@
             const isVideo = /\.(mp4|webm|mov|mkv|avi)$/i.test(fileName);
             const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName);
             actionsEl.innerHTML = 
+                '<div style="font-size:11px;font-weight:700;color:#fff;word-break:break-all;line-height:1.35;max-height:36px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;" title="' + escapeHtml(fileName) + '">' +
+                    escapeHtml(fileName) +
+                '</div>' +
                 '<div style="font-size:11.5px;color:#34d399;background:rgba(16,185,129,0.1);padding:6px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.25);">' +
                     '📁 <strong>Saved in Downloads folder</strong><br/>' +
                     '<span style="color:#94a3b8;font-size:10.5px;">Auto-downloaded to your PC. Watch or open directly below:</span>' +
@@ -1004,7 +1119,8 @@
                 '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
                     '<button type="button" class="btn btn-secondary" onclick="saveAirDropAs(\'' + txId + '\')" style="flex:1;justify-content:center;font-size:11.5px;padding:6px 10px;">💾 Save As...</button>' +
                     '<button type="button" class="btn btn-secondary" onclick="uploadAirDropToServer(\'' + txId + '\', this)" style="flex:1;justify-content:center;font-size:11.5px;padding:6px 10px;color:#38bdf8;border-color:rgba(56,189,248,0.35);">☁️ Save to Library</button>' +
-                '</div>';
+                '</div>' +
+                '<button type="button" class="btn btn-secondary" onclick="closeP2PTransferCard()" style="width:100%;justify-content:center;font-size:11.5px;padding:6px;background:transparent;border:1px solid rgba(255,255,255,0.12);color:#94a3b8;margin-top:2px;">✕ Close Window (Dismiss)</button>';
         }
 
         if (typeof playProfessionalChime === 'function') {
@@ -1026,11 +1142,14 @@
     }
 
     function resetTransferState() {
+        activeTransferInProgress = false;
         pendingFileOffer = null;
         targetPeerForTransfer = null;
         setTimeout(() => {
             const card = document.getElementById('p2pTransferCard');
-            if (card) card.style.display = 'none';
+            const pill = document.getElementById('p2pTransferMiniPill');
+            if (card && !activeTransferInProgress) card.style.display = 'none';
+            if (pill && !activeTransferInProgress) pill.style.display = 'none';
         }, 4000);
     }
 
@@ -1038,23 +1157,62 @@
     // UI Progress Card
     // -------------------------------------------------------------
     function showP2PProgressCard(title, pct, loaded, total) {
+        activeTransferInProgress = true;
         const card = document.getElementById('p2pTransferCard');
+        const pill = document.getElementById('p2pTransferMiniPill');
         const titleEl = document.getElementById('p2pTransferTitle');
-        if (card) card.style.display = 'block';
-        if (titleEl) titleEl.innerText = title;
+        const actionsEl = document.getElementById('p2pTransferActions');
+        const cancelEl = document.getElementById('p2pCancelContainer');
+
+        if (actionsEl) {
+            actionsEl.style.display = 'none';
+            actionsEl.innerHTML = '';
+        }
+        if (cancelEl) {
+            cancelEl.style.display = 'flex';
+        }
+        if (pill) {
+            pill.classList.remove('completed');
+        }
+
+        if (isTransferCardMinimized) {
+            if (pill) pill.style.display = 'flex';
+            if (card) card.style.display = 'none';
+        } else {
+            if (card) card.style.display = 'block';
+            if (pill) pill.style.display = 'none';
+        }
+
+        if (titleEl) {
+            titleEl.innerText = title;
+            titleEl.title = title;
+        }
         updateP2PProgress(pct, loaded, total, 0);
     }
+
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeP2PTransferCard();
+        }
+    });
 
     function updateP2PProgress(pct, loaded, total, speedBytes) {
         const pctEl = document.getElementById('p2pTransferPercent');
         const fillEl = document.getElementById('p2pTransferBarFill');
         const statsEl = document.getElementById('p2pTransferStats');
         const speedEl = document.getElementById('p2pTransferSpeed');
+        const pillText = document.getElementById('p2pMiniPillText');
 
         if (pctEl) pctEl.innerText = pct + '%';
         if (fillEl) fillEl.style.width = pct + '%';
         if (statsEl) statsEl.innerText = formatBytes(loaded) + ' / ' + formatBytes(total);
         if (speedEl) speedEl.innerText = speedBytes > 0 ? (formatBytes(speedBytes) + '/s') : '';
+
+        if (pillText) {
+            const dirIcon = currentIncomingTransfer ? '⬇️ ' : '⬆️ ';
+            const speedStr = speedBytes > 0 ? (' • ' + formatBytes(speedBytes) + '/s') : '';
+            pillText.innerText = dirIcon + pct + '% (' + formatBytes(loaded) + ' / ' + formatBytes(total) + ')' + speedStr;
+        }
     }
 
     // -------------------------------------------------------------
@@ -1202,6 +1360,10 @@
     // Initialization
     // -------------------------------------------------------------
     function initP2P() {
+        const toggleEl = document.getElementById('p2pAutoAcceptToggle');
+        if (toggleEl) {
+            toggleEl.checked = isAutoAcceptEnabled();
+        }
         sendHeartbeat();
         pollSignals();
         renderAirDropHistory();

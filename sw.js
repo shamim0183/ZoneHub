@@ -1,4 +1,4 @@
-const CACHE_NAME = 'media-hub-shell-v22';
+const CACHE_NAME = 'media-hub-shell-v24';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const STATIC_ASSETS = [
   '/js/app.js',
   '/js/media.js',
   '/js/chat.js',
+  '/js/p2p.js',
   '/favicon.svg',
   '/favicon.ico',
   '/favicon.png',
